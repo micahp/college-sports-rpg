@@ -1,0 +1,90 @@
+{
+  "npcs": {
+    "jordan": {
+      "name": "Jordan Hayes",
+      "lines": [
+        "Yo! You made it. Jordan Hayes — room 214, and fair warning, the top bunk is spoken for.",
+        "I'm mid move-in and my mini-fridge is still sitting at the bottom of the Hargrove stairs. That thing weighs more than my whole scholarship."
+      ],
+      "choices": [
+        {
+          "id": "help_unpack",
+          "label": "Grab the other end of the fridge",
+          "tags": ["social"],
+          "effects": { "energy": -10, "roommate_relationship": 14 },
+          "reaction": "It takes both of you, two water breaks, and one near-death experience on the stairs. By the time the fridge hums to life in 214, you know Jordan plays club volleyball, snores 'allegedly,' and his mom already texted him four times. The room feels like yours now."
+        },
+        {
+          "id": "catch_later",
+          "label": "Tell him you'll catch him later — you want to scope out campus first",
+          "tags": ["scholar"],
+          "effects": { "roommate_relationship": -4, "academics": 2 },
+          "reaction": "\"Cold. Noted.\" He says it like a joke, but he hauls the fridge alone and claims the good desk. You do learn the campus layout, so it wasn't nothing."
+        },
+        {
+          "id": "nap_first",
+          "label": "Beg off — the drive was brutal and you need a nap first",
+          "tags": ["rest"],
+          "effects": { "energy": 15, "roommate_relationship": -8, "academics": -4 },
+          "reaction": "You wake up two hours later to a fully decorated half-room and a roommate who has clearly decided you're 'like that.' You feel great physically. Socially, you're starting from behind."
+        }
+      ],
+      "repeat_line": "Fridge status: humming. Go get your bearings — I'll catch you back at Hargrove tonight."
+    },
+    "leader": {
+      "name": "Dee Alvarez — Orientation Leader",
+      "lines": [
+        "Freshman! You have the look. I'm Dee, your orientation leader, and you are officially the last one on my list.",
+        "Orientation session starts right now at the sign — course registration, campus jobs, and the stuff nobody tells you. Or you can wing it. People wing it."
+      ],
+      "choices": [
+        {
+          "id": "attend_orientation",
+          "label": "Stick around for the full session",
+          "tags": ["scholar"],
+          "effects": { "academics": 8, "coach_interest": 3 },
+          "reaction": "You catch the whole thing — registration deadlines, library hours, and one line that makes you sit up: 'Athletic walk-on evaluations are this week. Sign-ups close tomorrow, outside the Rec Center office.' You write it down."
+        },
+        {
+          "id": "explore_alone",
+          "label": "Grab the one-page flyer and explore on your own",
+          "tags": ["social"],
+          "effects": { "energy": 5, "academics": 2 },
+          "reaction": "Dee shrugs and hands you the flyer. \"Respect. The burrito table is northwest, tell them I sent you.\" You do a slow lap of the quad, learn where everything is, and eat well. Cheap calories count."
+        }
+      ],
+      "repeat_line": "Sign-ups for the walk-on evaluations close tomorrow — Rec Center office. Don't make me chase you down."
+    },
+    "coach": {
+      "name": "Coach Delgado",
+      "lines": [
+        "You're hovering. People who hover outside my building usually want the sign-up sheet.",
+        "Walk-on evaluations. Forty kids sign that sheet every year. I keep two. Tell me why I'm keeping you."
+      ],
+      "choices": [
+        {
+          "id": "confident_pitch",
+          "label": "\"Because I'll outwork the other thirty-nine.\"",
+          "tags": ["grind"],
+          "effects": { "coach_interest": 10, "energy": -5 },
+          "reaction": "Delgado's expression doesn't change. \"Everyone says that.\" He turns to go. Then, without looking back: \"Evaluations are Saturday. Come early. I notice who's early.\" That's the closest thing to encouragement anyone's gotten out of him in years — you can tell."
+        },
+        {
+          "id": "honest_answer",
+          "label": "\"Honestly? You might not. But I'd regret not signing it.\"",
+          "tags": ["social"],
+          "effects": { "coach_interest": 7, "roommate_relationship": 2 },
+          "reaction": "Delgado actually looks at you for a second. \"Huh. An honest freshman.\" He nods at the sheet taped by the door. \"Regret's a good reason. Bad players with good reasons still get cut, though.\" You sign. Your handwriting has never been steadier."
+        },
+        {
+          "id": "ask_questions",
+          "label": "Ask what he actually looks for in a walk-on",
+          "tags": ["scholar"],
+          "effects": { "coach_interest": 5, "academics": 3 },
+          "reaction": "\"Smart question. Nobody asks that.\" He holds up three fingers. \"Conditioning, because I can't teach effort. Hands. And grades — I've lost more walk-ons to eligibility than to injury.\" You leave with a checklist. Checklists are your thing."
+        }
+      ],
+      "repeat_line": "Saturday. Early. That's the whole conversation."
+    }
+  }
+}

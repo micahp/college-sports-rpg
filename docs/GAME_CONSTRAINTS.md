@@ -11,18 +11,23 @@ If a task appears to require breaking one of these, stop and flag it instead.
 - Offline, single-player
 - Touch input required; mouse input supported for development
 
-## Presentation
-- Stylized low-poly 3D (later phases); UI-only prototype first
-- Fixed three-quarter camera — no free rotation
-- Tap-to-move navigation
-- One humanoid skeleton shared by all characters
+## Presentation (revised 2026-07-21 — spatial plan is accepted and final)
+- Top-down 2D spatial campus; the player controls a visible character sprite
+  moving through a visible world. Menu/text-driven gameplay is rejected.
+- Camera follows the player; no free rotation
+- Direct movement: WASD/arrows on keyboard, virtual joystick on touch
+- Interactions happen by physically approaching NPCs and entrances
+- Placeholder art is generated in code (no imported assets yet)
+- Prompts and hints must be touch-aware: never show keyboard keys on touch devices
 
 ## World
 - No seamless open world
-- One outdoor campus hub (the quad)
-- Interiors load as separate scenes with a short fade
+- One outdoor campus hub (the quad), ~20–30 seconds to cross
+- Interiors load as separate scenes through building doors
+- Player collides with buildings, trees, benches, and world boundaries
 - Maximum 12 active NPCs per scene
 - NPCs do not need autonomous full-day schedules
+- Walking never advances time; completed activities do
 
 ## Simulation
 - Four time blocks per day: Morning, Afternoon, Evening, Night

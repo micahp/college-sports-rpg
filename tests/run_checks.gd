@@ -85,6 +85,7 @@ func _test_game_state() -> void:
 
 	state.record_choice("beat_a", "choice_1", ["grind"])
 	state.record_choice("beat_b", "choice_2", ["grind", "social"])
+	_check(state.has_made_choice("beat_a") and not state.has_made_choice("beat_z"), "has_made_choice tracks visited beats")
 	var counts: Dictionary = state.tag_counts()
 	_check(int(counts.get("grind", 0)) == 2 and int(counts.get("social", 0)) == 1, "tag counts aggregate across choices")
 
@@ -123,5 +124,16 @@ func _test_day_content() -> void:
 	_check(gated_choice_found, "at least one choice is requirement-gated")
 
 	_check(content.get_identities().size() == 3, "three identities load")
+
+	var npcs: Dictionary = content.get_npc_dialogues()
+	_check(npcs.size() == 3 and npcs.has("jordan") and npcs.has("leader") and npcs.has("coach"), "three NPC dialogues load")
+	var npc_effects_valid: bool = true
+	for npc_id: String in npcs.keys():
+		for choice: Dictionary in npcs[npc_id]["choices"]:
+			for key: String in choice.get("effects", {}).keys():
+				if key not in stat_keys:
+					npc_effects_valid = false
+					printerr("        bad stat key '%s' in NPC choice %s" % [key, choice["id"]])
+	_check(npc_effects_valid, "every NPC choice effect targets a canonical stat")
 
 	content.free()

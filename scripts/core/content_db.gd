@@ -5,8 +5,11 @@ extends Node
 
 const DAYS_DIR: String = "res://data/days/"
 const IDENTITIES_PATH: String = "res://data/characters/identities.json"
+const NPC_DIALOGUE_PATH: String = "res://data/dialogue/day1_npcs.json"
 
 const VALID_PERIODS: Array[String] = ["morning", "afternoon", "evening", "night"]
+
+var _npc_cache: Dictionary = {}
 
 
 ## Returns the ordered beat list for a day, or [] with an error pushed on failure.
@@ -25,6 +28,40 @@ func get_identities() -> Array:
 	if data == null or not data is Dictionary:
 		return []
 	return data.get("identities", [])
+
+
+## Returns { npc_id: {name, lines, choices, repeat_line} }, cached after first load.
+func get_npc_dialogues() -> Dictionary:
+	if not _npc_cache.is_empty():
+		return _npc_cache
+	var data: Variant = _load_json(NPC_DIALOGUE_PATH)
+	if data == null or not data is Dictionary:
+		return {}
+	var npcs: Dictionary = data.get("npcs", {})
+	if _validate_npcs(npcs):
+		_npc_cache = npcs
+	return _npc_cache
+
+
+func _validate_npcs(npcs: Dictionary) -> bool:
+	if npcs.is_empty():
+		push_error("NPC dialogue file has no npcs")
+		return false
+	for npc_id: String in npcs.keys():
+		var npc: Dictionary = npcs[npc_id]
+		for field in ["name", "lines", "choices", "repeat_line"]:
+			if not npc.has(field):
+				push_error("NPC %s missing field '%s'" % [npc_id, field])
+				return false
+		if (npc["lines"] as Array).is_empty():
+			push_error("NPC %s has no lines" % npc_id)
+			return false
+		for choice: Dictionary in npc["choices"]:
+			for field in ["id", "label", "effects", "reaction"]:
+				if not choice.has(field):
+					push_error("NPC %s choice missing '%s'" % [npc_id, field])
+					return false
+	return true
 
 
 func _load_json(path: String) -> Variant:

@@ -72,6 +72,15 @@ func record_choice(beat_id: String, choice_id: String, tags: Array) -> void:
 	choice_history.append({"beat": beat_id, "choice": choice_id, "tags": tags})
 
 
+## True when any choice has been recorded for this beat — used to make
+## one-time conversations unrepeatable for stat farming.
+func has_made_choice(beat_id: String) -> bool:
+	for entry: Dictionary in choice_history:
+		if entry.get("beat", "") == beat_id:
+			return true
+	return false
+
+
 ## Counts choice tags across the run; the recap uses the winner as "primary trait".
 func tag_counts() -> Dictionary:
 	var counts: Dictionary = {}
