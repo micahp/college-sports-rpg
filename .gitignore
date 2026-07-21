@@ -1,0 +1,17 @@
+# Godot 4
+.godot/
+*.translation
+export.cfg
+
+# Imported assets cache
+.import/
+
+# Build outputs and captured screenshots
+build/
+
+# Android build artifacts
+android/
+
+# OS noise
+.DS_Store
+Thumbs.db
