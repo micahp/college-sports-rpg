@@ -40,6 +40,37 @@ Rules:
 - `tags` feed the recap's "primary trait" (grind, social, scholar, rest).
 - `duration_blocks` defaults to 1.
 
+## NPC dialogue — `data/dialogue/day1_npcs.json`
+
+```json
+{
+  "npcs": {
+    "jordan": {
+      "name": "Jordan Hayes",
+      "lines": ["Shown one at a time before the choices."],
+      "choices": [
+        {
+          "id": "help_unpack",
+          "label": "Button label",
+          "tags": ["social"],
+          "effects": { "energy": -10, "roommate_relationship": 14 },
+          "reaction": "Shown after picking, with stat deltas appended."
+        }
+      ],
+      "repeat_line": "Single line for visits after the choice was made."
+    }
+  }
+}
+```
+
+Rules:
+- Choices are one-time per NPC: the pick is recorded as beat `npc_<id>` in
+  GameState.choice_history; later visits show only `repeat_line`, no effects.
+- Same effects/tags semantics as day beats; ids reuse day_1.json's where the
+  narrative matches so recap highlights keep working.
+- NPC world placement (position, colors, node name) lives in
+  `campus.gd::NPC_SPAWNS`, keyed by the same npc id.
+
 ## Identities — `data/characters/identities.json`
 
 ```json

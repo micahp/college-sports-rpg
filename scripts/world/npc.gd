@@ -8,14 +8,19 @@ const SpriteFactory: GDScript = preload("res://scripts/world/sprite_factory.gd")
 
 const INTERACT_RADIUS: float = 84.0
 
+@export var npc_id: String = ""
 @export var npc_name: String = "Student"
 @export var shirt_color: Color = Color("c8452e")
 @export var hair_color: Color = Color("1d1a17")
 
-var dialogue_lines: Array[String] = []
 var player_in_range: bool = false
 
 var _prompt: Label
+
+
+## Touch devices get the button name, keyboards get the key.
+static func prompt_text(touch: bool) -> String:
+	return "Tap TALK" if touch else "[E] Talk"
 
 
 func _ready() -> void:
@@ -45,7 +50,7 @@ func _ready() -> void:
 	area.body_exited.connect(_on_body_exited)
 
 	_prompt = Label.new()
-	_prompt.text = "[E] Talk"
+	_prompt.text = prompt_text(DisplayServer.is_touchscreen_available())
 	_prompt.position = Vector2(-36, -102)
 	_prompt.add_theme_font_size_override("font_size", 19)
 	_prompt.add_theme_color_override("font_color", Color("ffe9a8"))

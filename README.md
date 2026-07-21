@@ -1,46 +1,62 @@
 # The U
 
-A mobile college-life RPG. You arrive at North Valley State with one life,
-four years, and a walk-on evaluation on Saturday. Every choice closes a door.
+A top-down 2D mobile college-life RPG. You arrive at North Valley State with
+one life, four years, and a walk-on evaluation on Saturday. Every choice
+closes a door.
 
-**Current build:** Day One vertical slice — menu-driven, no 3D yet.
-The simulation comes first; the campus is an interface to it.
+**Play it:** https://micahp.github.io/college-sports-rpg/
 
-## Run it
+**Current build:** Milestone 2 of the Day One vertical slice — a walkable
+campus courtyard with three NPCs whose conversations have real choices and
+immediate stat consequences. All art is placeholder, generated in code.
+
+## Controls
+
+| | Desktop | Mobile |
+|---|---|---|
+| Move | WASD / arrow keys | virtual joystick (bottom-left) |
+| Talk | E near an NPC | TALK button (appears in range) |
+| Advance dialogue | E or click | tap the panel |
+
+## Run it locally
 
 1. Install [Godot 4.3+](https://godotengine.org/download) (standard build, not .NET).
 2. Open this folder in the Godot editor (`project.godot`).
-3. Press F5. The main scene is `scenes/app/main.tscn`.
+3. Press F5. The main scene is `scenes/world/campus.tscn`.
 
-Mouse clicks emulate touch, so it plays fine on desktop while developing.
+Mouse clicks emulate touch, so mobile controls are testable on desktop.
 
 ## Check it
 
 ```
-godot --headless -s tests/run_checks.gd
+godot --headless -s tests/run_checks.gd          # systems + content validation
+godot --headless tests/campus_autoplay.tscn      # input-driven acceptance test
+xvfb-run godot tests/screenshot.tscn             # rendered screenshots (build/shots/)
 ```
-
-Exits 0 when the time system, game state, and Day 1 content all pass.
 
 ## Project map
 
 ```
-docs/       Frozen constraints, slice spec, data schemas, definition of done
-data/       All game content as JSON (days, identities) — edit story here
+docs/            Constraints (frozen), milestone plan, schemas, definition of done
+data/            All narrative + stat effects as JSON — edit story here
+  dialogue/      NPC conversations (day1_npcs.json)
+  days/          Time-block day beats (Milestone 3 wires these to activities)
 scripts/
-  core/     Autoload singletons: GameState, TimeSystem, ContentDB, SaveSystem
-  ui/       day_flow.gd — the Day One screen flow
-scenes/     main.tscn (UI is built in code)
-tests/      Headless acceptance checks
+  core/          Autoloads: InputSetup, GameState, TimeSystem, ContentDB, SaveSystem
+  world/         Campus scene, player, NPCs, generated placeholder art
+  ui/            HUD, virtual joystick, dialogue panel
+scenes/world/    campus.tscn (main), player.tscn, npc.tscn
+scenes/app/      Superseded menu prototype (kept for reference; not the game)
+tests/           Headless acceptance suites
 ```
 
-Read `docs/GAME_CONSTRAINTS.md` before changing anything — those decisions are
-frozen, and every AI-assisted task should cite it.
+Read `docs/GAME_CONSTRAINTS.md` before changing anything. The game is spatial:
+a visible character moving through a visible campus. Menu-driven gameplay was
+explicitly rejected — do not reintroduce it.
 
-## What's next (in order)
+## Milestones
 
-1. Playtest Day 1 with five people; ship/no-ship signal is "I want to replay."
-2. Days 2–6 as pure content in `data/days/`.
-3. Day 7: the walk-on evaluation minigame (timing meter + stats).
-4. Week recap screen — the shareable artifact.
-5. Only then: the 3D quad.
+1. ~~World: map, movement, collision, camera, mobile controls, one NPC~~ ✓ (audit passed)
+2. ~~Conversations: three NPCs, dialogue choices, visible stat changes~~ ✓ (awaiting checkpoint)
+3. Places and time: building interiors, scene transitions, time periods, activity locking
+4. The full day: morning→night sequence, recap, save/continue, regression pass

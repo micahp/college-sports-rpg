@@ -42,23 +42,46 @@ const BENCHES: Array = [
 
 const SIGN_BOARD: Rect2 = Rect2(860, 780, 196, 84)
 
+## Where each NPC from data/dialogue/day1_npcs.json stands in the world.
+const NPC_SPAWNS: Array = [
+	{"id": "jordan", "node": "Jordan", "pos": Vector2(1220, 700), "shirt": Color("c8452e"), "hair": Color("1d1a17")},
+	{"id": "leader", "node": "Leader", "pos": Vector2(960, 700), "shirt": Color("d9a520"), "hair": Color("4a2c17")},
+	{"id": "coach", "node": "Coach", "pos": Vector2(1876, 930), "shirt": Color("2d3a4a"), "hair": Color("6e6a66")},
+]
+
+const STAT_SHORT_NAMES: Dictionary = {
+	"energy": "Energy",
+	"academics": "Grades",
+	"athleticism": "Athleticism",
+	"basketball_skill": "Basketball",
+	"roommate_relationship": "Jordan",
+	"coach_interest": "Coach Interest",
+}
+
 var player: CharacterBody2D
 var current_npc: Node = null
 
+var _npc_dialogues: Dictionary = {}
+var _active_npc_id: String = ""
 var _joystick: Control
 var _interact_button: Button
 var _dialogue: PanelContainer
 
 
 func _ready() -> void:
+	_npc_dialogues = ContentDB.get_npc_dialogues()
 	_build_world()
 	_build_actors()
 	_build_ui()
 
 
 func _process(_delta: float) -> void:
+	var talking: bool = _dialogue.visible
 	player.external_input = _joystick.output
-	_interact_button.disabled = current_npc == null and not _dialogue.visible
+	# Touch controls yield the screen to the dialogue panel; TALK only exists
+	# when there is actually someone to talk to.
+	_joystick.visible = not talking
+	_interact_button.visible = current_npc != null and not talking
 	if Input.is_action_just_pressed("interact"):
 		_do_interact()
 
@@ -67,8 +90,31 @@ func _do_interact() -> void:
 	if _dialogue.visible:
 		_dialogue.advance()
 	elif current_npc != null:
+		_active_npc_id = current_npc.npc_id
+		var dialogue_data: Dictionary = _npc_dialogues.get(_active_npc_id, {})
+		if dialogue_data.is_empty():
+			return
 		player.control_locked = true
-		_dialogue.open(current_npc.npc_name, current_npc.dialogue_lines)
+		if GameState.has_made_choice("npc_" + _active_npc_id):
+			_dialogue.open(dialogue_data["name"], [dialogue_data["repeat_line"]], [])
+		else:
+			_dialogue.open(dialogue_data["name"], dialogue_data["lines"], dialogue_data["choices"])
+
+
+func _on_choice_selected(choice: Dictionary) -> void:
+	var applied: Dictionary = GameState.apply_effects(choice.get("effects", {}))
+	GameState.record_choice("npc_" + _active_npc_id, str(choice["id"]), choice.get("tags", []))
+	_dialogue.show_reaction(str(choice["reaction"]) + "\n\n" + _format_deltas(applied))
+
+
+func _format_deltas(applied: Dictionary) -> String:
+	if applied.is_empty():
+		return "(no stat changes)"
+	var parts: PackedStringArray = PackedStringArray()
+	for key: String in applied.keys():
+		var delta: int = int(applied[key])
+		parts.append("%s %s%d" % [STAT_SHORT_NAMES.get(key, key), "+" if delta > 0 else "", delta])
+	return "   ".join(parts)
 
 
 # --- World -------------------------------------------------------------------
@@ -128,18 +174,16 @@ func _build_actors() -> void:
 	actors.add_child(player)
 	player.set_camera_limits(WORLD)
 
-	var jordan: StaticBody2D = NpcScene.instantiate()
-	jordan.name = "Jordan"
-	jordan.npc_name = "Jordan Hayes"
-	jordan.position = Vector2(1220, 700)
-	actors.add_child(jordan)
-	var jordan_lines: Array[String] = [
-		"Yo! You made it. Jordan Hayes — room 214, and fair warning, the top bunk is spoken for.",
-		"Quick tour: classes are northeast in Moreno, the Rec Center's southeast, food's at the Student Center southwest. The quad is the shortcut to everything.",
-		"Go get your bearings. I'll catch you back at Hargrove tonight.",
-	]
-	jordan.dialogue_lines = jordan_lines
-	jordan.range_changed.connect(_on_npc_range_changed)
+	for spawn: Dictionary in NPC_SPAWNS:
+		var npc: StaticBody2D = NpcScene.instantiate()
+		npc.name = spawn["node"]
+		npc.npc_id = spawn["id"]
+		npc.npc_name = _npc_dialogues.get(spawn["id"], {}).get("name", "Student")
+		npc.shirt_color = spawn["shirt"]
+		npc.hair_color = spawn["hair"]
+		npc.position = spawn["pos"]
+		actors.add_child(npc)
+		npc.range_changed.connect(_on_npc_range_changed)
 
 
 func _on_npc_range_changed(npc: Node, in_range: bool) -> void:
@@ -205,6 +249,7 @@ func _build_ui() -> void:
 	_dialogue.set_script(DialogueScript)
 	ui.add_child(_dialogue)
 	_dialogue.finished.connect(_on_dialogue_finished)
+	_dialogue.choice_selected.connect(_on_choice_selected)
 
 
 func _on_dialogue_finished() -> void:
