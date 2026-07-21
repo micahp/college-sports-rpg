@@ -1,0 +1,25 @@
+{
+  "identities": [
+    {
+      "id": "workhorse",
+      "name": "Workhorse",
+      "blurb": "Nobody outworks you. Skill and conditioning come easy; everything else costs extra.",
+      "effects": { "basketball_skill": 6, "athleticism": 4, "energy": -5 },
+      "tag": "grind"
+    },
+    {
+      "id": "natural",
+      "name": "Natural Talent",
+      "blurb": "You've always been the best athlete in the room. Now the room is bigger.",
+      "effects": { "athleticism": 10, "academics": -5 },
+      "tag": "grind"
+    },
+    {
+      "id": "scholar",
+      "name": "Scholar",
+      "blurb": "You got in on grades, not game. The team doesn't know you exist. Yet.",
+      "effects": { "academics": 12, "basketball_skill": -4 },
+      "tag": "scholar"
+    }
+  ]
+}

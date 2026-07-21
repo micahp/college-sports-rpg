@@ -1,0 +1,122 @@
+{
+  "day": 1,
+  "beats": [
+    {
+      "id": "morning_arrival",
+      "period": "morning",
+      "title": "Move-In Day",
+      "text": "North Valley State. Room 214, Hargrove Hall. Your roommate got here first — half the room is already covered in his stuff, and he's wrestling a mini-fridge through the door.\n\n\"Yo! You must be my roommate. Jordan Hayes.\" He nods at the fridge. \"This thing weighs more than my whole scholarship.\"\n\nOrientation for new students starts across the quad in twenty minutes.",
+      "choices": [
+        {
+          "id": "help_unpack",
+          "label": "Grab the other end of the fridge",
+          "tags": ["social"],
+          "effects": { "energy": -10, "roommate_relationship": 14 },
+          "reaction": "It takes both of you, two water breaks, and one near-death experience on the stairs. By the time the fridge hums to life, you know Jordan plays club volleyball, snores 'allegedly,' and his mom already texted him four times. You miss orientation, but the room feels like yours now."
+        },
+        {
+          "id": "go_orientation",
+          "label": "Apologize and head to orientation",
+          "tags": ["scholar"],
+          "effects": { "academics": 8, "roommate_relationship": -4, "coach_interest": 3 },
+          "reaction": "You catch the whole session — course registration deadlines, campus jobs, and one line that makes you sit up: 'Athletic walk-on evaluations are this week. Sign-ups close tomorrow.' You write it down. Back at the dorm, Jordan has finished the fridge alone and claimed the good desk."
+        },
+        {
+          "id": "sleep_in",
+          "label": "Crash on the bare mattress — the drive was brutal",
+          "tags": ["rest"],
+          "effects": { "energy": 15, "roommate_relationship": -8, "academics": -4 },
+          "reaction": "You wake up two hours later to a fully decorated half-room and a roommate who has clearly decided you're 'like that.' You feel great physically. Socially, you're starting from behind."
+        }
+      ]
+    },
+    {
+      "id": "afternoon_path",
+      "period": "afternoon",
+      "title": "First Afternoon",
+      "text": "The campus map on your phone shows three pins you care about:\n\nMoreno Hall — Intro to Kinesiology, the one class that meets today.\nThe Rec Center — open gym, and word is some of the team runs there before official practice starts.\nThe Quad — every club at North Valley has a table out, and someone is giving away free burritos.",
+      "choices": [
+        {
+          "id": "attend_class",
+          "label": "Go to Kinesiology — start the semester right",
+          "tags": ["scholar"],
+          "effects": { "academics": 10, "energy": -8 },
+          "reaction": "Professor Okafor doesn't do syllabus day. You leave with actual notes, an assignment due Friday, and one useful fact: she gives athletes zero special treatment, and she says it like a warning."
+        },
+        {
+          "id": "open_gym",
+          "label": "Hit open gym at the Rec Center",
+          "tags": ["grind"],
+          "requirements": { "energy_min": 30 },
+          "effects": { "basketball_skill": 8, "athleticism": 4, "energy": -20, "coach_interest": 4 },
+          "reaction": "The run is faster than anything from high school. You hold your own — a couple of buckets, one chase-down block that gets an 'OHHH' from the sideline. A wiry guy in a North Valley polo watches the last two games from the doorway, says nothing, and leaves."
+        },
+        {
+          "id": "explore_quad",
+          "label": "Work the quad — clubs, people, free burritos",
+          "tags": ["social"],
+          "effects": { "roommate_relationship": 6, "energy": 5, "academics": 2 },
+          "reaction": "You run into Jordan at the club volleyball table and end up doing a full lap together. You leave with two burritos, a flyer for intramurals, and the names of half your floor. Cheap calories, cheap goodwill — both count."
+        }
+      ]
+    },
+    {
+      "id": "evening_coach",
+      "period": "evening",
+      "title": "Coach Delgado",
+      "text": "You go to sign the walk-on evaluation sheet outside the Rec Center office, and the door is open. The man behind the desk is watching film with the sound off. The nameplate says M. DELGADO — MEN'S BASKETBALL.\n\nHe looks up. \"You signing that?\" He doesn't wait for an answer. \"Forty kids sign it every year. I keep two. Tell me why I'm keeping you.\"",
+      "choices": [
+        {
+          "id": "confident_pitch",
+          "label": "\"Because I'll outwork the other thirty-nine.\"",
+          "tags": ["grind"],
+          "effects": { "coach_interest": 10, "energy": -5 },
+          "reaction": "Delgado's expression doesn't change. \"Everyone says that.\" He turns back to the film. Then, without looking up: \"Evaluations are Saturday. Come early. I notice who's early.\" That's the closest thing to encouragement anyone's gotten out of him in years — you can tell."
+        },
+        {
+          "id": "honest_answer",
+          "label": "\"Honestly? You might not. But I'd regret not signing it.\"",
+          "tags": ["social"],
+          "effects": { "coach_interest": 7, "roommate_relationship": 2 },
+          "reaction": "Delgado actually looks at you for a second. \"Huh. An honest freshman.\" He slides the pen across the desk. \"Regret's a good reason. Bad players with good reasons still get cut, though.\" You sign. Your handwriting has never been steadier."
+        },
+        {
+          "id": "ask_questions",
+          "label": "Ask what he actually looks for in a walk-on",
+          "tags": ["scholar"],
+          "effects": { "coach_interest": 5, "academics": 3 },
+          "reaction": "\"Smart question. Nobody asks that.\" He holds up three fingers. \"Conditioning, because I can't teach effort at altitude. Hands. And grades — I've lost more walk-ons to eligibility than to injury.\" You leave with a checklist. Checklists are your thing."
+        }
+      ]
+    },
+    {
+      "id": "night_choice",
+      "period": "night",
+      "title": "Lights Out — Almost",
+      "text": "Back in room 214. Jordan is at his desk with headphones half-on. Your Kinesiology reading is sitting there unopened. Saturday — the evaluation — suddenly feels very close, and your legs already know what today cost.\n\nIt's 10:40 PM. You've got one more decision in you.",
+      "choices": [
+        {
+          "id": "study_night",
+          "label": "Knock out the Kinesiology reading",
+          "tags": ["scholar"],
+          "effects": { "academics": 8, "energy": -10 },
+          "reaction": "You read until your eyes cross. Muscle fiber types, energy systems — half of this is literally about your own body. At midnight Jordan tosses you a granola bar without a word. It's the little things."
+        },
+        {
+          "id": "hang_jordan",
+          "label": "Hang with Jordan — he found a terrible movie",
+          "tags": ["social"],
+          "effects": { "roommate_relationship": 12, "energy": -5 },
+          "reaction": "The movie is genuinely awful and you both commit to it completely. Somewhere around midnight, between quoting the worst lines, Jordan says, \"If you make that team, I'm at every home game.\" You believe him."
+        },
+        {
+          "id": "sleep_early",
+          "label": "Sleep. Saturday is coming.",
+          "tags": ["rest"],
+          "effects": { "energy": 20 },
+          "reaction": "You're out in four minutes. Your last thought is Delgado's voice: 'I notice who's early.' Day one down. Six until the evaluation."
+        }
+      ]
+    }
+  ]
+}
