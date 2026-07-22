@@ -21,7 +21,19 @@ completed start to recap; save/continue broken; mobile input missing.
 - [x] Touch devices never see keyboard hints ([E] etc.)
 - [x] `tests/campus_autoplay.tscn` passes headless (60+ input-driven checks)
 
-## Milestone 3 — Places and time
+## Milestone 1.5 — Visual target (implemented, awaiting checkpoint)
+- [x] Stylized 3D courtyard with fixed three-quarter camera, warm lighting, shadows
+- [x] Player and Jordan are proper animated humanoid models with distinct looks
+- [x] Environment reads as a university: Rec Center facade + door + signage,
+      flanking buildings, campus sign, trees, benches, streetlights, flags
+- [x] Movement feel: acceleration, braking, turn-toward-direction, idle/walk blend
+- [x] Collision: buildings, trees, props, boundaries
+- [x] Interaction: bobbing speech indicator, in-range TALK, polished dialogue card
+- [x] Minimal HUD (Day · Period + energy bar), joystick, all touch-safe
+- [x] Postable screenshot set (build/shots3d/) and 12s gameplay clip (build/clip/)
+- [x] `tests/campus3d_autoplay.tscn` passes headless (21 checks)
+
+## Milestone 3 — Places and time (now: rewire M2 systems into 3D first)
 - [ ] Dorm, classroom, gym interiors load through their doors and back
 - [ ] Time advances only on completed activities; HUD updates
 - [ ] Afternoon lock: entering class or gym consumes the period, other becomes
