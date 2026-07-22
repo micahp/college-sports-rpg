@@ -29,13 +29,25 @@ greenery, late-afternoon sun. Not chunky/voxel, not realistic.
 All by **Quaternius** (quaternius.com), released CC0 1.0. Thank you, Quaternius.
 
 ## Ingest recipe (repeatable)
-1. itch.io packs: `scratchpad/fetch_packs.py` automates the widget flow.
+1. itch.io packs: `tools/fetch_packs.py` automates the widget flow
+   (edit the PACKS list and the OUT path, then `python3 tools/fetch_packs.py`).
 2. Older packs: Google Drive folders via `gdown --folder` (quota-limited; retry later).
 3. Single props: poly.pizza model pages → `static.poly.pizza/*.glb.br`
    (needs `Accept-Encoding: br`, then brotli-decompress).
 4. Copy only needed models + their referenced textures into `assets/<category>/`.
 5. Downscale textures >1024px (PIL), then `godot --headless --import`.
 6. Verify with `tests/inspect_assets.gd` (node tree + animation list + AABBs).
+
+## Tooling on a fresh machine
+- Godot 4.3 Linux binary (headless-capable):
+  `curl -sLO https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip`
+- Web export templates (extract `templates/web_*` + `templates/version.txt` to
+  `~/.local/share/godot/export_templates/4.3.stable/`):
+  `Godot_v4.3-stable_export_templates.tpz` from the same release page.
+- Visual review without a display: `xvfb-run` + `LIBGL_ALWAYS_SOFTWARE=1`
+  + `--rendering-driver opengl3` (see tests/screenshot3d.gd and tests/clip3d.gd).
+- Deploy = export Web preset, copy `build/shots3d` + clip into `build/web`,
+  force-push `build/web` contents as the `gh-pages` branch.
 
 ## Composition notes (campus3d.gd)
 - Fixed camera: pitch −46°, yaw 22°, distance 21.5, FOV 31 — do not let it rotate.
