@@ -1,5 +1,5 @@
 extends Node
-## Milestone 1.5 acceptance test, run headless with real physics and input:
+## Milestone 1.6 acceptance test, run headless with real physics and input:
 ##   godot --headless tests/campus3d_autoplay.tscn
 ## Covers: player exists and moves in all four directions (keyboard + joystick),
 ## collides with trees and boundaries, Jordan's prompt/TALK behavior, dialogue
@@ -51,19 +51,19 @@ func _run() -> void:
 	_check(_player.global_position.x - before_joy.x > 1.0, "joystick moves the player")
 	await _frames(5)
 
-	# Collision: tree trunk (tree at (-9, 0, -8), approach from the east).
-	_player.global_position = Vector3(-6.5, 0.1, -8)
+	# Collision: tree trunk (tree at (-10.5, 0, -8), approach from the east).
+	_player.global_position = Vector3(-8, 0.1, -8)
 	Input.action_press("move_left")
 	await _frames(80)
 	Input.action_release("move_left")
-	_check(_player.global_position.x > -8.6, "tree trunk blocks the player")
+	_check(_player.global_position.x > -10.0, "tree trunk blocks the player")
 
-	# Collision: world boundary.
+	# Collision: world boundary (west wall sits at x = -24).
 	_player.global_position = Vector3(-22, 0.1, 5)
 	Input.action_press("move_left")
 	await _frames(80)
 	Input.action_release("move_left")
-	_check(_player.global_position.x > _campus.BOUNDS.position.x - 0.6, "boundary wall contains the player")
+	_check(_player.global_position.x > -24.6, "boundary wall contains the player")
 
 	# Jordan: prompt, TALK, dialogue, movement lock, resume.
 	var jordan: Node3D = _campus.jordan

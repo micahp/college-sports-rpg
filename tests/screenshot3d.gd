@@ -39,9 +39,9 @@ func _run() -> void:
 		" at ", _campus.jordan._indicator.global_position)
 	await _shoot("res://build/shots3d/near_jordan.png")
 
-	# Dialogue open.
+	# Dialogue open — wait out the 0.7s camera ease before shooting.
 	_campus._do_interact()
-	await _frames(20)
+	await _frames(60)
 	await _shoot("res://build/shots3d/dialogue.png")
 
 

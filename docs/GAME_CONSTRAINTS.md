@@ -11,14 +11,19 @@ If a task appears to require breaking one of these, stop and flag it instead.
 - Offline, single-player
 - Touch input required; mouse input supported for development
 
-## Presentation (revised 2026-07-21 — spatial plan is accepted and final)
-- Top-down 2D spatial campus; the player controls a visible character sprite
-  moving through a visible world. Menu/text-driven gameplay is rejected.
-- Camera follows the player; no free rotation
+## Presentation (revised 2026-07-22 — stylized 3D is accepted and final)
+- Stylized low-poly 3D spatial campus; the player controls a visible
+  character moving through a visible world. Menu/text-driven gameplay is
+  rejected. See `ART_PIPELINE.md` for the locked art direction.
+- Fixed three-quarter camera follows the player with look-ahead; no free
+  rotation. Conversations ease into a closer two-shot, then restore.
 - Direct movement: WASD/arrows on keyboard, virtual joystick on touch
 - Interactions happen by physically approaching NPCs and entrances
-- Placeholder art is generated in code (no imported assets yet)
+- Environment is authored as a Godot scene (`campus3d.tscn`) from reusable
+  subscenes; scripts carry behavior only, not scene construction
 - Prompts and hints must be touch-aware: never show keyboard keys on touch devices
+- The earlier top-down 2D build (`scripts/world/`, `scenes/world/`) is
+  archived systems validation — kept for its passing tests, not shipped
 
 ## World
 - No seamless open world

@@ -18,13 +18,18 @@ greenery, late-afternoon sun. Not chunky/voxel, not realistic.
 
 | What | Pack | Where |
 |---|---|---|
-| Player (casual tee) | Animated Men — `Male_Casual.fbx` | quaternius.com (Drive) |
-| Jordan (shirt) | Animated Men — `Male_Shirt.fbx` | quaternius.com (Drive) |
-| 11 shared animations | embedded in the FBX (Idle/Walk/Run/Sit…) | — |
-| Buildings, door | Downtown City MegaKit | quaternius.itch.io |
-| Trees, bushes, flowers | Stylized Nature MegaKit | quaternius.itch.io |
-| Bench, trashcan, streetlight, flag | Quaternius singles | poly.pizza |
+| Player + male background students | Animated Men — `Male_Casual/Shirt/LongSleeve/Suit.fbx` | quaternius.com (Drive) |
+| Female background students | Animated Women — `Female_Casual/TankTop/Dress/Alternative.fbx` | quaternius.com (Drive) |
+| 11 shared animations (per sex) | embedded in the FBX (Idle/Walk/Run/Sit…) | — |
+| Buildings, door, stairs, bollard, planters | Downtown City MegaKit | quaternius.itch.io |
+| Trees, bushes, flowers, grass, clover | Stylized Nature MegaKit | quaternius.itch.io |
+| Bench, trashcan, streetlight, flag, backpack, table | Quaternius singles | poly.pizza |
 | (spare) superhero bodies + hair | Universal Base Characters + UAL | quaternius.itch.io |
+
+Characters are one shared rig recolored per instance by surface name
+(`character_appearance.gd`): Skin/Hair/Shirt/Pants → distinct silhouettes
+from one FBX. The player carries a recolored backpack; the Ridgehawk flags
+reuse the CC0 flag mesh recolored to navy + gold (`recolor.gd`).
 
 All by **Quaternius** (quaternius.com), released CC0 1.0. Thank you, Quaternius.
 
@@ -49,9 +54,34 @@ All by **Quaternius** (quaternius.com), released CC0 1.0. Thank you, Quaternius.
 - Deploy = export Web preset, copy `build/shots3d` + clip into `build/web`,
   force-push `build/web` contents as the `gh-pages` branch.
 
-## Composition notes (campus3d.gd)
-- Fixed camera: pitch −46°, yaw 22°, distance 21.5, FOV 31 — do not let it rotate.
-- Sun: warm (1.0, 0.9, 0.76) at (−38°, −58°), energy 1.25, shadows on;
-  sky ambient 0.85, filmic tonemap.
+## Scene authoring (Milestone 1.6)
+The courtyard is an **editor-authored scene**, `scenes/world3d/campus3d.tscn`,
+built from reusable subscenes in `scenes/world3d/env/` (rec_center,
+campus_sign, info_board, club_table, pole_banner) plus `player3d.tscn`,
+`npc3d.tscn`, and `student.tscn`. `scripts/world3d/campus3d.gd` holds runtime
+behavior only (camera follow, conversation move, interaction, audio) — it does
+**not** place environment nodes.
+
+Regenerate the scaffold with `godot --headless -s tools/build_campus_scene.gd`;
+after that the `.tscn` files are the source of truth and can be opened and
+tweaked by eye in the Godot editor. Marker positions and prop placements live
+in that generator, one deliberate composition choice per line — never a random
+scatter of important visual elements.
+
+Branding and ground textures are generated procedurally and CC0-safe:
+`tools/make_branding.py` (emblem, banners, posters, plaza decal) and the
+`assets/ground/` grass. Presentation audio: `tools/make_audio.py` (ambient
+bed, footsteps, UI sounds).
+
+## Composition notes
+- Fixed gameplay camera: pitch −38°, yaw 20°, distance 20.5, FOV 33, with a
+  north look-ahead so the frame favors the destination, not empty ground.
+  Do not let it rotate.
+- Conversation camera: eases perpendicular to the speakers' line for a
+  profile two-shot (pitch −33°, distance 10.5), then restores.
+- Sun: warm (1.0, 0.93, 0.82) at (−52°, −38°), energy 1.1, soft shadows
+  (opacity 0.6, blur 2.0); a cool low fill light lifts shadowed sides; sky
+  ambient 1.05, filmic tonemap. Grass and pavement are desaturated so the
+  scene reads as art-directed, not toy-like.
 - Every frame should have foreground (bush/tree), midground (actors), and
   background (building/facade) elements.

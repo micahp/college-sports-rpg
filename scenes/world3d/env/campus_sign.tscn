@@ -1,0 +1,81 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/branding/emblem.png" id="1_bbwpb"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ew4jb"]
+albedo_color = Color(0.12, 0.2, 0.36, 1)
+roughness = 0.55
+
+[sub_resource type="BoxMesh" id="BoxMesh_wvr2o"]
+material = SubResource("StandardMaterial3D_ew4jb")
+size = Vector3(3.9, 1.5, 0.45)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ljixn"]
+albedo_color = Color(0.92, 0.72, 0.3, 1)
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_2i0hg"]
+material = SubResource("StandardMaterial3D_ljixn")
+size = Vector3(4.05, 0.12, 0.55)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wmljd"]
+albedo_color = Color(0.55, 0.53, 0.5, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_t07d1"]
+material = SubResource("StandardMaterial3D_wmljd")
+size = Vector3(4.2, 0.22, 0.7)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ltr7k"]
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 0
+cull_mode = 2
+albedo_texture = ExtResource("1_bbwpb")
+roughness = 0.9
+
+[sub_resource type="QuadMesh" id="QuadMesh_okj5u"]
+material = SubResource("StandardMaterial3D_ltr7k")
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_vyfoo"]
+size = Vector3(4, 1.6, 0.6)
+
+[node name="CampusSign" type="Node3D"]
+
+[node name="Slab" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+mesh = SubResource("BoxMesh_wvr2o")
+
+[node name="Cap" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.56, 0)
+mesh = SubResource("BoxMesh_2i0hg")
+
+[node name="Base" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.11, 0)
+mesh = SubResource("BoxMesh_t07d1")
+
+[node name="Emblem" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.28, 0.82, 0.24)
+mesh = SubResource("QuadMesh_okj5u")
+
+[node name="@Label3D@3" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1.05, 0.24)
+modulate = Color(0.92, 0.72, 0.3, 1)
+outline_modulate = Color(0.08, 0.1, 0.16, 1)
+text = "NORTH VALLEY STATE"
+font_size = 56
+outline_size = 7
+
+[node name="@Label3D@4" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.62, 0.24)
+modulate = Color(1, 1, 1, 0.9)
+outline_modulate = Color(0.08, 0.1, 0.16, 1)
+text = "HOME OF THE RIDGEHAWKS"
+font_size = 26
+outline_size = 3
+
+[node name="@StaticBody3D@5" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="@StaticBody3D@5"]
+shape = SubResource("BoxShape3D_vyfoo")
