@@ -3,8 +3,8 @@ extends Control
 ## because the project emulates touch from mouse. Exposes `output` as a
 ## unit-clamped Vector2 the campus feeds to the player every frame.
 
-const RADIUS: float = 80.0
-const KNOB_RADIUS: float = 34.0
+const RADIUS: float = 64.0
+const KNOB_RADIUS: float = 27.0
 
 var output: Vector2 = Vector2.ZERO
 
@@ -37,6 +37,8 @@ func _update_output(screen_position: Vector2) -> void:
 
 func _draw() -> void:
 	var center: Vector2 = size / 2.0
-	draw_circle(center, RADIUS, Color(0, 0, 0, 0.28))
-	draw_arc(center, RADIUS, 0.0, TAU, 48, Color(1, 1, 1, 0.35), 3.0)
-	draw_circle(center + output * (RADIUS - KNOB_RADIUS * 0.5), KNOB_RADIUS, Color(1, 1, 1, 0.5))
+	draw_circle(center, RADIUS, Color(0.05, 0.08, 0.14, 0.30))
+	draw_arc(center, RADIUS, 0.0, TAU, 48, Color(0.92, 0.72, 0.3, 0.35), 2.0)
+	draw_circle(center + output * (RADIUS - KNOB_RADIUS * 0.5), KNOB_RADIUS, Color(1, 1, 1, 0.42))
+	draw_arc(center + output * (RADIUS - KNOB_RADIUS * 0.5), KNOB_RADIUS, 0.0, TAU, 32,
+		Color(0.92, 0.72, 0.3, 0.5), 1.5)
