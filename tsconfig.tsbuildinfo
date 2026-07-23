@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/game/Campus.tsx","./src/game/Npcs.tsx","./src/game/Player.tsx","./src/game/Students.tsx","./src/game/audio.ts","./src/game/characters.ts","./src/game/content.ts","./src/game/prox.ts","./src/game/store.ts","./src/ui/Tryout.tsx","./src/ui/Ui.tsx","./src/ui/styles.ts"],"version":"5.9.3"}

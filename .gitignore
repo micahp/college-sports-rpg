@@ -1,16 +1,11 @@
-# Godot 4
-.godot/
-*.translation
-export.cfg
-
-# Imported assets cache
-.import/
+# Node
+node_modules/
+dist/
+*.local
 
 # Build outputs and captured screenshots
 build/
-
-# Android build artifacts
-android/
+shots/
 
 # OS noise
 .DS_Store
