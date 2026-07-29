@@ -34,7 +34,21 @@ export function Game() {
   }, []);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div
+      style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        // Fallback: dispatch to window for input manager
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, bubbles: true }));
+      }}
+      onKeyUp={(e) => {
+        window.dispatchEvent(new KeyboardEvent('keyup', { key: e.key, code: e.code, bubbles: true }));
+      }}
+      ref={(el) => {
+        // Auto-focus the container on mount
+        if (el) el.focus();
+      }}
+    >
       {phase === 'menu' && <MainMenu />}
       {phase === 'creator' && <Suspense fallback={<LoadingScreen />}><CharacterCreator /></Suspense>}
       {phase === 'loading' && <LoadingScreen />}

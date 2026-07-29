@@ -61,18 +61,24 @@ export const NpcManager = () => {
 
   useFrame((_state, delta) => {
     const hour = useGameStore.getState().hour;
+    const day = useGameStore.getState().day;
 
     // Update principals: schedule target
     for (const npc of principals) {
-      const entry = getNPCSchedule(npc.id, hour);
-      if (entry) {
-        const loc = getLocation(entry.location);
-        if (loc) {
-          npc.targetPos.set(
-            loc.position[0] + Math.sin(npc.id.length + hour) * 2.0,
-            0,
-            loc.position[2] + Math.cos(npc.id.length + hour) * 2.0
-          );
+      // Special case: Jordan near spawn on Day 1 morning
+      if (npc.id === 'jordan' && day === 1 && hour >= 7 && hour < 10) {
+        npc.targetPos.set(3, 0, 28); // Near spawn point
+      } else {
+        const entry = getNPCSchedule(npc.id, hour);
+        if (entry) {
+          const loc = getLocation(entry.location);
+          if (loc) {
+            npc.targetPos.set(
+              loc.position[0] + Math.sin(npc.id.length + hour) * 2.0,
+              0,
+              loc.position[2] + Math.cos(npc.id.length + hour) * 2.0
+            );
+          }
         }
       }
       const diff = npc.targetPos.clone().sub(npc.currentPos);

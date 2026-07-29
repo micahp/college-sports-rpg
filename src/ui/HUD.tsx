@@ -43,6 +43,33 @@ function QuestBanner() {
   );
 }
 
+function FPSCounter() {
+  const [fps, setFps] = React.useState(60);
+  React.useEffect(() => {
+    let frames = 0;
+    let lastTime = performance.now();
+    let rafId: number;
+    const tick = () => {
+      frames++;
+      const now = performance.now();
+      if (now - lastTime >= 1000) {
+        setFps(Math.round((frames * 1000) / (now - lastTime)));
+        frames = 0;
+        lastTime = now;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+  const color = fps >= 55 ? '#27ae60' : fps >= 30 ? '#d4a843' : '#c0392b';
+  return (
+    <div style={{ background: 'rgba(10, 14, 26, 0.85)', borderRadius: 8, padding: '4px 10px', border: '1px solid rgba(255,255,255,0.1)', fontSize: 12, fontVariantNumeric: 'tabular-nums', color }}>
+      {fps} FPS
+    </div>
+  );
+}
+
 export const HUD = () => {
   const hour = useGameStore((s) => s.hour);
   const minute = useGameStore((s) => s.minute);
@@ -83,8 +110,9 @@ export const HUD = () => {
         </svg>
       </button>
 
-      {/* Top-right: map / menu quick access */}
+      {/* Top-right: map / menu quick access + FPS */}
       <div style={h.topRight}>
+        <FPSCounter />
         <button style={h.iconBtn} title="Map" onClick={() => {}}>
           <svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke="#a09880" strokeWidth={1.8}>
             <path d="M9 4 L3 6 V20 L9 18 L15 20 L21 18 V4 L15 6 Z" />

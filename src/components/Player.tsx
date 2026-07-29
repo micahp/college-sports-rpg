@@ -22,6 +22,19 @@ export const Player = () => {
   const stepTimer = useRef(0);
   const facingRef = useRef(0);
 
+  // Listen for teleport events from phone map
+  React.useEffect(() => {
+    const handleTeleport = (e: any) => {
+      const { x, z } = e.detail;
+      if (bodyRef.current) {
+        bodyRef.current.setTranslation({ x, y: 1.0, z }, true);
+        bodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      }
+    };
+    window.addEventListener('teleportPlayer', handleTeleport);
+    return () => window.removeEventListener('teleportPlayer', handleTeleport);
+  }, []);
+
   useFrame((_state, delta) => {
     const input = useInputStore.getState();
     const gs = useGameStore.getState();

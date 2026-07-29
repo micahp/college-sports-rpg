@@ -43,20 +43,44 @@ const ScheduleItem: React.FC<{ time: string; text: string }> = ({ time, text }) 
 );
 
 function MapTab() {
-  // Simple stylized campus map with dots
+  // Simple stylized campus map with dots + teleport
   const locations = useGameStore.getState();
+  const teleport = (x: number, z: number) => {
+    // Teleport player to location
+    useGameStore.getState().travelTo('quad');
+    // Set player position via the physics body
+    const { useInputStore } = require('../store/inputStore');
+    // Direct position set through game store action
+    useGameStore.getState().setPaused(false);
+    // Move player by setting the rigidbody position (we'll use a global event)
+    window.dispatchEvent(new CustomEvent('teleportPlayer', { detail: { x, z } }));
+  };
   return (
     <div style={{ padding: 16 }}>
       <h3 style={{ color: '#f0d070', fontSize: 18, margin: '0 0 12px', fontFamily: 'Georgia, serif' }}>Campus Map</h3>
       <div style={{ position: 'relative', width: '100%', height: 280, background: 'rgba(30, 40, 60, 0.5)', borderRadius: 10, overflow: 'hidden' }}>
         {/* campus blocks */}
-        {[[-20, 30, 'Dorm'], [10, -10, 'Rec'], [32, -20, 'Gym'], [-10, -15, 'STEM'], [20, 15, 'Dining'], [5, 20, 'Union'], [-30, 10, 'Lib']].map(([x, z, label], i) => (
+        {[
+          [-20, 30, 'Dorm'],
+          [10, -10, 'Rec'],
+          [32, -20, 'Gym'],
+          [-10, -15, 'STEM'],
+          [20, 15, 'Dining'],
+          [5, 20, 'Union'],
+          [-30, 10, 'Lib'],
+          [0, 22, 'Court'],
+        ].map(([x, z, label], i) => (
           <div key={i} style={{ position: 'absolute', left: `${50 + (x as number) * 1.0}%`, top: `${50 - (z as number) * 1.0}%`, transform: 'translate(-50%,-50%)' }}>
-            <div style={{ width: 10, height: 10, borderRadius: 5, background: '#d4a843' }} />
+            <button
+              onClick={() => teleport(x as number, z as number)}
+              style={{ width: 18, height: 18, borderRadius: 9, background: label === 'Court' ? '#d4762a' : '#d4a843', border: 'none', cursor: 'pointer', padding: 0 }}
+              title={`Teleport to ${label}`}
+            />
             <div style={{ color: '#a09880', fontSize: 8, marginTop: 2, textAlign: 'center' }}>{label as string}</div>
           </div>
         ))}
       </div>
+      <p style={{ color: '#a09880', fontSize: 11, marginTop: 8 }}>Tap a location to teleport there.</p>
     </div>
   );
 }
