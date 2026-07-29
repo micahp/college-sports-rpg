@@ -13,7 +13,7 @@ import { Instances, Instance } from '@react-three/drei';
 
 function Ground() {
   const mesh = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(160, 120, 80, 60);
+    const geo = new THREE.PlaneGeometry(160, 120, 100, 80);
     geo.rotateX(-Math.PI / 2);
 
     // Zone coloring based on world position
@@ -21,49 +21,54 @@ function Ground() {
     const colors = new Float32Array(pos.count * 3);
     const grass = new THREE.Color('#3a6b28');
     const darkGrass = new THREE.Color('#2d5520');
-    const concrete = new THREE.Color('#8a8478');
-    const pathColor = new THREE.Color('#9a9078');
+    const concrete = new THREE.Color('#7a7468');
+    const pathColor = new THREE.Color('#b0a890');
+    const asphalt = new THREE.Color('#3a3a3a');
     const dirt = new THREE.Color('#6b5438');
+    const quadLawn = new THREE.Color('#4a8a32');
 
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
 
-      // Normalize into campus bounds [-80,80] x [-60,60]
+      // Base grass with noise variation
+      const n = Math.sin(x * 0.4) * Math.cos(z * 0.35) * 0.5 + 0.5;
+      const n2 = Math.sin(x * 0.15 + 1.3) * Math.cos(z * 0.12 + 0.7) * 0.5 + 0.5;
       let c = grass.clone();
-
-      // Mix two grass colors with noise for variation
-      const n = Math.sin(x * 0.3) * Math.cos(z * 0.25) * 0.5 + 0.5;
-      c.lerp(darkGrass, n * 0.4);
+      c.lerp(darkGrass, n * 0.3 + n2 * 0.2);
 
       // Quad lawn zone (center, x -30..30, z -10..30)
       const inQuad = Math.abs(x) < 30 && z > -10 && z < 30;
       if (inQuad) {
         const distToCenter = Math.sqrt(x * x + (z - 10) * (z - 10));
-        c.lerp(new THREE.Color('#4a8030'), THREE.MathUtils.smoothstep(distToCenter, 40, 0));
+        c.lerp(quadLawn, THREE.MathUtils.smoothstep(distToCenter, 35, 0));
       }
 
       // Concrete pad under buildings and plazas
       const buildingPads =
-        (Math.abs(x + 20) < 12 && Math.abs(z - 30) < 10) || // dorm
-        (Math.abs(x - 10) < 18 && Math.abs(z + 10) < 14) || // rec
-        (Math.abs(x - 32) < 14 && Math.abs(z + 20) < 22) || // athletic
-        (Math.abs(x + 10) < 12 && Math.abs(z + 15) < 10) || // stem
-        (Math.abs(x + 25) < 8 && Math.abs(z + 20) < 12) || // arts
-        (Math.abs(x - 22) < 14 && Math.abs(z - 15) < 12) || // dining
-        (Math.abs(x - 5) < 16 && Math.abs(z - 20) < 12); // union
-
+        (Math.abs(x + 20) < 14 && Math.abs(z - 30) < 12) ||
+        (Math.abs(x - 10) < 20 && Math.abs(z + 10) < 16) ||
+        (Math.abs(x - 32) < 16 && Math.abs(z + 20) < 24) ||
+        (Math.abs(x + 10) < 14 && Math.abs(z + 15) < 12) ||
+        (Math.abs(x + 25) < 10 && Math.abs(z + 20) < 14) ||
+        (Math.abs(x - 22) < 16 && Math.abs(z - 15) < 14) ||
+        (Math.abs(x - 5) < 18 && Math.abs(z - 20) < 14);
       if (buildingPads) {
         c.copy(concrete);
       }
 
-      // Main diagonal path
-      const onPath = Math.abs(x * 0.6 + z * 0.8) < 3 && z > -5 && z < 40;
+      // Main diagonal path (wider, more visible)
+      const onPath = Math.abs(x * 0.6 + z * 0.8) < 4 && z > -5 && z < 40;
       if (onPath) c.copy(pathColor);
+
+      // Asphalt road near court area
+      if (Math.abs(x) < 6 && z > 16 && z < 28) {
+        c.copy(asphalt);
+      }
 
       // Paths connecting to rec center
       const onRecPath =
-        Math.abs(z + 10 - (x - 10) * 0.0) < 2.5 && x > -20 && x < 30 && z < 0;
+        Math.abs(z + 10 - (x - 10) * 0.0) < 3 && x > -20 && x < 30 && z < 0;
       if (onRecPath) c.copy(pathColor);
 
       // Dirt/gravel around off-campus
@@ -81,7 +86,7 @@ function Ground() {
 
   return (
     <mesh geometry={mesh} receiveShadow position={[0, 0.02, 10]}>
-      <meshStandardMaterial vertexColors roughness={0.95} metalness={0} />
+      <meshStandardMaterial vertexColors roughness={0.92} metalness={0.02} />
     </mesh>
   );
 }
