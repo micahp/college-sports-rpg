@@ -70,7 +70,7 @@ function GameCanvas() {
             <Physics gravity={[0, -9.81, 0]} timeStep="vary">
               {/* Ground plane collider so the player doesn't fall through the world */}
               <RigidBody type="fixed" colliders={false}>
-                <CuboidCollider args={[100, 0.1, 100]} position={[0, -0.1, 10]} />
+                <CuboidCollider args={[100, 0.5, 100]} position={[0, -0.5, 10]} />
               </RigidBody>
               <World />
               <Player />

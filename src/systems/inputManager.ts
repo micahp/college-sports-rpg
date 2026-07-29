@@ -68,8 +68,11 @@ export function attachInputManager() {
     if (e.code === 'KeyE' || e.code === 'Space') s.setInteract(false);
   };
 
+  // Attach to both window AND document for maximum compatibility
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
+  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('keyup', onKeyUp);
 
   // Mouse look
   let mouseDown = false;
@@ -90,6 +93,8 @@ export function attachInputManager() {
   return () => {
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
+    document.removeEventListener('keydown', onKeyDown);
+    document.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('mousedown', onMouseDown);
     window.removeEventListener('mouseup', onMouseUp);
     window.removeEventListener('mousemove', onMouseMove);
