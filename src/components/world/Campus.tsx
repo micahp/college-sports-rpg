@@ -121,21 +121,23 @@ function Trees() {
     const list: { p: [number, number, number]; s: number }[] = [];
     const rng = mulberry32(42);
     let attempts = 0;
-    while (list.length < 120 && attempts < 800) {
+    while (list.length < 150 && attempts < 1000) {
       attempts++;
-      const x = (rng() - 0.5) * 140;
-      const z = -5 + rng() * 55;
-      // Avoid building footprints
-      if (Math.abs(x + 20) < 16 && Math.abs(z - 30) < 14) continue;
-      if (Math.abs(x - 10) < 20 && Math.abs(z + 10) < 16) continue;
-      if (Math.abs(x - 32) < 16 && Math.abs(z + 20) < 24) continue;
-      if (Math.abs(x + 10) < 14 && Math.abs(z + 15) < 12) continue;
-      if (Math.abs(x + 25) < 10 && Math.abs(z + 20) < 14) continue;
-      if (Math.abs(x - 22) < 16 && Math.abs(z - 15) < 14) continue;
-      if (Math.abs(x - 5) < 18 && Math.abs(z - 20) < 14) continue;
-      // Avoid quad center
-      if (Math.abs(x) < 28 && z > -8 && z < 28) continue;
-      list.push({ p: [x, 0, z], s: 0.8 + rng() * 0.6 });
+      const x = (rng() - 0.5) * 150;
+      const z = -10 + rng() * 60;
+      // Avoid building footprints (with margin)
+      if (Math.abs(x + 20) < 18 && Math.abs(z - 30) < 16) continue;
+      if (Math.abs(x - 10) < 22 && Math.abs(z + 10) < 18) continue;
+      if (Math.abs(x - 32) < 18 && Math.abs(z + 20) < 26) continue;
+      if (Math.abs(x + 10) < 16 && Math.abs(z + 15) < 14) continue;
+      if (Math.abs(x + 25) < 12 && Math.abs(z + 20) < 16) continue;
+      if (Math.abs(x - 22) < 18 && Math.abs(z - 15) < 16) continue;
+      if (Math.abs(x - 5) < 20 && Math.abs(z - 20) < 16) continue;
+      // Avoid quad center (but allow some trees around edges)
+      if (Math.abs(x) < 20 && z > 0 && z < 20) continue;
+      // Avoid spawn point area
+      if (Math.abs(x) < 8 && z > 28 && z < 38) continue;
+      list.push({ p: [x, 0, z], s: 0.7 + rng() * 0.7 });
     }
     return list;
   }, []);
@@ -167,8 +169,8 @@ function Trees() {
 
   return (
     <>
-      <instancedMesh ref={trunkRef} args={[trunk, trunkMat, 120]} castShadow receiveShadow />
-      <instancedMesh ref={canopyRef} args={[canopy, canopyMat, 120]} castShadow />
+      <instancedMesh ref={trunkRef} args={[trunk, trunkMat, 150]} castShadow receiveShadow />
+      <instancedMesh ref={canopyRef} args={[canopy, canopyMat, 150]} castShadow />
     </>
   );
 }
