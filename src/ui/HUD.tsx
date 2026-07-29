@@ -45,23 +45,33 @@ function QuestBanner() {
 
 function FPSCounter() {
   const [fps, setFps] = React.useState(60);
+  const framesRef = React.useRef(0);
+  const lastTimeRef = React.useRef(performance.now());
+  
   React.useEffect(() => {
-    let frames = 0;
-    let lastTime = performance.now();
     let rafId: number;
-    const tick = (now: number) => {
-      frames++;
-      const delta = now - lastTime;
-      if (delta >= 500) {
-        setFps(Math.round((frames * 1000) / delta));
-        frames = 0;
-        lastTime = now;
-      }
-      rafId = requestAnimationFrame(tick);
+    const countFrame = () => {
+      framesRef.current++;
+      rafId = requestAnimationFrame(countFrame);
     };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(countFrame);
+    
+    const interval = setInterval(() => {
+      const now = performance.now();
+      const delta = now - lastTimeRef.current;
+      if (delta > 0) {
+        setFps(Math.round((framesRef.current * 1000) / delta));
+      }
+      framesRef.current = 0;
+      lastTimeRef.current = now;
+    }, 500);
+    
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearInterval(interval);
+    };
   }, []);
+  
   const color = fps >= 55 ? '#27ae60' : fps >= 30 ? '#d4a843' : '#c0392b';
   return (
     <div style={{ background: 'rgba(10, 14, 26, 0.85)', borderRadius: 8, padding: '4px 10px', border: '1px solid rgba(255,255,255,0.1)', fontSize: 12, fontVariantNumeric: 'tabular-nums', color }}>

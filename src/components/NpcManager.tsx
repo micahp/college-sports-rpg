@@ -50,8 +50,8 @@ export const NpcManager = () => {
   // Background students
   const bgState = useRef(
     Array.from({ length: BG_COUNT }, (_, i) => ({
-      pos: new THREE.Vector3((Math.random() - 0.5) * 50, 0, 5 + Math.random() * 30),
-      target: new THREE.Vector3((Math.random() - 0.5) * 50, 0, 5 + Math.random() * 30),
+      pos: new THREE.Vector3((Math.random() - 0.5) * 30, 0, 10 + Math.random() * 20),
+      target: new THREE.Vector3((Math.random() - 0.5) * 30, 0, 10 + Math.random() * 20),
       speed: 0.8 + Math.random() * 1.2,
       skinColor: SKIN_TONES[i % SKIN_TONES.length],
       shirtColor: ['#1a4a8a', '#8a2a2a', '#2a5a3a', '#5a2a5a', '#d4a843'][i % 5],
@@ -64,10 +64,13 @@ export const NpcManager = () => {
     const day = useGameStore.getState().day;
 
     // Update principals: schedule target
-    for (const npc of principals) {
-      // Special case: Jordan near spawn on Day 1 morning (within 5 units of player at [0,0,22])
-      if (npc.id === 'jordan' && day === 1 && hour >= 7 && hour < 10) {
-        npc.targetPos.set(4, 0, 20); // Within 5 units of spawn
+    for (let i = 0; i < principals.length; i++) {
+      const npc = principals[i];
+      // Day 1: spawn all NPCs near player at [0,0,22]
+      if (day === 1 && hour >= 7 && hour < 12) {
+        const angle = (i / principals.length) * Math.PI * 2;
+        const radius = 8 + i * 1.5;
+        npc.targetPos.set(Math.cos(angle) * radius, 0, 22 + Math.sin(angle) * radius);
       } else {
         const entry = getNPCSchedule(npc.id, hour);
         if (entry) {
