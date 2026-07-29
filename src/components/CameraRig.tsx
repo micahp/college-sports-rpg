@@ -17,9 +17,9 @@ const POS_LERP = 5.0;
 
 export const CameraRig = () => {
   const { camera, scene } = useThree();
-  const playerPos = useRef(new THREE.Vector3(0, 1.0, 32));
-  const smoothPos = useRef(new THREE.Vector3(0, 3.8, 36.5));
-  const smoothLook = useRef(new THREE.Vector3(0, 2.5, 32));
+  const playerPos = useRef(new THREE.Vector3(0, 1.0, 22));
+  const smoothPos = useRef(new THREE.Vector3(0, 3.8, 26.5));
+  const smoothLook = useRef(new THREE.Vector3(0, 2.5, 22));
   const lookYaw = useRef(0);
   const lookPitch = useRef(0.1);
 

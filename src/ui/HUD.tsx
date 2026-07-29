@@ -49,11 +49,11 @@ function FPSCounter() {
     let frames = 0;
     let lastTime = performance.now();
     let rafId: number;
-    const tick = () => {
+    const tick = (now: number) => {
       frames++;
-      const now = performance.now();
-      if (now - lastTime >= 1000) {
-        setFps(Math.round((frames * 1000) / (now - lastTime)));
+      const delta = now - lastTime;
+      if (delta >= 500) {
+        setFps(Math.round((frames * 1000) / delta));
         frames = 0;
         lastTime = now;
       }
@@ -66,6 +66,38 @@ function FPSCounter() {
   return (
     <div style={{ background: 'rgba(10, 14, 26, 0.85)', borderRadius: 8, padding: '4px 10px', border: '1px solid rgba(255,255,255,0.1)', fontSize: 12, fontVariantNumeric: 'tabular-nums', color }}>
       {fps} FPS
+    </div>
+  );
+}
+
+function InteractionPrompt() {
+  const [show, setShow] = React.useState(false);
+  const [message, setMessage] = React.useState('');
+  const gs = useGameStore.getState();
+  
+  React.useEffect(() => {
+    const checkProximity = () => {
+      // Check if near basketball court at [0, 0, 22]
+      const body = (window as any).__playerBody;
+      if (body) {
+        const pos = body.translation();
+        const dist = Math.hypot(pos.x - 0, pos.z - 22);
+        if (dist < 6 && !gs.ui.basketballMode) {
+          setShow(true);
+          setMessage('Press E to Play Basketball');
+        } else {
+          setShow(false);
+        }
+      }
+    };
+    const interval = setInterval(checkProximity, 200);
+    return () => clearInterval(interval);
+  }, []);
+  
+  if (!show) return null;
+  return (
+    <div style={{ position: 'absolute', bottom: 120, left: '50%', transform: 'translateX(-50%)', background: 'rgba(10, 22, 40, 0.9)', borderRadius: 12, padding: '12px 24px', border: '2px solid #d4a843', color: '#f0d070', fontSize: 16, fontWeight: 600, pointerEvents: 'none', animation: 'pulse 2s infinite' }}>
+      {message}
     </div>
   );
 }
@@ -128,6 +160,9 @@ export const HUD = () => {
           </svg>
         </button>
       </div>
+
+      {/* Interaction prompt (context-sensitive) */}
+      <InteractionPrompt />
     </div>
   );
 };

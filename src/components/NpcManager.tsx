@@ -65,9 +65,9 @@ export const NpcManager = () => {
 
     // Update principals: schedule target
     for (const npc of principals) {
-      // Special case: Jordan near spawn on Day 1 morning
+      // Special case: Jordan near spawn on Day 1 morning (within 5 units of player at [0,0,22])
       if (npc.id === 'jordan' && day === 1 && hour >= 7 && hour < 10) {
-        npc.targetPos.set(3, 0, 28); // Near spawn point
+        npc.targetPos.set(4, 0, 20); // Within 5 units of spawn
       } else {
         const entry = getNPCSchedule(npc.id, hour);
         if (entry) {

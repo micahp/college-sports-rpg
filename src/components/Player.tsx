@@ -22,7 +22,7 @@ export const Player = () => {
   const stepTimer = useRef(0);
   const facingRef = useRef(0);
 
-  // Listen for teleport events from phone map
+  // Listen for teleport events from phone map + expose body for proximity checks
   React.useEffect(() => {
     const handleTeleport = (e: any) => {
       const { x, z } = e.detail;
@@ -32,7 +32,18 @@ export const Player = () => {
       }
     };
     window.addEventListener('teleportPlayer', handleTeleport);
-    return () => window.removeEventListener('teleportPlayer', handleTeleport);
+    
+    // Expose body ref for proximity checks (interaction prompts)
+    const interval = setInterval(() => {
+      if (bodyRef.current) {
+        (window as any).__playerBody = bodyRef.current;
+      }
+    }, 500);
+    
+    return () => {
+      window.removeEventListener('teleportPlayer', handleTeleport);
+      clearInterval(interval);
+    };
   }, []);
 
   useFrame((_state, delta) => {
@@ -113,7 +124,7 @@ export const Player = () => {
       <RigidBody
         ref={bodyRef}
         enabledRotations={[false, false, false]}
-        position={[0, 1.0, 32]}
+        position={[0, 1.0, 22]}
         mass={1}
         friction={0.5}
         restitution={0}
