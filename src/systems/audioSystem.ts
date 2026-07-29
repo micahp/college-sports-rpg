@@ -60,6 +60,40 @@ export function playScore() {
   setTimeout(() => playTone(784, 0.15, 'sine', 0.3), 160);
 }
 
+export function playBounce() {
+  // short noise burst for ball bounce
+  try {
+    const c = getCtx();
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = 180;
+    osc.frequency.exponentialRampToValueAtTime(80, c.currentTime + 0.08);
+    gain.gain.value = 0.15;
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.1);
+    osc.connect(gain);
+    gain.connect(masterGain!);
+    osc.start();
+    osc.stop(c.currentTime + 0.1);
+  } catch (e) {}
+}
+
+export function playFootstep() {
+  try {
+    const c = getCtx();
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 100 + Math.random() * 40;
+    gain.gain.value = 0.04;
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.06);
+    osc.connect(gain);
+    gain.connect(masterGain!);
+    osc.start();
+    osc.stop(c.currentTime + 0.06);
+  } catch (e) {}
+}
+
 /** Start a soft ambient drone for campus */
 export function startAmbient() {
   if (started) return;

@@ -1,0 +1,41 @@
+{
+  "verdict": "REJECTED",
+  "date": "2026-07-29T03:30:00-05:00",
+  "branch": "web-build",
+  "commit": "production-build-2026-07-29",
+  "reviewer": "kallen-qa",
+  "scores": {
+    "player_character": null,
+    "named_characters": null,
+    "campus_environment": 2,
+    "materials_lighting": 3,
+    "animation": null,
+    "camera_cinematics": 4,
+    "interface": 6,
+    "spatial_gameplay": 2,
+    "physics_controls": 1,
+    "basketball": null,
+    "audio": null,
+    "performance": 3,
+    "cohesion": 3,
+    "desire_to_play": 2
+  },
+  "automatic_rejections": [
+    "Player passes through buildings/trees/props/NPCs — zero RigidBody/CuboidCollider on any building",
+    "Recreation Center looks like a decorated box — plain rectangular prism, flat color, no architectural detail",
+    "Campus looks like a park or programmer-art scene — flat-shaded boxes, no textures, no signage",
+    "Performance too unstable for normal play — 3.4MB bundle, no code-splitting"
+  ],
+  "p0_required": [
+    "Add collision: wrap every building/prop/tree in fixed RigidBody with CuboidCollider"
+  ],
+  "p1_required": [
+    "Replace box buildings with modeled architecture (facade depth, materials, signage)",
+    "Add proper campus dressing (trees, benches, signage, pathways, environmental storytelling)",
+    "Configure manualChunks to split bundle below 1MB initial load"
+  ],
+  "p2_required": [
+    "Verify player character is rigged skinned humanoid (not primitive geometry)",
+    "Verify Jordan is visually distinct and appealing"
+  ]
+}

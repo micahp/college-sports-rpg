@@ -2,7 +2,7 @@
  * Game.tsx — top-level phase router + Canvas.
  * Handles lifecycle: input manager attach, narrative tick, UI overlay per phase.
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
 import { AdaptiveDpr, AdaptiveEvents, Preload } from '@react-three/drei';
@@ -12,16 +12,18 @@ import { CameraRig } from './components/CameraRig';
 import { Lighting } from './components/Lighting';
 import { PostFX } from './components/PostFX';
 import { HUD } from './ui/HUD';
-import { Phone } from './ui/Phone';
 import { DialogueOverlay } from './ui/DialogueOverlay';
 import { MainMenu } from './ui/MainMenu';
-import { CharacterCreator } from './ui/CharacterCreator';
 import { LoadingScreen } from './ui/LoadingScreen';
 import { MobileControls } from './ui/MobileControls';
-import { BasketballGame } from './components/basketball/BasketballGame';
 import { useGameStore } from './store/gameStore';
 import { attachInputManager } from './systems/inputManager';
 import { useNarrativeTick } from './systems/narrativeTick';
+import { useAmbientAudio } from './systems/audioSystem';
+
+const BasketballGame = lazy(() => import('./components/basketball/BasketballGame').then(m => ({ default: m.BasketballGame })));
+const CharacterCreator = lazy(() => import('./ui/CharacterCreator').then(m => ({ default: m.CharacterCreator })));
+const Phone = lazy(() => import('./ui/Phone').then(m => ({ default: m.Phone })));
 
 export function Game() {
   const phase = useGameStore((s) => s.phase);
@@ -34,7 +36,7 @@ export function Game() {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
       {phase === 'menu' && <MainMenu />}
-      {phase === 'creator' && <CharacterCreator />}
+      {phase === 'creator' && <Suspense fallback={<LoadingScreen />}><CharacterCreator /></Suspense>}
       {phase === 'loading' && <LoadingScreen />}
       {phase === 'playing' && <GameCanvas />}
     </div>
@@ -43,6 +45,7 @@ export function Game() {
 
 function GameCanvas() {
   const basketballMode = useGameStore((s) => s.ui.basketballMode);
+  useAmbientAudio();
 
   return (
     <>
@@ -60,7 +63,7 @@ function GameCanvas() {
         <color attach="background" args={['#0a0e1a']} />
         <fog attach="fog" args={['#0a0e1a', 80, 300]} />
         {basketballMode ? (
-          <BasketballGame />
+          <Suspense fallback={null}><BasketballGame /></Suspense>
         ) : (
           <>
             <Lighting />
@@ -81,7 +84,7 @@ function GameCanvas() {
         <Preload all />
       </Canvas>
       <HUD />
-      <Phone />
+      <Suspense fallback={null}><Phone /></Suspense>
       <DialogueOverlay />
       <MobileControls />
     </>

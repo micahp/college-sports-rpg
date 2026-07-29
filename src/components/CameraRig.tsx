@@ -8,18 +8,18 @@ import * as THREE from 'three';
 import { useGameStore } from '../store/gameStore';
 import { useInputStore } from '../store/inputStore';
 
-const DEFAULT_DISTANCE = 5.5;
-const DEFAULT_HEIGHT = 2.4;
+const DEFAULT_DISTANCE = 4.5;
+const DEFAULT_HEIGHT = 2.8;
 const DIALOGUE_DISTANCE = 3.2;
 const DIALOGUE_HEIGHT = 1.7;
-const LOOK_LERP = 3.0;
-const POS_LERP = 4.0;
+const LOOK_LERP = 4.0;
+const POS_LERP = 5.0;
 
 export const CameraRig = () => {
   const { camera, scene } = useThree();
-  const playerPos = useRef(new THREE.Vector3(0, 1.8, 40));
-  const smoothPos = useRef(new THREE.Vector3(0, 4, 46));
-  const smoothLook = useRef(new THREE.Vector3(0, 1.5, 35));
+  const playerPos = useRef(new THREE.Vector3(0, 1.0, 32));
+  const smoothPos = useRef(new THREE.Vector3(0, 3.8, 36.5));
+  const smoothLook = useRef(new THREE.Vector3(0, 2.5, 32));
   const lookYaw = useRef(0);
   const lookPitch = useRef(0.1);
 

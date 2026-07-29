@@ -437,7 +437,6 @@ function weightGeometryUniform(geo: THREE.BufferGeometry, bone: number) {
 // ---------------------------------------------------------------------------
 
 function mergeGeometries(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  // Merge by hand since we need to preserve positions
   let totalVerts = 0;
   let totalIndices = 0;
   for (const g of geos) {
@@ -447,17 +446,39 @@ function mergeGeometries(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
 
   const positions = new Float32Array(totalVerts * 3);
   const normals = new Float32Array(totalVerts * 3);
+  const skinIndices = new Float32Array(totalVerts * 4);
+  const skinWeights = new Float32Array(totalVerts * 4);
   const indicesArr: number[] = [];
 
   let vOffset = 0;
-  let iOffset = 0;
   for (const g of geos) {
     const p = g.attributes.position;
     positions.set(p.array as Float32Array, vOffset * 3);
-    // compute vertex normals if missing
     if (!g.attributes.normal) g.computeVertexNormals();
     const n = g.attributes.normal;
     normals.set(n.array as Float32Array, vOffset * 3);
+
+    // Copy skin indices and weights
+    const si = g.attributes.skinIndex;
+    const sw = g.attributes.skinWeight;
+    if (si && sw) {
+      for (let i = 0; i < p.count; i++) {
+        skinIndices[(vOffset + i) * 4] = si.getX(i);
+        skinIndices[(vOffset + i) * 4 + 1] = si.getY ? si.getY(i) : 0;
+        skinIndices[(vOffset + i) * 4 + 2] = si.getZ ? si.getZ(i) : 0;
+        skinIndices[(vOffset + i) * 4 + 3] = si.getW ? si.getW(i) : 0;
+        skinWeights[(vOffset + i) * 4] = sw.getX(i);
+        skinWeights[(vOffset + i) * 4 + 1] = sw.getY ? sw.getY(i) : 0;
+        skinWeights[(vOffset + i) * 4 + 2] = sw.getZ ? sw.getZ(i) : 0;
+        skinWeights[(vOffset + i) * 4 + 3] = sw.getW ? sw.getW(i) : 0;
+      }
+    } else {
+      // Default to bone 0 with full weight
+      for (let i = 0; i < p.count; i++) {
+        skinIndices[(vOffset + i) * 4] = 0;
+        skinWeights[(vOffset + i) * 4] = 1;
+      }
+    }
 
     if (g.index) {
       for (let i = 0; i < g.index.count; i++) {
@@ -470,6 +491,8 @@ function mergeGeometries(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const merged = new THREE.BufferGeometry();
   merged.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   merged.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+  merged.setAttribute('skinIndex', new THREE.BufferAttribute(skinIndices, 4));
+  merged.setAttribute('skinWeight', new THREE.BufferAttribute(skinWeights, 4));
   if (indicesArr.length > 0) merged.setIndex(indicesArr);
   return merged;
 }

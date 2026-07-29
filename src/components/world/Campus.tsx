@@ -116,10 +116,10 @@ function Trees() {
     const list: { p: [number, number, number]; s: number }[] = [];
     const rng = mulberry32(42);
     let attempts = 0;
-    while (list.length < 80 && attempts < 600) {
+    while (list.length < 120 && attempts < 800) {
       attempts++;
-      const x = (rng() - 0.5) * 130;
-      const z = 5 + rng() * 40;
+      const x = (rng() - 0.5) * 140;
+      const z = -5 + rng() * 55;
       // Avoid building footprints
       if (Math.abs(x + 20) < 16 && Math.abs(z - 30) < 14) continue;
       if (Math.abs(x - 10) < 20 && Math.abs(z + 10) < 16) continue;
@@ -162,8 +162,8 @@ function Trees() {
 
   return (
     <>
-      <instancedMesh ref={trunkRef} args={[trunk, trunkMat, 80]} castShadow receiveShadow />
-      <instancedMesh ref={canopyRef} args={[canopy, canopyMat, 80]} castShadow />
+      <instancedMesh ref={trunkRef} args={[trunk, trunkMat, 120]} castShadow receiveShadow />
+      <instancedMesh ref={canopyRef} args={[canopy, canopyMat, 120]} castShadow />
     </>
   );
 }
@@ -184,6 +184,12 @@ function Benches() {
     [15, 0, 8, Math.PI * 1.5],
     [25, 0, 2, 0],
     [-20, 0, 12, Math.PI * 0.25],
+    [30, 0, -5, Math.PI * 0.8],
+    [-30, 0, -3, Math.PI * 0.3],
+    [0, 0, 28, Math.PI],
+    [12, 0, -15, Math.PI * 0.6],
+    [-12, 0, -18, Math.PI * 1.2],
+    [35, 0, 10, Math.PI * 0.4],
   ];
 
   return (

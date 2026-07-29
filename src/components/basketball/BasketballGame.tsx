@@ -1,46 +1,40 @@
 /**
- * basketball/BasketballGame.tsx — complete practice-shooting scene.
- * A self-contained mini-game: a court, a hoop at -Z, and a charge-and-release
- * shooting mechanic. Hold mouse/touch to charge, release to fire. Physics-based
- * ball flight with accuracy derived from player stats. Tracks makes/misses.
+ * basketball/BasketballGame.tsx — spatial practice-shooting scene.
+ * Player moves on the court with WASD, aims toward the hoop, charges and releases.
+ * Ball physics with trajectory based on player position. Tracks makes/misses.
  */
-import React, { useRef, useState, useMemo } from 'react';
-import { RigidBody, BallCollider, CuboidCollider } from '@react-three/rapier';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
+import { RigidBody, BallCollider, CuboidCollider, CapsuleCollider } from '@react-three/rapier';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '../../store/gameStore';
+import { useInputStore } from '../../store/inputStore';
 import { Hoop } from './Hoop';
 import { BasketballHUD } from './BasketballHUD';
-import { playScore, playMiss } from '../../systems/audioSystem';
+import { playScore, playMiss, playBounce } from '../../systems/audioSystem';
 
 const HOOP_POS: [number, number, number] = [0, 0, -6.7];
-const BALL_START: [number, number, number] = [0, 1.2, 3];
 const RIM_Y = 3.05;
 const RIM_RADIUS = 0.225;
+const COURT_HALF_W = 7.5;
+const COURT_HALF_D = 7;
 
 export const BasketballGame = () => {
   return (
     <group>
-      {/* Low ambient + warm gym lights */}
-      <ambientLight intensity={0.35} />
-      <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
-      <pointLight position={[0, 6, -3]} intensity={0.6} color="#ffe0a0" />
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[5, 10, 5]} intensity={1.3} castShadow shadow-mapSize={[1024, 1024]} />
+      <pointLight position={[0, 6, -3]} intensity={0.7} color="#ffe0a0" />
 
-      {/* Floor */}
       <Floor />
-      {/* Walls (keep ball in play) */}
       <Walls />
-      {/* Hoop */}
       <Hoop position={HOOP_POS} />
-
-      {/* Ball + shooting logic */}
-      <ShootingRig />
 
       {/* Backboard collider */}
       <RigidBody type="fixed" position={[0, RIM_Y + 0.35, HOOP_POS[2] - 0.1]}>
         <CuboidCollider args={[0.9, 0.525, 0.025]} />
       </RigidBody>
-      {/* Rim colliders (two small spheres at rim edges to deflect ball) */}
+      {/* Rim colliders */}
       <RigidBody type="fixed" position={[RIM_RADIUS, RIM_Y, HOOP_POS[2]]}>
         <BallCollider args={[0.04]} restitution={0.4} />
       </RigidBody>
@@ -48,8 +42,7 @@ export const BasketballGame = () => {
         <BallCollider args={[0.04]} restitution={0.4} />
       </RigidBody>
 
-      {/* Camera rig + HUD */}
-      <CameraRig />
+      <PlayerOnCourt />
       <BasketballHUD />
     </group>
   );
@@ -66,12 +59,10 @@ function Floor() {
         <boxGeometry args={[24, 0.1, 24]} />
         <meshStandardMaterial color="#c8a060" roughness={0.6} metalness={0.1} />
       </mesh>
-      {/* Court lines */}
       <mesh position={[0, 0.06, -2]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[1.8, 1.85, 32]} />
         <meshStandardMaterial color="#a07838" />
       </mesh>
-      {/* Free throw line */}
       <mesh position={[0, 0.06, 0.91]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.05, 1]} />
         <meshStandardMaterial color="#0a1628" />
@@ -101,9 +92,10 @@ function Walls() {
 }
 
 // ---------------------------------------------------------------------------
-// Ball + Shooting
+// Player on court — moves with WASD, shoots toward hoop
 // ---------------------------------------------------------------------------
-function ShootingRig() {
+function PlayerOnCourt() {
+  const bodyRef = useRef<any>(null);
   const ballRef = useRef<any>(null);
   const [power, setPower] = useState(0);
   const [charging, setCharging] = useState(false);
@@ -112,12 +104,52 @@ function ShootingRig() {
   const inFlight = useRef(false);
   const shotHandled = useRef(false);
   const scoreNotified = useRef(false);
+  const playerFacing = useRef(0);
 
   const ballGeo = useMemo(() => new THREE.SphereGeometry(0.12, 16, 16), []);
   const ballMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#d4762a', roughness: 0.65 }), []);
 
-  // Charge + release
-  React.useEffect(() => {
+  const release = () => {
+    setCharging(false);
+    const gs = useGameStore.getState();
+    const elapsed = Math.min(1.6, (performance.now() - chargeStart.current) / 1000);
+    const pct = 35 + Math.min(100, (elapsed / 1.6) * 100) * 0.65;
+    const athleticBonus = (gs.stats.athletic ?? 50) / 100;
+    const confidenceBonus = (gs.stats.confidence ?? 50) / 200;
+    const accuracy = 0.65 + athleticBonus * 0.25 + confidenceBonus;
+
+    if (!ballRef.current || !bodyRef.current) return;
+
+    const playerPos = bodyRef.current.translation();
+    // Direction from ball to hoop
+    const toHoop = new THREE.Vector3(
+      HOOP_POS[0] - playerPos.x,
+      RIM_Y + 0.5 - 1.2,
+      HOOP_POS[2] - playerPos.z
+    );
+    const dist = toHoop.length();
+    toHoop.normalize();
+
+    // Power scale based on charge and distance
+    const powerScale = pct / 60;
+    const noise = (1 - accuracy) * 0.3;
+
+    const shootDir = toHoop.clone();
+    shootDir.x += (Math.random() - 0.5) * noise;
+    shootDir.z += (Math.random() - 0.5) * noise;
+    shootDir.multiplyScalar(powerScale * (4 + dist * 0.35));
+    shootDir.y = 3.5 + dist * 0.25 + (Math.random() - 0.5) * (1 - accuracy);
+
+    ballRef.current.setLinvel({ x: shootDir.x, y: shootDir.y, z: shootDir.z }, true);
+    ballRef.current.setAngvel({ x: 0, y: 0, z: -8 }, true);
+    inFlight.current = true;
+    shotHandled.current = false;
+    scoreNotified.current = false;
+    gs.resetBasketball();
+  };
+
+  // Charge + release input
+  useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if ((e.target as HTMLElement)?.closest('[data-ui]')) return;
       if (e.button !== 0) return;
@@ -148,34 +180,45 @@ function ShootingRig() {
     };
   }, [charging]);
 
-  const release = () => {
-    setCharging(false);
-    const gs = useGameStore.getState();
-    const elapsed = Math.min(1.6, (performance.now() - chargeStart.current) / 1000);
-    const pct = 35 + Math.min(100, (elapsed / 1.6) * 100) * 0.65;
-    const athleticBonus = (gs.stats.athletic ?? 50) / 100;
-    const confidenceBonus = (gs.stats.confidence ?? 50) / 200;
-    const accuracy = 0.65 + athleticBonus * 0.25 + confidenceBonus;
+  useFrame((_state, delta) => {
+    const input = useInputStore.getState();
+    const dt = Math.min(delta, 0.05);
+    const rb = bodyRef.current;
 
-    // Velocity toward hoop at z = -6.7 from z = 3
-    const shootDir = new THREE.Vector3(0, 0, -1);
-    const noise = (1 - accuracy) * 0.4;
-    shootDir.x += (Math.random() - 0.5) * noise;
-    const powerScale = pct / 60;
-    shootDir.multiplyScalar(powerScale * 6);
-    shootDir.y = 4.2 + (Math.random() - 0.5) * (1 - accuracy);
+    if (rb) {
+      // Player movement on court
+      const speed = 5.0;
+      const moveX = input.moveX;
+      const moveZ = input.moveY;
+      const moving = Math.hypot(moveX, moveZ) > 0.1;
 
-    if (ballRef.current) {
-      ballRef.current.setLinvel({ x: shootDir.x, y: shootDir.y, z: shootDir.z }, true);
-      ballRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      if (moving && !inFlight.current) {
+        const len = Math.hypot(moveX, moveZ);
+        const nx = moveX / len;
+        const nz = moveZ / len;
+        rb.setLinvel({ x: nx * speed, y: rb.linvel().y, z: nz * speed }, true);
+        playerFacing.current = Math.atan2(nx, nz);
+      } else if (!inFlight.current) {
+        rb.setLinvel({ x: 0, y: rb.linvel().y, z: 0 }, true);
+      }
+
+      // Clamp to court bounds
+      const p = rb.translation();
+      const cx = THREE.MathUtils.clamp(p.x, -COURT_HALF_W, COURT_HALF_W);
+      const cz = THREE.MathUtils.clamp(p.z, -COURT_HALF_D, COURT_HALF_D);
+      if (cx !== p.x || cz !== p.z) {
+        rb.setTranslation({ x: cx, y: p.y, z: cz }, true);
+      }
+
+      // Ball follows player when not in flight
+      if (!inFlight.current && ballRef.current) {
+        const bx = p.x + Math.sin(playerFacing.current) * 0.6;
+        const bz = p.z + Math.cos(playerFacing.current) * 0.6;
+        ballRef.current.setTranslation({ x: bx, y: 1.2, z: bz }, true);
+        ballRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      }
     }
-    inFlight.current = true;
-    shotHandled.current = false;
-    scoreNotified.current = false;
-    gs.resetBasketball();
-  };
 
-  useFrame(() => {
     // Power meter while charging
     if (charging && !inFlight.current) {
       const elapsed = Math.min(1.6, (performance.now() - chargeStart.current) / 1000);
@@ -186,9 +229,14 @@ function ShootingRig() {
 
     // Detect score: ball drops through rim zone with downward velocity
     if (inFlight.current && ballRef.current) {
-      const rb = ballRef.current;
-      const pos = rb.translation();
-      const vel = rb.linvel();
+      const ballRb = ballRef.current;
+      const pos = ballRb.translation();
+      const vel = ballRb.linvel();
+
+      // Bounce sound
+      if (Math.abs(pos.y - 0.2) < 0.15 && vel.y < -1 && !shotHandled.current) {
+        playBounce();
+      }
 
       const inRimZone =
         pos.y < RIM_Y + 0.15 &&
@@ -205,33 +253,51 @@ function ShootingRig() {
         setTimeout(() => setMessage(''), 1000);
       }
 
-      // When ball stops or hits floor, end the shot
       const speed = Math.hypot(vel.x, vel.y, vel.z);
-      if (!shotHandled.current && (pos.y < 0.2 || speed < 0.08)) {
+      if (!shotHandled.current && (pos.y < 0.15 || speed < 0.08)) {
         shotHandled.current = true;
         if (!scoreNotified.current) {
           playMiss();
           setMessage('MISS');
           setTimeout(() => setMessage(''), 800);
         }
-        // After a beat, reset ball to shooting spot
         setTimeout(() => {
-          if (ballRef.current) {
-            ballRef.current.setTranslation({ x: BALL_START[0], y: BALL_START[1], z: BALL_START[2] }, true);
-            ballRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
-            ballRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
-          }
           inFlight.current = false;
-        }, 700);
+        }, 600);
       }
     }
   });
 
   return (
     <group>
+      {/* Player body (capsule) */}
+      <RigidBody
+        ref={bodyRef}
+        position={[0, 0.9, 4]}
+        enabledRotations={[false, false, false]}
+        mass={1}
+        friction={0.3}
+        linearDamping={4}
+        type="dynamic"
+        colliders={false}
+      >
+        <CapsuleCollider args={[0.5, 0.3]} position={[0, 0.5, 0]} />
+        {/* Visual capsule */}
+        <mesh position={[0, 0.8, 0]} castShadow>
+          <capsuleGeometry args={[0.3, 0.9, 4, 12]} />
+          <meshStandardMaterial color="#1a4a8a" roughness={0.6} />
+        </mesh>
+        {/* Head */}
+        <mesh position={[0, 1.55, 0]} castShadow>
+          <sphereGeometry args={[0.22, 12, 12]} />
+          <meshStandardMaterial color="#c8a070" roughness={0.7} />
+        </mesh>
+      </RigidBody>
+
+      {/* Ball */}
       <RigidBody
         ref={ballRef}
-        position={BALL_START}
+        position={[0, 1.2, 4.6]}
         restitution={0.6}
         friction={0.45}
         density={0.5}
@@ -242,33 +308,19 @@ function ShootingRig() {
       >
         <BallCollider args={[0.12]} />
         <mesh geometry={ballGeo} material={ballMat} castShadow>
-          {/* seam */}
           <mesh geometry={ballGeo} scale={[1.02, 1.02, 0.3]} material={new THREE.MeshStandardMaterial({ color: '#3a1e0a', roughness: 0.8 })} />
         </mesh>
       </RigidBody>
-      {/* Render power meter via event bus not used; HUD reads store */}
+
       <BallStateBridge power={power} message={message} />
     </group>
   );
 }
 
-// Bridge power + message into a zustand-ish ref the HUD can read
+// Bridge power + message into a ref the HUD can read
 let _ballState = { power: 0, message: '' };
 function BallStateBridge({ power, message }: { power: number; message: string }) {
   React.useEffect(() => { _ballState = { power, message }; }, [power, message]);
   return null;
 }
 export function getBallState() { return _ballState; }
-
-// ---------------------------------------------------------------------------
-// During-play camera
-// ---------------------------------------------------------------------------
-function CameraRig() {
-  const { camera } = useThree();
-  useFrame(() => {
-    const target = new THREE.Vector3(4, 3.2, 5);
-    camera.position.lerp(target, 0.08);
-    camera.lookAt(new THREE.Vector3(0, 2.2, -3));
-  });
-  return null;
-}

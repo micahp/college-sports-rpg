@@ -5,6 +5,7 @@
 import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
 import { LOCATIONS } from '../../data/content';
 
 const NAVY = '#0a1628';
@@ -210,6 +211,70 @@ function FoodTruck({ position }: { position: [number, number, number] }) {
   );
 }
 
+// Outdoor basketball court — visible on campus, triggers minigame
+function OutdoorCourt({ position }: { position: [number, number, number] }) {
+  const hoopX = 0;
+  const hoopZ = -4;
+  const rimY = 3.05;
+
+  return (
+    <group position={position}>
+      {/* Court floor */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]} receiveShadow>
+        <planeGeometry args={[15, 14]} />
+        <meshStandardMaterial color="#c8a060" roughness={0.7} />
+      </mesh>
+      {/* Court lines */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+        <ringGeometry args={[1.8, 1.85, 32]} />
+        <meshStandardMaterial color="#a07838" />
+      </mesh>
+      {/* Three-point arc */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, hoopZ + 2]}>
+        <ringGeometry args={[4.5, 4.55, 48, 1, 0, Math.PI]} />
+        <meshStandardMaterial color="#ffffff" transparent opacity={0.5} />
+      </mesh>
+      {/* Pole */}
+      <mesh castShadow position={[hoopX, rimY * 0.5, hoopZ - 0.3]}>
+        <cylinderGeometry args={[0.08, 0.08, rimY, 8]} />
+        <meshStandardMaterial color="#444" metalness={0.6} roughness={0.4} />
+      </mesh>
+      {/* Backboard */}
+      <mesh castShadow position={[hoopX, rimY + 0.3, hoopZ - 0.35]}>
+        <boxGeometry args={[1.8, 1.05, 0.06]} />
+        <meshStandardMaterial color="#f0ece0" roughness={0.3} metalness={0.1} />
+      </mesh>
+      {/* Backboard frame */}
+      <mesh position={[hoopX, rimY + 0.15, hoopZ - 0.32]}>
+        <boxGeometry args={[0.6, 0.04, 0.02]} />
+        <meshStandardMaterial color="#d43020" />
+      </mesh>
+      {/* Rim */}
+      <mesh position={[hoopX, rimY, hoopZ]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.225, 0.015, 8, 24]} />
+        <meshStandardMaterial color="#ff6a00" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* Net (simple cone of lines) */}
+      <mesh position={[hoopX, rimY - 0.2, hoopZ]}>
+        <cylinderGeometry args={[0.18, 0.22, 0.4, 8, 1, true]} />
+        <meshStandardMaterial color="#ffffff" transparent opacity={0.4} side={THREE.DoubleSide} />
+      </mesh>
+      {/* "PLAY" text */}
+      <Text
+        position={[0, 0.05, hoopZ + 5]}
+        fontSize={0.8}
+        color="#0a1628"
+        anchorX="center"
+        rotation={[-Math.PI / 2, 0, 0]}
+        outlineWidth={0.02}
+        outlineColor="#d4a843"
+      >
+        {'OUTDOOR COURT'}
+      </Text>
+    </group>
+  );
+}
+
 export const Props = () => {
   const recCenter = LOCATIONS['rec-center'].position;
   const quadCenter: [number, number, number] = [0, 0, 10];
@@ -237,6 +302,9 @@ export const Props = () => {
 
       {/* Food truck near dining */}
       <FoodTruck position={[34, 0, 20]} />
+
+      {/* Outdoor basketball court — close to spawn, visible */}
+      <OutdoorCourt position={[0, 0, 22]} />
 
       {/* Lamp posts along paths are in Campus.Details already */}
     </group>

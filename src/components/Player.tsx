@@ -1,45 +1,27 @@
 /**
- * Player.tsx — physics character controller + skinned character visual.
- * Reads inputStore, drives a Rapier RigidBody, syncs mesh, drives animation.
+ * Player.tsx — physics character controller + visible capsule character.
+ * Reads inputStore, drives a Rapier RigidBody, syncs mesh.
  */
-import React, { useRef, useMemo } from 'react';
+import React, { useRef } from 'react';
 import { RigidBody, CapsuleCollider } from '@react-three/rapier';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '../store/gameStore';
 import { useInputStore } from '../store/inputStore';
-import { buildSkeleton, buildSkinnedHumanoid } from './characters/characterModel';
-import { AnimationController } from '../systems/animationController';
 import { setPlayerWorldPosition } from './CameraRig';
 import { LOCATIONS } from '../data/content';
+import { playFootstep } from '../systems/audioSystem';
 
-// Tuning
-const WALK_SPEED = 4.0;
-const RUN_SPEED = 8.0;
-const ACCELERATION = 3.0;
+const WALK_SPEED = 4.5;
+const RUN_SPEED = 8.5;
+const ACCELERATION = 3.5;
 const DAMPING = 8.0;
-const GRAVITY_SCALE = 1.0;
 
 export const Player = () => {
   const bodyRef = useRef(null);
   const meshGroupRef = useRef<THREE.Group>(null);
-  const controller = useRef<AnimationController | null>(null);
   const velocity = useRef(new THREE.Vector3());
-  const facing = useRef(0);
-
-  // Build character skeleton + skinned mesh once
-  const { skeleton, mesh } = useMemo(() => {
-    const s = buildSkeleton(1.78);
-    // Skin tone from player profile
-    const gs = useGameStore.getState();
-    const skinTone = gs.player?.skinTone ?? 3;
-    const build = gs.player?.bodyType ?? 'athletic';
-    const skinColor = new THREE.Color().setHSL(0.07, 0.4 + skinTone * 0.05, 0.35 + skinTone * 0.06);
-    const m = buildSkinnedHumanoid(s, { height: 1.78, build: build === 'slim' ? 'slim' : build === 'muscular' ? 'muscular' : 'athletic' });
-    (m.material as THREE.MeshStandardMaterial).color.copy(skinColor);
-    return { skeleton: s, mesh: m };
-  }, []);
-
+  const stepTimer = useRef(0);
   const facingRef = useRef(0);
 
   useFrame((_state, delta) => {
@@ -52,15 +34,11 @@ export const Player = () => {
 
     const paused = gs.ui.paused || gs.ui.dialogueActive;
 
-    // Paused freezes movement but still updates animation with idle
     if (paused) {
-      controller.current?.play('idle', 0.2);
-      controller.current?.update(dt);
       rb.setLinvel({ x: 0, y: rb.linvel().y, z: 0 }, true);
       return;
     }
 
-    // Move direction
     const dir = new THREE.Vector3(input.moveX, 0, input.moveY);
     const moving = dir.length() > 0.1;
 
@@ -69,7 +47,6 @@ export const Player = () => {
       const speed = input.sprint ? RUN_SPEED : WALK_SPEED;
       velocity.current.x = THREE.MathUtils.damp(velocity.current.x, dir.x * speed, ACCELERATION, dt);
       velocity.current.z = THREE.MathUtils.damp(velocity.current.z, dir.z * speed, ACCELERATION, dt);
-
       const targetAngle = Math.atan2(velocity.current.x, velocity.current.z);
       facingRef.current = THREE.MathUtils.lerp(facingRef.current, targetAngle, 1 - Math.exp(-12 * dt));
     } else {
@@ -79,71 +56,98 @@ export const Player = () => {
 
     rb.setLinvel({ x: velocity.current.x, y: rb.linvel().y, z: velocity.current.z }, true);
 
-    // Position mesh group at rigidbody position
+    // Footstep sounds
+    const spd = Math.hypot(velocity.current.x, velocity.current.z);
+    if (spd > 0.5) {
+      stepTimer.current -= dt;
+      if (stepTimer.current <= 0) {
+        playFootstep();
+        stepTimer.current = spd > 6 ? 0.28 : 0.4;
+      }
+    } else {
+      stepTimer.current = 0;
+    }
+
+    // Position mesh group at rigidbody
     const pos = rb.translation();
     if (meshGroupRef.current) {
-      meshGroupRef.current.position.set(pos.x, pos.y - 1.78, pos.z);
-      // When moving, face direction
-      if (moving) {
-        meshGroupRef.current.rotation.y = facingRef.current;
-      }
+      meshGroupRef.current.position.set(pos.x, pos.y, pos.z);
+      meshGroupRef.current.rotation.y = facingRef.current;
     }
 
-    // Push player position to camera system
+    // Push to camera
     setPlayerWorldPosition(new THREE.Vector3(pos.x, pos.y + 1.5, pos.z));
 
-    // --- Interaction: press E near gym/practice gym to play basketball ---
-    const gyms = ['basketball-gym', 'rec-gym'];
-    for (const gid of gyms) {
-      const loc = LOCATIONS[gid];
-      if (!loc) continue;
-      const dx = pos.x - loc.position[0];
-      const dz = pos.z - loc.position[2];
-      if (Math.hypot(dx, dz) < 3.5) {
-        if (input.interact && !gs.ui.basketballMode) {
-          useGameStore.getState().enterBasketballMode('free');
-        }
-        break;
+    // Interaction: basketball
+    if (input.interact && !gs.ui.basketballMode) {
+      // Outdoor court at [0, 0, 22] (close to spawn)
+      const cdx = pos.x - 0;
+      const cdz = pos.z - 22;
+      if (Math.hypot(cdx, cdz) < 6) {
+        useGameStore.getState().enterBasketballMode('free');
       }
-    }
-
-    // Animation
-    if (controller.current) {
-      const movingFast = Math.hypot(velocity.current.x, velocity.current.z) > 0.4;
-      if (movingFast) {
-        controller.current.play(input.sprint ? 'run' : 'walk', 0.12);
-      } else {
-        controller.current.play('idle', 0.2);
-      }
-      controller.current.update(dt);
     }
   });
+
+  // Player colors from profile
+  const gs = useGameStore.getState();
+  const skinTone = gs.player?.skinTone ?? 3;
+  const skinColor = new THREE.Color().setHSL(0.07, 0.45 + skinTone * 0.04, 0.38 + skinTone * 0.05);
+  const shirtColor = new THREE.Color('#1a4a8a');
+  const pantsColor = new THREE.Color('#2a2a3a');
 
   return (
     <group>
       <RigidBody
         ref={bodyRef}
         enabledRotations={[false, false, false]}
-        position={[0, 1.78, 32]}
+        position={[0, 1.0, 32]}
         mass={1}
         friction={0.5}
         restitution={0}
         linearDamping={0.05}
         angularDamping={1}
-        gravityScale={GRAVITY_SCALE}
+        gravityScale={1.0}
         type="dynamic"
         colliders={false}
         userData={{ tag: 'player' }}
       >
-        <CapsuleCollider args={[0.8, 0.35]} position={[0, 0.8, 0]} />
+        <CapsuleCollider args={[0.5, 0.35]} position={[0, 0.5, 0]} />
       </RigidBody>
       <group ref={meshGroupRef}>
-        <primitive object={mesh} ref={(m: THREE.Mesh) => {
-          if (m && !controller.current) {
-            controller.current = new AnimationController(m);
-            controller.current.play('idle', 0.3);
-          }
-        }} />
+        {/* Legs */}
+        <mesh position={[-0.12, 0.25, 0]} castShadow>
+          <capsuleGeometry args={[0.1, 0.4, 4, 8]} />
+          <meshStandardMaterial color={pantsColor} roughness={0.7} />
+        </mesh>
+        <mesh position={[0.12, 0.25, 0]} castShadow>
+          <capsuleGeometry args={[0.1, 0.4, 4, 8]} />
+          <meshStandardMaterial color={pantsColor} roughness={0.7} />
+        </mesh>
+        {/* Torso */}
+        <mesh position={[0, 0.7, 0]} castShadow>
+          <capsuleGeometry args={[0.22, 0.45, 4, 10]} />
+          <meshStandardMaterial color={shirtColor} roughness={0.6} />
+        </mesh>
+        {/* Arms */}
+        <mesh position={[-0.32, 0.75, 0]} rotation={[0, 0, 0.2]} castShadow>
+          <capsuleGeometry args={[0.07, 0.4, 4, 6]} />
+          <meshStandardMaterial color={shirtColor} roughness={0.6} />
+        </mesh>
+        <mesh position={[0.32, 0.75, 0]} rotation={[0, 0, -0.2]} castShadow>
+          <capsuleGeometry args={[0.07, 0.4, 4, 6]} />
+          <meshStandardMaterial color={shirtColor} roughness={0.6} />
+        </mesh>
+        {/* Head */}
+        <mesh position={[0, 1.15, 0]} castShadow>
+          <sphereGeometry args={[0.2, 12, 12]} />
+          <meshStandardMaterial color={skinColor} roughness={0.6} />
+        </mesh>
+        {/* Hair */}
+        <mesh position={[0, 1.28, -0.02]} castShadow>
+          <sphereGeometry args={[0.18, 10, 10, 0, Math.PI * 2, 0, Math.PI * 0.6]} />
+          <meshStandardMaterial color="#2a1a0a" roughness={0.8} />
+        </mesh>
       </group>
     </group>
   );

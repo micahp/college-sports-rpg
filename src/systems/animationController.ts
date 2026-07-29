@@ -436,7 +436,7 @@ export class AnimationController {
     }
     const action = this.mixer.clipAction(clip);
     action.reset();
-    action.setLoop((this.clipLoops[name] ?? THREE.LoopRepeat) as THREE.LoopModes, Infinity);
+    action.setLoop((this.clipLoops[name] ?? THREE.LoopRepeat) as number, Infinity);
     action.setEffectiveTimeScale(1);
     action.setEffectiveWeight(1);
     if (this.currentAction && fade > 0) {
