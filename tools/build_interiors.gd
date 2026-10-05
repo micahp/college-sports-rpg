@@ -486,7 +486,7 @@ func _ball(parent: Node3D, node_name: String, at: Vector3) -> void:
 
 
 func _sitter(parent: Node3D, node_name: String, model: String, desk_at: Vector3, shirt: Color, skin: String) -> void:
-	var s: Node3D = _inst("res://scenes/world3d/student.tscn", parent, node_name, desk_at + Vector3(0, 0.05, 0.3), 1.0)
+	var s: Node3D = _inst("res://scenes/world3d/student.tscn", parent, node_name, desk_at + Vector3(0, 0.1, -0.12), 1.0)
 	s.rotation_degrees.y = 180
 	s.set("model_key", model)
 	s.set("activity", 2)
