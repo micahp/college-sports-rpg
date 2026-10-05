@@ -1,0 +1,694 @@
+{
+  "events": [
+    {
+      "id": "jordan_movein",
+      "npc": "jordan",
+      "location": "campus",
+      "spot": "plaza",
+      "day": 1,
+      "periods": ["morning"],
+      "objective": "Meet your roommate, Jordan, on the quad",
+      "lines": [
+        "Yo! You must be my roommate. Jordan Hayes — room 214, Hargrove Hall. Fair warning, the window side is spoken for.",
+        "I'm mid move-in and my mini-fridge is still sitting at the bottom of the Hargrove stairs. That thing weighs more than my whole scholarship."
+      ],
+      "choices": [
+        {
+          "id": "help_unpack",
+          "label": "Grab the other end of the fridge",
+          "tags": ["social"],
+          "duration_blocks": 1,
+          "effects": { "energy": -10, "roommate_relationship": 14 },
+          "reaction": "It takes both of you, two water breaks, and one near-death experience on the stairs. By the time the fridge hums to life in 214, you know Jordan plays club volleyball, snores 'allegedly,' and his mom already texted him four times. The room feels like yours now."
+        },
+        {
+          "id": "catch_later",
+          "label": "Tell him you'll catch him later — you want to scope out campus first",
+          "tags": ["scholar"],
+          "effects": { "roommate_relationship": -4, "academics": 2 },
+          "reaction": "\"Cold. Noted.\" He says it like a joke, but he hauls the fridge alone and claims the good desk."
+        },
+        {
+          "id": "nap_first",
+          "label": "Beg off — the drive was brutal and you need a nap first",
+          "tags": ["rest"],
+          "duration_blocks": 1,
+          "effects": { "energy": 15, "roommate_relationship": -8, "academics": -4 },
+          "reaction": "You wake up two hours later to a fully decorated half-room and a roommate who has clearly decided you're 'like that.' You feel great physically. Socially, you're starting from behind."
+        }
+      ],
+      "repeat_line": "Go get your bearings. I'll catch you back at Hargrove tonight — room 214."
+    },
+    {
+      "id": "dee_orientation",
+      "npc": "leader",
+      "location": "campus",
+      "spot": "sign",
+      "day": 1,
+      "periods": ["morning", "afternoon"],
+      "lines": [
+        "Freshman! You have the look. I'm Dee, your orientation leader, and you are officially the last one on my list.",
+        "Orientation session is happening right here at the sign — registration, campus jobs, and the stuff nobody tells you. Or you can wing it. People wing it."
+      ],
+      "choices": [
+        {
+          "id": "attend_orientation",
+          "label": "Stick around for the full session",
+          "tags": ["scholar"],
+          "duration_blocks": 1,
+          "set_flags": ["knows_signup"],
+          "effects": { "academics": 8, "coach_interest": 3 },
+          "reaction": "You catch the whole thing — registration deadlines, library hours, and one line that makes you sit up: 'Athletic walk-on evaluations are Saturday. Sign-ups close tomorrow — Coach Delgado is usually outside the Rec Center in the evening.' You write it down."
+        },
+        {
+          "id": "explore_alone",
+          "label": "Grab the one-page flyer and explore on your own",
+          "tags": ["social"],
+          "effects": { "energy": 5, "academics": 2 },
+          "reaction": "Dee shrugs and hands you the flyer. \"Respect. Walk-on sign-ups are outside the Rec Center tonight, by the way. Burritos are at the club tables.\""
+        }
+      ],
+      "repeat_line": "Walk-on sign-ups close tomorrow — Coach Delgado, Rec Center steps, evenings. Don't make me chase you down."
+    },
+    {
+      "id": "coach_signup",
+      "npc": "coach",
+      "location": "campus",
+      "spot": "rec_steps",
+      "day": 1,
+      "periods": ["evening"],
+      "requires": { "not_flag": "signed_up" },
+      "objective": "Sign the walk-on sheet — Coach Delgado is outside the Rec Center",
+      "lines": [
+        "You're hovering. People who hover outside my building usually want the sign-up sheet.",
+        "Walk-on evaluations, Saturday. Forty kids sign that sheet every year. I keep two. Tell me why I'm keeping you."
+      ],
+      "choices": [
+        {
+          "id": "confident_pitch",
+          "label": "\"Because I'll outwork the other thirty-nine.\"",
+          "tags": ["grind"],
+          "set_flags": ["signed_up", "pitch_confident"],
+          "effects": { "coach_interest": 10, "energy": -5 },
+          "reaction": "Delgado's expression doesn't change. \"Everyone says that.\" He turns to go. Then, without looking back: \"Saturday. Come early. I notice who's early.\" From him, that's practically a hug."
+        },
+        {
+          "id": "honest_answer",
+          "label": "\"Honestly? You might not. But I'd regret not signing it.\"",
+          "tags": ["social"],
+          "set_flags": ["signed_up"],
+          "effects": { "coach_interest": 7, "roommate_relationship": 2 },
+          "reaction": "Delgado actually looks at you for a second. \"Huh. An honest freshman.\" He holds out the clipboard. \"Regret's a good reason. Bad players with good reasons still get cut, though.\" You sign. Your handwriting has never been steadier."
+        },
+        {
+          "id": "ask_questions",
+          "label": "Ask what he actually looks for in a walk-on",
+          "tags": ["scholar"],
+          "set_flags": ["signed_up", "knows_checklist"],
+          "effects": { "coach_interest": 5, "academics": 3 },
+          "reaction": "\"Smart question. Nobody asks that.\" He holds up three fingers. \"Conditioning, because I can't teach effort. A real jump shot. And grades — I've lost more walk-ons to eligibility than to injury.\" You sign, and you leave with a checklist. Checklists are your thing."
+        },
+        {
+          "id": "not_ready",
+          "label": "\"I'm... not sure I'm ready.\" Walk away.",
+          "tags": ["rest"],
+          "set_flags": ["declined_signup"],
+          "effects": { "energy": 3 },
+          "reaction": "\"Then you're not.\" He doesn't say it meanly. He just says it like weather. The sheet stays on his clipboard, one line shorter than it could have been."
+        }
+      ],
+      "repeat_line": "Saturday. Early. That's the whole conversation."
+    },
+    {
+      "id": "coach_signup_late",
+      "npc": "coach",
+      "location": "campus",
+      "spot": "rec_steps",
+      "day": 2,
+      "periods": ["afternoon", "evening"],
+      "requires": { "not_flag": "signed_up" },
+      "objective": "Last chance to sign up — Coach Delgado is outside the Rec Center",
+      "lines": [
+        "Sheet closes at eight. You were here yesterday. Or you weren't, and I'm thinking of somebody else. Either way.",
+        "You want on it or not?"
+      ],
+      "choices": [
+        {
+          "id": "sign_late",
+          "label": "\"Put me on it.\"",
+          "tags": ["grind"],
+          "set_flags": ["signed_up"],
+          "effects": { "coach_interest": 4 },
+          "reaction": "He hands you the pen without comment. You're the thirty-eighth name. \"Saturday. Seven-thirty. Late is the same as absent.\""
+        },
+        {
+          "id": "pass_again",
+          "label": "Let it go. Maybe next year.",
+          "tags": ["rest"],
+          "set_flags": ["declined_signup"],
+          "effects": { "energy": 4 },
+          "reaction": "Delgado nods once and goes inside. The door hisses shut behind him. It feels a lot more final than a door has any right to."
+        }
+      ],
+      "repeat_line": "Sheet's closed when I say it's closed."
+    },
+    {
+      "id": "jordan_night1",
+      "npc": "jordan",
+      "location": "dorm",
+      "spot": "jordan",
+      "day": 1,
+      "periods": ["night"],
+      "lines": [
+        "Room 214, fully operational. The fridge has one Gatorade and four of my mom's emergency granola bars in it.",
+        "So. First night. Real talk — you actually trying out Saturday, or was that a vibe?"
+      ],
+      "choices": [
+        {
+          "id": "tell_truth",
+          "label": "\"I'm trying out. I'm scared I'm not good enough.\"",
+          "tags": ["social"],
+          "effects": { "roommate_relationship": 8, "energy": -2 },
+          "reaction": "Jordan sits up. \"Okay, so that's the most honest thing anyone's said to me all day.\" He points at you. \"If you make that team, I'm at every home game. If you don't, I'm still buying the pizza.\""
+        },
+        {
+          "id": "play_it_cool",
+          "label": "\"It's whatever. We'll see.\"",
+          "tags": ["rest"],
+          "effects": { "roommate_relationship": 2 },
+          "reaction": "\"Mm-hm. 'Whatever.'\" He doesn't believe you, and he's polite enough not to say so."
+        }
+      ],
+      "repeat_line": "Lights whenever you're ready. I sleep through anything. Allegedly."
+    },
+    {
+      "id": "okafor_monday",
+      "npc": "okafor",
+      "location": "classroom",
+      "spot": "lectern",
+      "day": 2,
+      "periods": ["morning", "afternoon"],
+      "objective": "First full class day — Kinesiology at Moreno Hall",
+      "lines": [
+        "You're early. Good. Most of this room will learn the hard way that I take attendance by memory.",
+        "Quiz on Friday — energy systems, heart rate, recovery. If you're one of the students who signed a certain sheet outside the Rec Center: eligibility is my problem before it's your coach's."
+      ],
+      "choices": [
+        {
+          "id": "ask_athletes",
+          "label": "\"What should an athlete do to keep up?\"",
+          "tags": ["scholar"],
+          "effects": { "academics": 4 },
+          "reaction": "\"Come to office hours. Sleep. Don't pull all-nighters before a game — the research on that is very boring and very clear.\" She almost smiles. \"There. You've already done more than most.\""
+        },
+        {
+          "id": "just_nod",
+          "label": "Nod and take a seat",
+          "tags": ["rest"],
+          "effects": { "energy": 2 },
+          "reaction": "She watches you sit, then goes back to her notes. You get the feeling she's filed you under 'undecided.'"
+        }
+      ],
+      "repeat_line": "Seats are not assigned, but the front row has better oxygen. That's a joke. Mostly."
+    },
+    {
+      "id": "dee_monday",
+      "npc": "leader",
+      "location": "campus",
+      "spot": "sign",
+      "day": 2,
+      "periods": ["evening"],
+      "lines": [
+        "My last-on-the-list freshman! How's day two treating you?",
+        "I run a study group Wednesday night in Moreno 104 — Kinesiology mostly, it's everybody's first trap class. You want in?"
+      ],
+      "choices": [
+        {
+          "id": "join_study_group",
+          "label": "\"I'm in. Wednesday.\"",
+          "tags": ["scholar"],
+          "set_flags": ["study_group_invite"],
+          "effects": { "academics": 2 },
+          "reaction": "\"Love that. Bring snacks or bring questions. Ideally both.\" She writes your name in a notebook that's already very full."
+        },
+        {
+          "id": "decline_study_group",
+          "label": "\"I've got hoops stuff. Maybe after Saturday?\"",
+          "tags": ["grind"],
+          "effects": { "basketball_skill": 1 },
+          "reaction": "\"Fair. Just don't let Okafor's quiz sneak up on you. It sneaks.\""
+        }
+      ],
+      "repeat_line": "Wednesday, Moreno 104, seven o'clock. Snacks optional, questions mandatory."
+    },
+    {
+      "id": "dee_rescue",
+      "npc": "leader",
+      "location": "campus",
+      "spot": "sign",
+      "day": 3,
+      "periods": ["morning", "afternoon"],
+      "requires": { "not_flag": "signed_up" },
+      "objective": "Dee is looking for you by the campus sign",
+      "lines": [
+        "Okay, I'm going to say something and you're going to let me. I saw the walk-on sheet. Your name isn't on it.",
+        "Delgado owes me a favor from when I ran his summer camp check-in. I can get you on the list. But you have to actually want it."
+      ],
+      "choices": [
+        {
+          "id": "accept_rescue",
+          "label": "\"I want it. Thank you — seriously.\"",
+          "tags": ["social"],
+          "set_flags": ["signed_up", "dee_vouched"],
+          "effects": { "coach_interest": -2, "academics": 1 },
+          "reaction": "Dee is already texting. \"Done. He says, quote, 'Fine.' That's a yes in Delgado.\" She points at you. \"He'll remember you came in through the side door. So show up loud.\""
+        },
+        {
+          "id": "refuse_rescue",
+          "label": "\"It's fine. It wasn't meant to be.\"",
+          "tags": ["rest"],
+          "effects": { "energy": 3 },
+          "reaction": "Dee studies you for a long second. \"Okay. Your call.\" She means it, and somehow that makes it heavier."
+        }
+      ],
+      "repeat_line": "You know where to find me."
+    },
+    {
+      "id": "jordan_invite",
+      "npc": "jordan",
+      "location": "dorm",
+      "spot": "jordan",
+      "day": 3,
+      "periods": ["morning"],
+      "objective": "Jordan wants to ask you something before you leave the dorm",
+      "lines": [
+        "Before you go — my club volleyball team has its first match tonight. Rec Center, court two, seven o'clock.",
+        "Nobody I know is coming. Which is fine. Totally fine. It would be cool though."
+      ],
+      "choices": [
+        {
+          "id": "promise_match",
+          "label": "\"I'll be there. Front row.\"",
+          "tags": ["social"],
+          "set_flags": ["promised_match"],
+          "effects": { "roommate_relationship": 5 },
+          "reaction": "Jordan tries to play it cool and fails completely. \"Okay. Okay! Cool. Wear something loud.\""
+        },
+        {
+          "id": "maybe_match",
+          "label": "\"I'll try — I might have conditioning.\"",
+          "tags": ["grind"],
+          "effects": { "roommate_relationship": -1 },
+          "reaction": "\"Yeah, no, totally. Hoops first.\" He says it nicely. He also says it to the floor."
+        }
+      ],
+      "repeat_line": "Seven o'clock, court two. Rec Center."
+    },
+    {
+      "id": "coach_conditioning",
+      "npc": "coach",
+      "location": "gym",
+      "spot": "office",
+      "day": 3,
+      "periods": ["evening"],
+      "requires": { "flag": "signed_up" },
+      "objective": "Tuesday night at the Rec Center: Delgado's walk-on conditioning — or Jordan's match",
+      "lines": [
+        "Optional walk-on conditioning. Optional means I'm watching who opts.",
+        "Line up on the baseline or don't. Clock starts in two minutes."
+      ],
+      "choices": [
+        {
+          "id": "join_conditioning",
+          "label": "Line up on the baseline",
+          "tags": ["grind"],
+          "duration_blocks": 1,
+          "requirements": { "energy_min": 20 },
+          "set_flags": ["did_conditioning"],
+          "effects": { "coach_interest": 9, "athleticism": 5, "energy": -22 },
+          "reaction": "Suicides, then defensive slides, then more suicides. Two walk-ons throw up. You don't, and when you finish your last sprint Delgado writes something on his clipboard without looking at you. Through the curtain, you can hear a volleyball crowd cheering on court two."
+        },
+        {
+          "id": "skip_conditioning",
+          "label": "\"Not tonight, Coach.\"",
+          "tags": ["social"],
+          "effects": { "coach_interest": -2 },
+          "reaction": "\"Noted.\" He doesn't look up. The curtain to court two is right there."
+        }
+      ],
+      "repeat_line": "Clock's running."
+    },
+    {
+      "id": "jordan_match",
+      "npc": "jordan",
+      "location": "gym",
+      "spot": "sideline",
+      "day": 3,
+      "periods": ["evening"],
+      "lines": [
+        "You came?! Hold on — we're up in two. The other team has a guy who's like seven feet tall. This is fine.",
+        "Sit anywhere. Literally anywhere. There are nine people here."
+      ],
+      "choices": [
+        {
+          "id": "watch_match",
+          "label": "Stay and cheer the whole match",
+          "tags": ["social"],
+          "duration_blocks": 1,
+          "set_flags": ["went_match"],
+          "effects": { "roommate_relationship": 14, "energy": -5 },
+          "reaction": "You are, by a wide margin, the loudest person in the building. Jordan's team loses in three sets and he does not care at all, because after the last point he points at you in the stands like you won it for him. On the walk home he narrates every point he scored. You let him."
+        },
+        {
+          "id": "leave_match",
+          "label": "Wave and slip out — you've got things to do",
+          "tags": ["grind"],
+          "effects": { "roommate_relationship": -3 },
+          "reaction": "Jordan waves back. It's a smaller wave than before."
+        }
+      ],
+      "repeat_line": "Side out! SIDE OUT! Sorry. Sit, sit."
+    },
+    {
+      "id": "jordan_tuesday_night",
+      "npc": "jordan",
+      "location": "dorm",
+      "spot": "jordan",
+      "day": 3,
+      "periods": ["night"],
+      "requires": { "flag": "promised_match", "not_flag": "went_match" },
+      "objective": "Jordan's back in 214. He saw the empty front row.",
+      "lines": [
+        "Hey. We lost. In case you were wondering.",
+        "Front row was real empty."
+      ],
+      "choices": [
+        {
+          "id": "apologize",
+          "label": "\"I'm sorry. I should have been there.\"",
+          "tags": ["social"],
+          "effects": { "roommate_relationship": -4 },
+          "reaction": "\"Yeah.\" Long pause. \"Next one's in two weeks. Just saying.\" It's not forgiveness. It's a door left open."
+        },
+        {
+          "id": "explain_hoops",
+          "label": "\"Delgado was running conditioning. I had to.\"",
+          "tags": ["grind"],
+          "effects": { "roommate_relationship": -9 },
+          "reaction": "\"You didn't have to say you'd come, though.\" He puts his headphones on. The room is very quiet for a room with two people in it."
+        }
+      ],
+      "repeat_line": "I'm good. Just tired."
+    },
+    {
+      "id": "okafor_wednesday",
+      "npc": "okafor",
+      "location": "classroom",
+      "spot": "lectern",
+      "day": 4,
+      "periods": ["morning", "afternoon"],
+      "lines": [
+        "Reminder: Friday's quiz covers everything through today. I don't curve.",
+        "You. You've been in that seat every day this week. What's the difference between the aerobic and anaerobic systems, in your own words?"
+      ],
+      "choices": [
+        {
+          "id": "answer_well",
+          "label": "Explain it with a basketball example",
+          "tags": ["scholar"],
+          "requirements": { "stat_min": { "academics": 55 } },
+          "effects": { "academics": 5 },
+          "reaction": "You explain it as a fast break versus a four-quarter grind, and two people near you actually write it down. Okafor tilts her head. \"Correct. And memorable. Do that on Friday.\""
+        },
+        {
+          "id": "fumble_answer",
+          "label": "Take a swing at it",
+          "tags": ["rest"],
+          "effects": { "academics": 1 },
+          "reaction": "You get about half of it. \"Half right,\" Okafor says, \"is the most dangerous kind of right. Office hours are Thursday.\""
+        }
+      ],
+      "repeat_line": "Friday. Energy systems. I'm not hiding the ball."
+    },
+    {
+      "id": "dee_study_group",
+      "npc": "leader",
+      "location": "classroom",
+      "spot": "back_row",
+      "day": 4,
+      "periods": ["evening"],
+      "requires": { "flag": "study_group_invite" },
+      "objective": "Dee's study group — Moreno Hall, tonight",
+      "lines": [
+        "You came! Okay everyone, this is my freshman. Be nice, they're trying out for basketball Saturday.",
+        "We're doing Okafor's practice questions. Grab a marker."
+      ],
+      "choices": [
+        {
+          "id": "full_session",
+          "label": "Work through every practice question",
+          "tags": ["scholar"],
+          "duration_blocks": 1,
+          "effects": { "academics": 12, "energy": -8 },
+          "reaction": "Three hours, eleven practice questions, one pizza. By the end you can draw the energy-systems chart from memory and explain it to a junior. Dee high-fives you on the way out. \"Okafor's going to be so annoyed she can't trip you up.\""
+        },
+        {
+          "id": "half_session",
+          "label": "Stay an hour, then head out to rest your legs",
+          "tags": ["rest"],
+          "duration_blocks": 1,
+          "effects": { "academics": 5, "energy": 4 },
+          "reaction": "You get the big ideas down and leave before your brain melts. Dee waves you off. \"Smart. Legs are a resource.\""
+        }
+      ],
+      "repeat_line": "Marker's on the tray. Question six is the trap."
+    },
+    {
+      "id": "coach_watch",
+      "npc": "coach",
+      "location": "gym",
+      "spot": "office",
+      "day": 5,
+      "periods": ["afternoon"],
+      "requires": { "flag": "signed_up" },
+      "objective": "Delgado is watching the Thursday pickup run at the Rec Center",
+      "lines": [
+        "Thursday run. Half my roster plays in this. I like to see who walks onto a court with grown men.",
+        "Go get a shot up. I'm not here."
+      ],
+      "choices": [
+        {
+          "id": "play_for_coach",
+          "label": "Get in the run — show him your shot",
+          "tags": ["grind"],
+          "duration_blocks": 1,
+          "requirements": { "energy_min": 20 },
+          "minigame": "showcase",
+          "effects": { "basketball_skill": 4, "energy": -16, "coach_interest": 3 },
+          "reaction": "You play the whole run against actual Ridgehawks."
+        },
+        {
+          "id": "sit_this_one",
+          "label": "Sit this one out — save it for Saturday",
+          "tags": ["rest"],
+          "effects": { "energy": 4, "coach_interest": -3 },
+          "reaction": "Delgado glances at you on the bench exactly once. You can't tell if it's approval. It probably isn't."
+        }
+      ],
+      "repeat_line": "I'm not here."
+    },
+    {
+      "id": "floor_party",
+      "npc": "jordan",
+      "location": "dorm",
+      "spot": "jordan",
+      "day": 5,
+      "periods": ["night"],
+      "objective": "Jordan has plans for Thursday night",
+      "lines": [
+        "Third floor is doing a thing in the lounge. Music, terrible snacks, a guy with a fog machine for some reason.",
+        "You in? It's Thursday. Saturday is, like, a day and a half away. That's basically next year."
+      ],
+      "choices": [
+        {
+          "id": "go_party",
+          "label": "\"Let's go. One hour.\"",
+          "tags": ["social"],
+          "duration_blocks": 1,
+          "effects": { "roommate_relationship": 10, "energy": 6, "academics": -2 },
+          "reaction": "It's not one hour. It's three. The fog machine trips the smoke detector, the whole floor ends up on the lawn at 1 AM, and Jordan introduces you to forty people as 'my roommate, the hooper.' You sleep five hours and it was worth it. Probably."
+        },
+        {
+          "id": "skip_party",
+          "label": "\"I'm sleeping. Tell me everything tomorrow.\"",
+          "tags": ["rest"],
+          "duration_blocks": 1,
+          "effects": { "energy": 30, "roommate_relationship": 1 },
+          "reaction": "You fall asleep to muffled bass through the floor. Jordan comes in at 1 AM, trips over your shoes, and whispers 'the fog machine was a mistake' to no one. You sleep like a rock."
+        }
+      ],
+      "repeat_line": "Fog machine. I'm telling you."
+    },
+    {
+      "id": "coach_friday",
+      "npc": "coach",
+      "location": "gym",
+      "spot": "office",
+      "day": 6,
+      "periods": ["afternoon", "evening"],
+      "requires": { "flag": "signed_up" },
+      "lines": [
+        "Tomorrow. Seven-thirty. Three stations: spot-up, off the dribble, free throws at the end when your legs are gone.",
+        "Last thing a walk-on ever asks me the night before. Go ahead."
+      ],
+      "choices": [
+        {
+          "id": "ask_advice",
+          "label": "\"What separates the two you keep?\"",
+          "tags": ["scholar"],
+          "effects": { "coach_interest": 3 },
+          "reaction": "\"They don't look at me after a miss.\" He shrugs. \"Everyone misses. The two I keep act like the next one's going in.\""
+        },
+        {
+          "id": "promise_effort",
+          "label": "\"No question. I'll see you at seven-fifteen.\"",
+          "tags": ["grind"],
+          "effects": { "coach_interest": 4, "energy": -2 },
+          "reaction": "One eyebrow goes up, maybe a millimeter. \"Seven-fifteen.\" He writes it down. You realize you are now contractually obligated to be early."
+        }
+      ],
+      "repeat_line": "Go home. Sleep. That's coaching."
+    },
+    {
+      "id": "jordan_friday",
+      "npc": "jordan",
+      "location": "dorm",
+      "spot": "jordan",
+      "day": 6,
+      "periods": ["evening", "night"],
+      "lines": [
+        "So. Tomorrow.",
+        "I got you something. Don't make it weird."
+      ],
+      "choices": [
+        {
+          "id": "accept_wristband",
+          "label": "Open it",
+          "tags": ["social"],
+          "requirements": { "stat_min": { "roommate_relationship": 35 } },
+          "set_flags": ["wristband"],
+          "effects": { "roommate_relationship": 6, "energy": 5 },
+          "reaction": "It's a navy-and-gold Ridgehawks wristband, the cheap kind from the bookstore. \"For luck. And so I can spot you from the bleachers.\" Wait — \"from the bleachers?\" \"Evaluations are open to the public, genius. I'll be there at seven.\""
+        },
+        {
+          "id": "brush_off",
+          "label": "\"You didn't have to get me anything.\"",
+          "tags": ["rest"],
+          "effects": { "roommate_relationship": 1 },
+          "reaction": "\"I know.\" He tosses you a bag of the emergency granola bars. \"Breakfast. Don't be late.\""
+        }
+      ],
+      "repeat_line": "Sleep. I'll set three alarms. For you, not me."
+    },
+    {
+      "id": "tryout_day",
+      "npc": "coach",
+      "location": "gym",
+      "spot": "office",
+      "day": 7,
+      "periods": ["morning"],
+      "requires": { "flag": "signed_up" },
+      "objective": "Walk-on evaluation — get to the Rec Center",
+      "tryout": true,
+      "lines": [
+        "Thirty-eight names on the sheet. Twenty-nine showed up. You're one of them.",
+        "Three stations. Spot-up, off the dribble, free throws at the end. Ball's on the rack. Go."
+      ],
+      "choices": [
+        {
+          "id": "start_tryout",
+          "label": "Step onto the court",
+          "tags": ["grind"],
+          "minigame": "tryout",
+          "effects": {},
+          "reaction": ""
+        }
+      ],
+      "repeat_line": "Go."
+    },
+    {
+      "id": "spectator_day",
+      "npc": "coach",
+      "location": "gym",
+      "spot": "office",
+      "day": 7,
+      "periods": ["morning"],
+      "requires": { "not_flag": "signed_up" },
+      "objective": "The walk-on evaluation is happening at the Rec Center",
+      "spectator": true,
+      "lines": [
+        "Bleachers are that way. Evaluations are for people on the sheet."
+      ],
+      "choices": [
+        {
+          "id": "watch_from_bleachers",
+          "label": "Climb into the bleachers and watch",
+          "tags": ["rest"],
+          "effects": {},
+          "reaction": ""
+        }
+      ],
+      "repeat_line": "Bleachers."
+    }
+  ],
+  "ambient": [
+    {
+      "npc": "jordan",
+      "location": "dorm",
+      "spot": "jordan",
+      "days": [1, 2, 3, 4, 5, 6, 7],
+      "periods": ["morning", "evening", "night"],
+      "lines": [
+        "The fridge is making a new noise. I've decided it's a happy noise.",
+        "My mom asked if you're 'a good influence.' I said jury's out.",
+        "If you see my left shoe, it's not under my bed. I checked. Twice.",
+        "Real talk, the dining hall waffles are the best thing at this school. Including the education."
+      ]
+    },
+    {
+      "npc": "leader",
+      "location": "campus",
+      "spot": "sign",
+      "days": [2, 3, 4, 5, 6],
+      "periods": ["morning", "afternoon"],
+      "lines": [
+        "Freshman! Still alive? Proud of you.",
+        "Pro tip: Okafor's office hours are where grades go to get saved.",
+        "Free burritos at the club tables until they run out. They never run out. It's a little concerning."
+      ]
+    },
+    {
+      "npc": "coach",
+      "location": "gym",
+      "spot": "office",
+      "days": [1, 2, 3, 4, 5, 6],
+      "periods": ["afternoon", "evening"],
+      "lines": [
+        "Ball's free. Courts are free. Excuses aren't.",
+        "I'm watching film. Pretend I'm not here.",
+        "You want feedback, show me something worth feeding back on."
+      ]
+    },
+    {
+      "npc": "okafor",
+      "location": "classroom",
+      "spot": "lectern",
+      "days": [2, 3, 5, 6],
+      "periods": ["morning", "afternoon"],
+      "lines": [
+        "The front row has better oxygen. That's a joke. Mostly.",
+        "Office hours are for everyone. Including people who don't think they need them. Especially them."
+      ]
+    }
+  ]
+}

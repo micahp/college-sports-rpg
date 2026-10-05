@@ -85,3 +85,14 @@ bed, footsteps, UI sounds).
   scene reads as art-directed, not toy-like.
 - Every frame should have foreground (bush/tree), midground (actors), and
   background (building/facade) elements.
+
+## Full game additions
+- Characters are scaled to ~1.8 m (`CharacterAppearance.CHARACTER_SCALE`);
+  the rigs import at ~4.8 m, which made people dwarf doors and benches.
+- Interiors (`tools/build_interiors.gd`) are cutaway rooms. No CC0 furniture
+  pack was reachable from the build machine, so beds, desks, the hoop,
+  bleachers and gym equipment are composed from primitives in the same way
+  the branded props (sign, bulletin board, club table) already were; they're
+  the first thing to swap for kit meshes (e.g. Quaternius furniture packs).
+- Floor textures: `tools/make_interiors.py`. Portraits and the title
+  background are rendered from the real rigs/scene by `tools/render_portraits.tscn`.

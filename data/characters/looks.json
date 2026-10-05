@@ -1,0 +1,8 @@
+{
+  "looks": [
+    { "id": "look_a", "name": "Look A", "model": "male_casual", "skin": "brown", "shirt": "#ebb84d", "pants": "#29385f", "hair": "#1a1412" },
+    { "id": "look_b", "name": "Look B", "model": "female_tanktop", "skin": "tan", "shirt": "#ebb84d", "pants": "#29385f", "hair": "#4a2e18" },
+    { "id": "look_c", "name": "Look C", "model": "male_shirt", "skin": "light", "shirt": "#3d6fb0", "pants": "#3a3a40", "hair": "#6b4a26" },
+    { "id": "look_d", "name": "Look D", "model": "female_casual", "skin": "deep", "shirt": "#e2e2dc", "pants": "#1f335c", "hair": "#0e0c0c" }
+  ]
+}

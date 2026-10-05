@@ -1,84 +1,102 @@
 # The U
 
 A stylized 3D mobile college-life RPG. You arrive at North Valley State with
-one life, four years, and a walk-on evaluation on Saturday. Every choice
-closes a door.
+one week, one roommate, and a walk-on basketball evaluation on Saturday.
+Every choice closes a door.
 
 **Play it:** https://micahp.github.io/college-sports-rpg/
 
-**Current build:** Milestone 1.6 — the postable campus slice. An
-editor-authored 3D courtyard at North Valley State: the Rec Center as the hero
-building, navy-and-gold Ridgehawks branding (banners, monument sign, bulletin
-board, club table, plaza emblem), six background students living the space,
-soft art-directed lighting, ambient audio, and one cinematic conversation with
-Jordan that eases into a profile two-shot. The goal is a screenshot and a
-15-second clip that read as a real university-life sports RPG without a
-prototype disclaimer.
+## The game
 
-The full simulation from the earlier 2D milestones (three NPCs, dialogue
-choices, stat effects) is archived systems validation — its tests still pass;
-it gets rewired into this presentation in Milestone 3.
+- **Title → character creation.** Name, how you got here (Workhorse /
+  Natural Talent / Scholar — each shifts your starting stats), and one of four
+  looks. Continue picks up an autosave exactly where you left it.
+- **Seven days, four periods each** (Sunday move-in → Saturday tryout). Time
+  only moves when you finish an activity — walking around is free.
+- **A walkable campus.** The quad hub plus three interiors behind real doors:
+  Hargrove Hall Room 214 (your dorm), Moreno Hall 104 (Intro to Kinesiology),
+  and the Rec Center court and weight room.
+- **Activities** at spots in the world: study, nap, attend lecture, office
+  hours, shootaround, pickup runs, conditioning, the club fair. Each costs the
+  period and moves your six stats (energy, academics, athleticism,
+  basketball, your relationship with Jordan, coach interest). Skills have
+  diminishing returns — you can't max everything in a week.
+- **Story, face to face.** Jordan (roommate), Dee (orientation leader),
+  Coach Delgado and Prof. Okafor show up at specific places and times with
+  choices that matter: sign the walk-on sheet (or don't), Jordan's volleyball
+  match vs. Delgado's conditioning session on the same night, Dee's study
+  group, the Thursday floor party, the Friday quiz that decides eligibility.
+  A gold **!** marks someone with something new to say; a gold arrow points to
+  your current objective.
+- **Shooting minigame** (timing meter — release in the gold zone). Zone width
+  comes from basketball skill, sweep speed from athleticism and energy. Used
+  for shootarounds, the Thursday showcase in front of Delgado, and the
+  three-station Saturday evaluation.
+- **Nightly recap** of what changed, and an **ending** with five possible
+  verdicts (made the roster, made it on academic review, practice squad, cut,
+  watched from the bleachers) plus epilogues for Jordan, your grades, and the
+  kind of week you had.
 
 ## Controls
 
 | | Desktop | Mobile |
 |---|---|---|
 | Move | WASD / arrow keys | virtual joystick (bottom-left) |
-| Talk | E near Jordan | TALK button (appears in range) |
-| Close dialogue | E / click Continue | tap Continue |
+| Talk / enter / use | E, Space or Enter near someone or something | action button (bottom-right) |
+| Pick a choice | click, or number keys 1–4 | tap |
+| Shoot | Space / E, or click SHOOT | tap SHOOT |
+| Stats / pause | STATS and MENU buttons (top-right) | same |
 
 ## Run it locally
 
 1. Install [Godot 4.3+](https://godotengine.org/download) (standard build, not .NET).
 2. Open this folder in the Godot editor (`project.godot`).
-3. Press F5. The main scene is `scenes/world3d/campus3d.tscn`.
+3. Press F5. The main scene is `scenes/app/title.tscn`.
 
 Mouse clicks emulate touch, so mobile controls are testable on desktop.
 
 ## Check it
 
 ```
-godot --headless -s tests/run_checks.gd          # systems + content validation
-godot --headless tests/campus3d_autoplay.tscn    # 3D slice acceptance test
-godot --headless tests/campus_autoplay.tscn      # 2D milestone regression
-xvfb-run godot tests/screenshot3d.tscn           # rendered stills (build/shots3d/)
-xvfb-run godot --write-movie build/clip/clip.avi --fixed-fps 30 tests/clip3d.tscn
+godot --headless -s tests/run_checks.gd           # systems + content validation
+godot --headless tests/week_autoplay.tscn         # plays the whole week 4 ways + save/continue
+xvfb-run godot --rendering-driver opengl3 tests/tour_shots.tscn     # every location (build/tour/)
+xvfb-run godot --rendering-driver opengl3 tests/moment_shots.tscn   # UI moments (build/moments/)
 ```
+
+`week_autoplay` drives the real scenes with a scripted player: walking,
+collision, the joystick, every story card, the minigame, recaps, all four
+strategies reaching an ending (roster, roster-or-better for a scholar, cut for
+a player who misses every shot, bleachers for one who never signs up), then
+quit-to-title → Continue restoring day, period, place, stats and history.
 
 ## Project map
 
 ```
-docs/            Constraints, milestone plan, ART_PIPELINE.md, schemas, DoD
-assets/          CC0 Quaternius models/textures + generated branding/audio/ground
-data/            All narrative + stat effects as JSON — edit story here
-tools/           Repeatable generators: asset fetch, branding, audio, scene scaffold
+data/            All story, activities, NPCs, looks, endings (JSON) — edit the game here
+  story/         events.json (week's conversations + ambient chatter), endings.json
+  world/         activities.json (spots + choices), npcs.json (who + how they look)
+  characters/    identities.json, looks.json
 scripts/
-  core/          Autoloads: InputSetup, GameState, TimeSystem, ContentDB, SaveSystem
-  world3d/       Campus behavior, player, NPCs, background students, appearance
-  world/         Archived 2D top-down milestone (systems proof, not shipped)
-  ui/            HUD, virtual joystick, dialogue panels
-scenes/world3d/  campus3d.tscn (main scene) + env/ subscenes + actors
-tests/           Headless acceptance suites + screenshot/clip rigs
+  core/          Autoloads: InputSetup, GameState, TimeSystem, ContentDB, SaveSystem, Game
+  world3d/       location.gd (runs every place), player, NPCs, students, appearance
+  minigame/      shot_minigame.gd
+  ui/            ui_kit, game_ui (HUD/stats/menu/recap), story_card, joystick
+  app/           title + character creation, ending
+scenes/          app/ (title, ending), world3d/ (quad + actors), interiors/
+tools/           Generators: campus + interiors scenes, textures, branding, audio, portraits
+tests/           Headless acceptance suites + screenshot rigs
+docs/            Constraints, schemas, art pipeline, definition of done
 ```
 
-The courtyard is an editor-authored scene. Regenerate its scaffold — and the
-branding, audio, and ground textures it uses — with:
+Scenes are generated scaffolds — regenerate after editing the generators:
 
 ```
-python3 tools/make_branding.py                   # North Valley State textures
-python3 tools/make_audio.py                      # ambient bed, footsteps, UI
-godot --headless -s tools/build_campus_scene.gd  # (re)write campus3d.tscn + env/
+godot --headless -s tools/build_campus_scene.gd   # scenes/world3d/campus3d.tscn + env/
+godot --headless -s tools/build_interiors.gd      # scenes/interiors/*.tscn
+python3 tools/make_interiors.py                   # floor textures
+xvfb-run godot --rendering-driver opengl3 tools/render_portraits.tscn   # portraits + title art
 ```
 
-Read `docs/GAME_CONSTRAINTS.md` and `docs/ART_PIPELINE.md` before changing
-anything. The game is spatial and must look like a product: no primitive-shape
-characters, no menu-driven gameplay, fixed camera, mobile controls always.
-
-## Milestones
-
-1. ~~World: map, movement, collision, camera, mobile controls, one NPC~~ ✓ (audit passed)
-2. ~~Conversations: three NPCs, dialogue choices, visible stat changes~~ ✓ (2D, systems archived)
-1.5. ~~Visual target: stylized 3D courtyard, real humans~~ ✓ (superseded by 1.6)
-1.6. ~~Postable campus slice: branded courtyard, background life, cinematic dialogue, audio~~ ✓ (awaiting checkpoint)
-3. Rewire M2 conversations + stats into the 3D campus; building interiors, time periods
-4. The full day: morning→night sequence, recap, save/continue, regression pass
+Story is data: to add a conversation, add an entry to `data/story/events.json`
+(day, periods, location, spot, lines, choices). See `docs/DATA_SCHEMAS.md`.

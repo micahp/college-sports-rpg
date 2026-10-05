@@ -27,6 +27,7 @@ var _current_anim: String = ""
 var _stride_clock: float = 0.0
 var _steps: AudioStreamPlayer3D
 var _step_sounds: Array[AudioStream] = []
+var _action_time: float = 0.0
 
 
 func _ready() -> void:
@@ -108,6 +109,9 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 	var planar: Vector3 = Vector3(velocity.x, 0, velocity.z)
+	if _action_time > 0.0:
+		_action_time -= delta
+		return
 	if planar.length() > 0.3:
 		var target_yaw: float = atan2(planar.x, planar.z)
 		_model.rotation.y = lerp_angle(_model.rotation.y, target_yaw, TURN_SPEED * delta)
@@ -126,6 +130,23 @@ func _physics_process(delta: float) -> void:
 func face_toward(point: Vector3) -> void:
 	var to_point: Vector3 = point - global_position
 	_model.rotation.y = atan2(to_point.x, to_point.z)
+
+
+func face_direction(direction: Vector3) -> void:
+	if _model != null and Vector2(direction.x, direction.z).length() > 0.01:
+		_model.rotation.y = atan2(direction.x, direction.z)
+
+
+## Plays a named rig animation once ("Jump", "Clapping") and returns to idle
+## logic on the next movement frame. Used by the shooting minigame.
+func play_action(anim_name: String, speed: float = 1.0) -> void:
+	_current_anim = "HumanArmature|%s_%s" % [_prefix, anim_name]
+	_anim.play(_current_anim, 0.12, speed)
+	_action_time = _anim.get_animation(_current_anim).length / speed
+
+
+func model() -> Node3D:
+	return _model
 
 
 func _play(anim_name: String) -> void:

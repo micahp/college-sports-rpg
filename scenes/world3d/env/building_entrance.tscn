@@ -1,0 +1,54 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/city/Door_1.gltf" id="1_au8lv"]
+[ext_resource type="PackedScene" path="res://assets/city/Prop_Planter_Single.gltf" id="2_tqq5c"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tn8gk"]
+albedo_color = Color(0.12, 0.2, 0.36, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_deteu"]
+material = SubResource("StandardMaterial3D_tn8gk")
+size = Vector3(4.6, 0.62, 0.16)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fb4l8"]
+albedo_color = Color(0.62, 0.6, 0.57, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_bw3ds"]
+material = SubResource("StandardMaterial3D_fb4l8")
+size = Vector3(3.2, 0.14, 1.3)
+
+[node name="BuildingEntrance" type="Node3D"]
+
+[node name="Door" type="Node3D" parent="." instance=ExtResource("1_au8lv")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 1, 0, 0.05)
+
+[node name="Fascia" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.55, 0.12)
+mesh = SubResource("BoxMesh_deteu")
+
+[node name="Sign" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.55, 0.22)
+modulate = Color(0.92, 0.72, 0.3, 1)
+outline_modulate = Color(0.08, 0.1, 0.16, 1)
+text = "HALL"
+font_size = 44
+outline_size = 0
+
+[node name="Step" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, 0.65)
+mesh = SubResource("BoxMesh_bw3ds")
+
+[node name="PlanterL" type="Node3D" parent="." instance=ExtResource("2_tqq5c")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 0.7)
+
+[node name="PlanterR" type="Node3D" parent="." instance=ExtResource("2_tqq5c")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0.7)
+
+[node name="LampLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 1)
+visible = false
+light_color = Color(1, 0.84, 0.6, 1)
+light_energy = 1.8
+omni_range = 7.0

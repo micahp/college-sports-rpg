@@ -26,19 +26,19 @@ hero building, six background students, art-directed lighting, ambient audio,
 polished mobile UI, and a cinematic conversation two-shot. Postable
 screenshot + 15-second clip without a prototype disclaimer.
 
-**M3 — Places and time (next).** Rewire the M2 conversations and stats into
+**M3 — Places and time (DONE).** Rewire the M2 conversations and stats into
 the 3D campus. Dorm/classroom/gym interiors behind real
 doors, scene transitions, the four-period time system wired to activities,
 afternoon activity locking (class OR gym), title screen with New Game /
 Continue.
 
-**M4 — The full day.** Complete morning→night sequence, day recap screen,
-save/continue restoring mid-day state, full regression pass.
+**M4 — The full week (DONE).** Seven days of data-driven story and
+activities, nightly recaps, the Saturday tryout minigame, five endings,
+save/continue, and a full-week autoplay regression suite.
 
 ## Content sources
-NPC conversations live in `data/dialogue/day1_npcs.json`; narrative and stat
-effects are adapted from the original `data/days/day_1.json` beats, which
-remain the source for M3's time-block activity structure.
+The week's conversations live in `data/story/events.json`, activities in
+`data/world/activities.json`, endings in `data/story/endings.json`.
 
 ## Definition of "this slice is done"
 See DEFINITION_OF_DONE.md. The headline test: a playtester finishes Day 1 and

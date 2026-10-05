@@ -1,0 +1,40 @@
+{
+  "npcs": {
+    "jordan": {
+      "name": "Jordan Hayes",
+      "role": "Your roommate",
+      "model": "male_longsleeve",
+      "skin": "deep",
+      "shirt": "#80293a",
+      "pants": "#33302e",
+      "hair": "#141210"
+    },
+    "leader": {
+      "name": "Dee Alvarez",
+      "role": "Orientation leader",
+      "model": "female_casual",
+      "skin": "tan",
+      "shirt": "#ebb84d",
+      "pants": "#1f335c",
+      "hair": "#2b1a10"
+    },
+    "coach": {
+      "name": "Coach Delgado",
+      "role": "Men's basketball",
+      "model": "male_shirt",
+      "skin": "brown",
+      "shirt": "#1f335c",
+      "pants": "#5a5650",
+      "hair": "#3a3a3a"
+    },
+    "okafor": {
+      "name": "Prof. Okafor",
+      "role": "Intro to Kinesiology",
+      "model": "female_dress",
+      "skin": "deep",
+      "shirt": "#2f5a4a",
+      "pants": "#22222a",
+      "hair": "#0e0c0c"
+    }
+  }
+}

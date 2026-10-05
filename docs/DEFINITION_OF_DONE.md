@@ -1,4 +1,4 @@
-# Definition of Done — Spatial Day One Slice
+# Definition of Done
 
 Hard rejection criteria (any true = build fails): gameplay is primarily text
 and buttons; locations are menu options; no controllable visible player; no
@@ -33,22 +33,21 @@ completed start to recap; save/continue broken; mobile input missing.
 - [x] Postable screenshot set (build/shots3d/) and 12s gameplay clip (build/clip/)
 - [x] `tests/campus3d_autoplay.tscn` passes headless (21 checks)
 
-## Milestone 3 — Places and time (now: rewire M2 systems into 3D first)
-- [ ] Dorm, classroom, gym interiors load through their doors and back
-- [ ] Time advances only on completed activities; HUD updates
-- [ ] Afternoon lock: entering class or gym consumes the period, other becomes
-      unavailable
-- [ ] Title screen: New Game works, Continue disabled without a save
+## Milestone 3 — Places and time (done)
+- [x] Dorm, classroom, gym interiors load through their doors and back
+- [x] Time advances only on completed activities; HUD updates
+- [x] Activities consume the period (class OR gym OR the quad)
+- [x] Title screen: New Game works, Continue disabled without a save
 
-## Milestone 4 — The full day
-- [ ] Complete morning→night day, every interaction functional
-- [ ] Day recap: choices made, stats, emerging identity, Continue button
-- [ ] Autosave after meaningful actions; relaunch resumes correctly
-- [ ] New Game resets all progress
-- [ ] No interaction traps the player; no dead buttons; no TODO text;
-      no uncaught runtime errors
+## Milestone 4 — The full week (done)
+- [x] Seven days, morning→night, every interaction functional
+- [x] Nightly recap; ending recap with verdict, stats, epilogues, Play Again
+- [x] Timing-based tryout minigame; three NPC relationships with real consequences
+- [x] Autosave after meaningful actions; Continue resumes correctly
+- [x] New Game resets all progress
+- [x] `tests/week_autoplay.tscn` plays the whole week four ways and passes
 
-## Feel (playtest with 5 people, after M4)
+## Feel (playtest with 5 people)
 - [ ] They understood what to do without instructions
 - [ ] They can name the choice that felt hardest
 - [ ] They wanted to replay with different choices — the ship/no-ship signal

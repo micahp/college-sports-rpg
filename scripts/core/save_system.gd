@@ -2,8 +2,8 @@ extends Node
 ## Single-slot JSON save in user://. Autosaved after every choice.
 ## Versioned: a mismatched version is treated as no save (MVP has no migrations).
 
-const SAVE_PATH: String = "user://save_v1.json"
-const SAVE_VERSION: int = 1
+const SAVE_PATH: String = "user://save_v2.json"
+const SAVE_VERSION: int = 2
 
 
 func has_save() -> bool:

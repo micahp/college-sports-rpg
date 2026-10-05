@@ -6,6 +6,10 @@ extends RefCounted
 ## shadow that grounds the feet. Animation names differ per rig sex, so the
 ## factory also reports the "Man"/"Female" prefix.
 
+## The Quaternius rigs import at ~4.8 m tall; this brings them to ~1.8 m so
+## people stand at true scale next to doors, benches and furniture.
+const CHARACTER_SCALE: float = 0.375
+
 const MODELS: Dictionary = {
 	"male_casual": "res://assets/characters/Male_Casual.fbx",
 	"male_shirt": "res://assets/characters/Male_Shirt.fbx",
@@ -31,6 +35,7 @@ static func build(model_key: String, colors: Dictionary) -> Node3D:
 	var scene: PackedScene = load(MODELS[model_key])
 	var model: Node3D = scene.instantiate()
 	model.name = "Model"
+	model.scale = Vector3.ONE * CHARACTER_SCALE
 	# Rigs name their top layer differently (Shirt, Dress, Jacket); callers
 	# just say "Shirt" and the alias covers whichever this model has.
 	var wanted: Dictionary = colors.duplicate()

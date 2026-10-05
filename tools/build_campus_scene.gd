@@ -24,6 +24,7 @@ func _initialize() -> void:
 	_save(_build_info_board(), "res://scenes/world3d/env/info_board.tscn")
 	_save(_build_club_table(), "res://scenes/world3d/env/club_table.tscn")
 	_save(_build_rec_center(), "res://scenes/world3d/env/rec_center.tscn")
+	_save(_build_entrance(), "res://scenes/world3d/env/building_entrance.tscn")
 	_save(_build_campus(), "res://scenes/world3d/campus3d.tscn")
 	print("scenes written")
 	quit(0)
@@ -70,6 +71,55 @@ func _build_pole_banner() -> Node3D:
 	root.add_child(banner)
 	var body: StaticBody3D = _cylinder_body(0.18)
 	root.add_child(body)
+	# Switched on in the evening by location.gd (any OmniLight3D named LampLight*).
+	var lamp: OmniLight3D = OmniLight3D.new()
+	lamp.name = "LampLight"
+	lamp.position = Vector3(0.9, 3.9, 0)
+	lamp.light_color = Color(1.0, 0.84, 0.6)
+	lamp.light_energy = 2.2
+	lamp.omni_range = 9.0
+	lamp.visible = false
+	root.add_child(lamp)
+	return root
+
+
+## A building's front door for the quad: the kit door, a navy fascia with the
+## hall's name in gold, a porch lamp, and a pair of planters. The name is set
+## per instance through the Sign label.
+func _build_entrance() -> Node3D:
+	var root: Node3D = Node3D.new()
+	root.name = "BuildingEntrance"
+	var door: Node3D = _instance("res://assets/city/Door_1.gltf")
+	door.name = "Door"
+	door.position = Vector3(1.0, 0, 0.05)
+	door.scale = Vector3(1.4, 1.4, 1.4)
+	root.add_child(door)
+	var fascia: MeshInstance3D = _box(Vector3(4.6, 0.62, 0.16), NAVY, 0.6)
+	fascia.name = "Fascia"
+	fascia.position = Vector3(0, 3.55, 0.12)
+	root.add_child(fascia)
+	var sign: Label3D = _label("HALL", 44, GOLD)
+	sign.name = "Sign"
+	sign.position = Vector3(0, 3.55, 0.22)
+	sign.outline_size = 0
+	root.add_child(sign)
+	var step: MeshInstance3D = _box(Vector3(3.2, 0.14, 1.3), Color(0.62, 0.6, 0.57), 0.9)
+	step.name = "Step"
+	step.position = Vector3(0, 0.07, 0.65)
+	root.add_child(step)
+	for side: int in [-1, 1]:
+		var planter: Node3D = _instance("res://assets/city/Prop_Planter_Single.gltf")
+		planter.name = "PlanterL" if side < 0 else "PlanterR"
+		planter.position = Vector3(side * 2.0, 0, 0.7)
+		root.add_child(planter)
+	var lamp: OmniLight3D = OmniLight3D.new()
+	lamp.name = "LampLight"
+	lamp.position = Vector3(0, 3.0, 1.0)
+	lamp.light_color = Color(1.0, 0.84, 0.6)
+	lamp.light_energy = 1.8
+	lamp.omni_range = 7.0
+	lamp.visible = false
+	root.add_child(lamp)
 	return root
 
 
@@ -264,7 +314,10 @@ func _build_rec_center() -> Node3D:
 func _build_campus() -> Node3D:
 	_root = Node3D.new()
 	_root.name = "Campus3D"
-	_root.set_script(load("res://scripts/world3d/campus3d.gd"))
+	_root.set_script(load("res://scripts/world3d/location.gd"))
+	_root.set("location_id", "campus")
+	_root.set("apply_period_lighting", true)
+	_root.set("cam_bounds", Rect2(-17, -14, 34, 30))
 
 	_add_lighting()
 	_add_ground()
@@ -272,10 +325,10 @@ func _build_campus() -> Node3D:
 	_add_landmarks()
 	_add_props()
 	_add_greenery()
+	_add_entrances()
+	_add_markers()
 	_add_actors()
-	_add_camera()
 	_add_audio()
-	_add_ui()
 	return _root
 
 
@@ -430,9 +483,10 @@ func _add_buildings() -> void:
 		var mesh: MeshInstance3D = CharacterAppearance.find_mesh(hall)
 		if mesh != null:
 			var aabb: AABB = mesh.mesh.get_aabb()
-			var body: StaticBody3D = _box_body(aabb.get_center(), aabb.size)
+			var body: StaticBody3D = _box_body(Vector3.ZERO, aabb.size)
 			body.name = spec[0] + "Body"
-			body.position = spec[2]
+			# The collider must sit on the mesh, not the building's origin.
+			body.position = spec[2] + aabb.get_center().rotated(Vector3.UP, deg_to_rad(spec[3]))
 			body.rotation_degrees.y = spec[3]
 			buildings.add_child(body)
 
@@ -547,7 +601,7 @@ func _add_greenery() -> void:
 	# camera sees behind the action. None sit on the camera's sightline to
 	# the Rec Center or the center plaza.
 	var tree_specs: Array = [
-		[1, Vector3(-10.5, 0, -8), 1.3], [2, Vector3(-14, 0, -1.5), 1.45],
+		[1, Vector3(-10.5, 0, -8), 1.3], [2, Vector3(-13.5, 0, 10.5), 1.45],
 		[3, Vector3(-17.5, 0, 5), 1.3], [4, Vector3(-19, 0, 12), 1.5],
 		[5, Vector3(10.5, 0, -7.5), 1.35], [1, Vector3(15, 0, -1), 1.5],
 		[2, Vector3(18, 0, 6.5), 1.3], [3, Vector3(20, 0, 13), 1.45],
@@ -624,17 +678,6 @@ func _add_actors() -> void:
 	actors.name = "Actors"
 	_root.add_child(actors)
 
-	var player: Node = _instance("res://scenes/world3d/player3d.tscn")
-	player.name = "Player"
-	player.position = Vector3(0, 0.1, 12)
-	actors.add_child(player)
-
-	var jordan: Node = _instance("res://scenes/world3d/npc3d.tscn")
-	jordan.name = "Jordan"
-	jordan.position = Vector3(2.4, 0, 7.6)
-	jordan.rotation_degrees.y = 200
-	actors.add_child(jordan)
-
 	var students: Node3D = Node3D.new()
 	students.name = "Students"
 	actors.add_child(students)
@@ -706,6 +749,54 @@ func _add_actors() -> void:
 		students.add_child(student)
 
 
+## Front doors for the two halls that flank the quad. Hargrove (dorm) is the
+## west building, Moreno (classes) the east one; both face the plaza.
+func _add_entrances() -> void:
+	var entrances: Node3D = Node3D.new()
+	entrances.name = "Entrances"
+	_root.add_child(entrances)
+	for spec: Array in [
+		["HargroveEntrance", "HARGROVE HALL", Vector3(-21.75, 0, -4.0), 90.0],
+		["MorenoEntrance", "MORENO HALL", Vector3(19.15, 0, -3.0), -90.0],
+	]:
+		var entrance: Node3D = _instance("res://scenes/world3d/env/building_entrance.tscn")
+		entrance.name = spec[0]
+		entrance.position = spec[2]
+		entrance.rotation_degrees.y = spec[3]
+		entrances.add_child(entrance)
+		var sign: Label3D = entrance.get_node("Sign")
+		sign.text = spec[1]
+
+
+## Gameplay markers read by location.gd: arrivals, NPC/activity spots, doors.
+## Rotation sets facing: a marker's -Z is the way the person faces.
+func _add_markers() -> void:
+	var markers: Node3D = Node3D.new()
+	markers.name = "Markers"
+	_root.add_child(markers)
+	var specs: Array = [
+		# name, position, yaw (0 faces north, -90 east, 90 west, 180 south)
+		["arrive_start", Vector3(0, 0, 12.5), 0.0],
+		["arrive_door_dorm", Vector3(-18.6, 0, -4.0), -90.0],
+		["arrive_door_classroom", Vector3(16.0, 0, -3.0), 90.0],
+		["arrive_door_gym", Vector3(0, 0, -12.2), 180.0],
+		["door_dorm", Vector3(-20.4, 0, -4.0), 0.0],
+		["door_classroom", Vector3(17.8, 0, -3.0), 0.0],
+		["door_gym", Vector3(0, 0, -14.3), 0.0],
+		["spot_plaza", Vector3(2.4, 0, 7.4), 160.0],
+		["spot_sign", Vector3(-5.6, 0, 9.4), 140.0],
+		["spot_rec_steps", Vector3(3.4, 0, -12.6), 170.0],
+		["spot_club_table", Vector3(7.0, 0, 3.1), 0.0],
+		["spot_bench", Vector3(4.6, 0, 2.6), 0.0],
+	]
+	for spec: Array in specs:
+		var marker: Marker3D = Marker3D.new()
+		marker.name = spec[0]
+		marker.position = spec[1]
+		marker.rotation_degrees.y = float(spec[2])
+		markers.add_child(marker)
+
+
 func _add_camera() -> void:
 	var rig: Node3D = Node3D.new()
 	rig.name = "CameraRig"
@@ -737,7 +828,7 @@ func _add_audio() -> void:
 	_root.add_child(ui_sound)
 
 
-func _add_ui() -> void:
+func _unused_add_ui() -> void:
 	var ui: CanvasLayer = CanvasLayer.new()
 	ui.name = "UI"
 	_root.add_child(ui)

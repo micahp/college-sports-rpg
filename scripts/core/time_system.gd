@@ -9,6 +9,11 @@ signal week_completed
 enum Period { MORNING, AFTERNOON, EVENING, NIGHT }
 
 const PERIOD_NAMES: Array[String] = ["Morning", "Afternoon", "Evening", "Night"]
+const PERIOD_KEYS: Array[String] = ["morning", "afternoon", "evening", "night"]
+## Day 1 is move-in Sunday; Day 7 is Saturday, the walk-on evaluation.
+const WEEKDAYS: Array[String] = [
+	"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+]
 const FINAL_DAY: int = 7
 
 var day: int = 1
@@ -22,6 +27,16 @@ func reset() -> void:
 
 func period_name() -> String:
 	return PERIOD_NAMES[period]
+
+
+## Lower-case period key as used in content files ("morning" ...).
+func period_key() -> String:
+	return PERIOD_KEYS[period]
+
+
+func weekday_name(for_day: int = -1) -> String:
+	var d: int = day if for_day < 0 else for_day
+	return WEEKDAYS[clampi(d - 1, 0, WEEKDAYS.size() - 1)]
 
 
 ## Advances by `blocks` periods, rolling into the next day after Night.
