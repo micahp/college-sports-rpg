@@ -1,112 +1,111 @@
 # Data Schemas
 
-All game content lives in `data/` as JSON. Scripts load it through `ContentDB`.
+All game content lives in `data/` as JSON and loads through `ContentDB`.
+`tests/run_checks.gd` validates every file (`ContentDB.validate_week_content`).
 Stat keys are always the six canonical strings:
 `energy, academics, athleticism, basketball_skill, roommate_relationship, coach_interest`.
 
-## Day file — `data/days/day_N.json`
+Days are 1–7 (1 = move-in Sunday, 7 = Saturday evaluation). Periods are
+`morning | afternoon | evening | night`.
+
+## Choices (shared by events and activities)
 
 ```json
 {
-  "day": 1,
-  "beats": [
-    {
-      "id": "morning_arrival",
-      "period": "morning",
-      "title": "Move-In Day",
-      "text": "Narrative shown to the player.",
-      "choices": [
-        {
-          "id": "help_unpack",
-          "label": "Button label",
-          "tags": ["social"],
-          "duration_blocks": 1,
-          "requirements": { "energy_min": 30 },
-          "effects": { "energy": -10, "roommate_relationship": 12 },
-          "reaction": "Text shown after the choice, before time advances."
-        }
-      ]
-    }
-  ]
+  "id": "join_conditioning",
+  "label": "Button label",
+  "tags": ["grind"],
+  "duration_blocks": 1,
+  "periods": ["evening"],
+  "days": [3],
+  "requirements": { "energy_min": 20 },
+  "set_flags": ["did_conditioning"],
+  "effects": { "coach_interest": 9, "energy": -22 },
+  "minigame": "shootaround",
+  "check": { "stat": "academics", "min": 62, "pass": {...}, "fail": {...} },
+  "reaction": "Shown after picking, with the stat changes as chips."
 }
 ```
 
-Rules:
-- `period` is one of `morning | afternoon | evening | night`, and beats must
-  appear in that order.
-- `effects` values are integer deltas; GameState clamps results to 0–100.
-- `requirements` currently supports only `energy_min` (int). Unmet requirements
-  disable the button and show the reason — they never hide it.
-- `tags` feed the recap's "primary trait" (grind, social, scholar, rest).
-- `duration_blocks` defaults to 1.
+- `effects` are integer deltas, clamped to 0–100. Positive gains to
+  academics, athleticism and basketball_skill shrink as the stat rises
+  (`GameState.scaled_gain`); the UI always shows the change actually applied.
+- `duration_blocks` — periods consumed. Default 0 in conversations (talking
+  is free), 1 for activities. A night choice ends the day (recap → wake up in 214).
+- `periods` / `days` — when the option is offered (omit = always).
+- `requirements` — `energy_min`, `stat_min {stat: n}`, `flag`, `not_flag`.
+  Unmet requirements disable the button and say why; a `not_flag` that is
+  already set hides the option (one-time actions).
+- `set_flags` — story switches (e.g. `signed_up`, `promised_match`, `quiz_failed`).
+- `minigame` — `shootaround`, `showcase` or `tryout`; the result adds bonus
+  stat changes (`Game.minigame_bonus`).
+- `check` — a stat test; the `pass`/`fail` branch supplies effects,
+  flags and reaction.
+- `tags` (grind, social, scholar, rest) decide the ending's "kind of week".
 
-## NPC dialogue — `data/dialogue/day1_npcs.json`
+## Story events — `data/story/events.json`
 
 ```json
 {
-  "npcs": {
-    "jordan": {
-      "name": "Jordan Hayes",
-      "lines": ["Shown one at a time before the choices."],
-      "choices": [
-        {
-          "id": "help_unpack",
-          "label": "Button label",
-          "tags": ["social"],
-          "effects": { "energy": -10, "roommate_relationship": 14 },
-          "reaction": "Shown after picking, with stat deltas appended."
-        }
-      ],
-      "repeat_line": "Single line for visits after the choice was made."
-    }
-  }
+  "events": [{
+    "id": "coach_signup", "npc": "coach", "location": "campus", "spot": "rec_steps",
+    "day": 1, "periods": ["evening"],
+    "requires": { "not_flag": "signed_up" },
+    "objective": "HUD objective + arrow while this is pending (optional)",
+    "lines": ["Shown one at a time"], "choices": [ ... ],
+    "repeat_line": "Said on later visits in the same period"
+  }],
+  "ambient": [{ "npc": "jordan", "location": "dorm", "spot": "jordan",
+    "days": [1,2,3], "periods": ["night"], "lines": ["Rotating chatter"] }]
 }
 ```
 
-Rules:
-- Choices are one-time per NPC: the pick is recorded as beat `npc_<id>` in
-  GameState.choice_history; later visits show only `repeat_line`, no effects.
-- Same effects/tags semantics as day beats; ids reuse day_1.json's where the
-  narrative matches so recap highlights keep working.
-- NPC world placement (position, colors, node name) lives in
-  `campus.gd::NPC_SPAWNS`, keyed by the same npc id.
+An event is live when its day, period and `requires` match; it's done once
+any of its choices is picked (recorded in `choice_history` under the event id).
+Live events claim their NPC; ambient entries fill in otherwise. An event with
+`"tryout": true` starts the evaluation; `"spectator": true` ends the week in
+the bleachers.
 
-## Identities — `data/characters/identities.json`
+## Activity spots — `data/world/activities.json`
+
+```json
+{ "spots": [{ "id": "gym_court", "location": "gym", "spot": "court",
+  "prompt": "SHOOT", "title": "Card title", "text": "Card description",
+  "choices": [ ... ] }] }
+```
+
+A spot only appears when at least one of its choices is offered now.
+
+## Locations and markers
+
+Locations are `campus`, `dorm`, `classroom`, `gym` (`Game.SCENES`). Each
+scene has `Markers/`: `arrive_<key>` spawn points, `spot_<id>` (where NPCs
+stand / activities happen, -Z = facing), `door_<location>` exits, and in the
+gym `hoop` + `shot_1..3`, `shot_ft`.
+
+## NPCs, looks, identities, endings
+
+- `data/world/npcs.json` — `{npc_id: {name, role, model, skin, shirt, pants, hair}}`.
+  `model` is a key of `CharacterAppearance.MODELS`; skin is light/tan/brown/deep.
+- `data/characters/looks.json` — the player's appearance presets (same fields).
+- `data/characters/identities.json` — `{id, name, blurb, effects, tag}`;
+  effects apply once at character creation.
+- `data/story/endings.json` — scoring weights and thresholds, the five
+  outcome texts, and epilogue tiers.
+
+## Save file — `user://save_v2.json`
 
 ```json
 {
-  "identities": [
-    {
-      "id": "workhorse",
-      "name": "Workhorse",
-      "blurb": "Shown under the button in character creation.",
-      "effects": { "basketball_skill": 6, "athleticism": 4 },
-      "tag": "grind"
-    }
-  ]
+  "version": 2,
+  "time": { "day": 3, "period": 1 },
+  "player": { "player_name": "...", "identity": "...", "look": "...",
+    "stats": {...}, "choice_history": [...], "flags": {...},
+    "day_start_stats": {...}, "tryout": {} },
+  "flow": { "location": "gym", "arrival": "door" }
 }
 ```
 
-Identity `effects` are applied once, at character creation.
-
-## Save file — `user://save_v1.json`
-
-```json
-{
-  "version": 1,
-  "time": { "day": 1, "period": 2 },
-  "player": {
-    "player_name": "Micah",
-    "identity": "workhorse",
-    "stats": { "energy": 65, "academics": 50, "...": 0 },
-    "choice_history": [ { "beat": "morning_arrival", "choice": "help_unpack", "tags": ["social"] } ]
-  },
-  "flow": { "beat_index": 2, "content_day": 1 }
-}
-```
-
-`period` is the TimeSystem enum int (0=Morning … 3=Night). `flow.content_day`
-is the day whose beats `beat_index` points into — it can lag `time.day` by one,
-because finishing the Night beat advances the clock while the recap still
-belongs to the finished day. Bump `version` and the filename together on
-breaking changes; old saves are discarded, not migrated, during the MVP.
+Saved after every choice, period change and door. Finishing the week deletes
+it. Bump `version` and the filename together on breaking changes; old saves
+are ignored, not migrated.

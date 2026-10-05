@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless acceptance checks for the core systems and Day 1 content.
+## Headless acceptance checks for the core systems and the week's content.
 ## Run from the project root:  godot --headless -s tests/run_checks.gd
 ## Exits 0 when everything passes, 1 otherwise.
 ##
@@ -17,7 +17,8 @@ var _failures: int = 0
 func _initialize() -> void:
 	_test_time_system()
 	_test_game_state()
-	_test_day_content()
+	_test_week_content()
+	_test_diminishing_returns()
 	if _failures == 0:
 		print("\nALL CHECKS PASSED")
 	else:
@@ -97,43 +98,36 @@ func _test_game_state() -> void:
 	state.free()
 
 
-func _test_day_content() -> void:
-	print("Day 1 content")
+func _test_week_content() -> void:
+	print("Week content")
 	var content: Node = ContentDBScript.new()
-
-	var beats: Array = content.get_day(1)
-	_check(beats.size() == 4, "Day 1 has four beats")
-	if beats.size() == 4:
-		var periods: Array = beats.map(func(beat: Dictionary) -> String: return str(beat["period"]))
-		_check(periods == ["morning", "afternoon", "evening", "night"], "beats cover the four periods in order")
-
-	var state: Node = GameStateScript.new()
-	var stat_keys: Array = state.STAT_KEYS
-	state.free()
-	var gated_choice_found: bool = false
-	var all_effects_valid: bool = true
-	for beat: Dictionary in beats:
-		for choice: Dictionary in beat["choices"]:
-			if choice.has("requirements"):
-				gated_choice_found = true
-			for key: String in choice.get("effects", {}).keys():
-				if key not in stat_keys:
-					all_effects_valid = false
-					printerr("        bad stat key '%s' in choice %s" % [key, choice["id"]])
-	_check(all_effects_valid, "every effect targets a canonical stat")
-	_check(gated_choice_found, "at least one choice is requirement-gated")
-
+	var problems: Array[String] = content.validate_week_content()
+	for problem in problems:
+		printerr("        ", problem)
+	_check(problems.is_empty(), "npcs, activities, events and endings validate")
 	_check(content.get_identities().size() == 3, "three identities load")
-
-	var npcs: Dictionary = content.get_npc_dialogues()
-	_check(npcs.size() == 3 and npcs.has("jordan") and npcs.has("leader") and npcs.has("coach"), "three NPC dialogues load")
-	var npc_effects_valid: bool = true
-	for npc_id: String in npcs.keys():
-		for choice: Dictionary in npcs[npc_id]["choices"]:
-			for key: String in choice.get("effects", {}).keys():
-				if key not in stat_keys:
-					npc_effects_valid = false
-					printerr("        bad stat key '%s' in NPC choice %s" % [key, choice["id"]])
-	_check(npc_effects_valid, "every NPC choice effect targets a canonical stat")
-
+	_check(content.get_looks().size() >= 2, "player looks load")
+	_check(content.get_npcs().has("jordan") and content.get_npcs().has("leader") \
+		and content.get_npcs().has("coach"), "the three relationship NPCs exist")
+	var days_with_events: Dictionary = {}
+	var tryout: bool = false
+	for event: Dictionary in content.get_events():
+		days_with_events[int(event["day"])] = true
+		tryout = tryout or bool(event.get("tryout", false))
+	_check(days_with_events.size() == 7, "every day of the week has story")
+	_check(tryout, "Saturday has the tryout")
+	var gated: bool = false
+	for spot: Dictionary in content.get_activity_spots():
+		for choice: Dictionary in spot["choices"]:
+			gated = gated or choice.has("requirements")
+	_check(gated, "some activities are requirement-gated")
 	content.free()
+
+
+func _test_diminishing_returns() -> void:
+	print("Diminishing returns")
+	_check(GameStateScript.scaled_gain("academics", 20, 8) == 8, "full gains while a skill is low")
+	_check(GameStateScript.scaled_gain("academics", 80, 8) < 8, "smaller gains when a skill is high")
+	_check(GameStateScript.scaled_gain("academics", 99, 8) >= 1, "a gain is never rounded to zero")
+	_check(GameStateScript.scaled_gain("roommate_relationship", 90, 8) == 8, "relationships are not scaled")
+	_check(GameStateScript.scaled_gain("energy", 90, -8) == -8, "losses are never scaled")

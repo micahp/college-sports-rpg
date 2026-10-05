@@ -22,8 +22,8 @@ If a task appears to require breaking one of these, stop and flag it instead.
 - Environment is authored as a Godot scene (`campus3d.tscn`) from reusable
   subscenes; scripts carry behavior only, not scene construction
 - Prompts and hints must be touch-aware: never show keyboard keys on touch devices
-- The earlier top-down 2D build (`scripts/world/`, `scenes/world/`) is
-  archived systems validation — kept for its passing tests, not shipped
+- Every place runs on `scripts/world3d/location.gd`; scenes provide
+  geometry and markers, data decides who and what is there
 
 ## World
 - No seamless open world
@@ -43,7 +43,7 @@ If a task appears to require breaking one of these, stop and flag it instead.
 - The 3D world is an interface to the simulation; it never contains the simulation
 
 ## MVP scope
-- Seven in-game days (vertical slice: Day 1 only)
+- Seven in-game days (Sunday move-in → Saturday evaluation)
 - One fictional university: North Valley State
 - One athletic path: basketball
 - One tryout minigame (timing-based, not 5-on-5)

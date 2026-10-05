@@ -1,0 +1,52 @@
+{
+  "scoring": {
+    "tryout_weight": 0.55,
+    "coach_interest_weight": 0.3,
+    "skill_weight": 0.1,
+    "athleticism_weight": 0.05,
+    "roster_min": 52,
+    "practice_min": 40,
+    "eligibility_academics_min": 50
+  },
+  "outcomes": {
+    "roster": {
+      "title": "You made the team.",
+      "text": "The list goes up on the Rec Center office door at noon. Twenty-nine names tried out. Two got kept. Yours is the second one, written in Delgado's square block capitals.\n\nHe passes you in the hallway and doesn't stop walking. \"Practice is at six. Six means five-forty-five.\" That's it. That's the whole speech. You will remember it for the rest of your life."
+    },
+    "conditional": {
+      "title": "You made the team — on paper.",
+      "text": "Your name is on the list. Then there's an asterisk, and next to the asterisk, in Delgado's handwriting: ACADEMIC REVIEW.\n\n\"You can play,\" he tells you in his office. \"Okafor says you can't think. Fix that and you're a Ridgehawk. Don't, and I never met you.\" You walk out with a roster spot and a study schedule, and you're not sure which one is heavier."
+    },
+    "practice": {
+      "title": "Practice squad.",
+      "text": "You're not on the list. But there's a second, shorter list under it, titled PRACTICE PLAYERS, and you're on that one.\n\nIt means you run the other team's plays against the guys who actually suit up. You don't travel, you don't get a jersey with your name on it. Delgado calls it 'the waiting room.' Half his current starters sat in it."
+    },
+    "cut": {
+      "title": "Not this year.",
+      "text": "Two names on the list. Neither is yours.\n\nDelgado catches you at the door, which he does not do. \"Your shot isn't there yet. Your effort is.\" He taps the sign-up sheet for next fall, already pinned under the list. \"Come back better. I'll remember the face.\""
+    },
+    "not_signed": {
+      "title": "From the bleachers.",
+      "text": "You watch twenty-nine people try out for something you never signed up for. Some of them are worse than you. One of them is a lot worse than you, and he gets kept anyway, because he was on the sheet.\n\nOn the walk out you pass the bulletin board. Next fall's sign-up sheet is already there. You stand in front of it for a long time."
+    }
+  },
+  "epilogues": {
+    "jordan": [
+      { "min": 60, "text": "Jordan was in the bleachers at 7 AM holding a sign he made out of a pizza box. You are, it turns out, going to be friends for a very long time." },
+      { "min": 35, "text": "Jordan texts you a single basketball emoji at 12:01. Then, a second later: 'pizza either way.' Room 214 is a good room." },
+      { "min": 0, "text": "Jordan is out when you get back. His half of the room is very neat and very quiet. You've got a whole year to fix that — or not." }
+    ],
+    "academics": [
+      { "min": 70, "text": "Okafor posts the quiz grades on Monday. Yours is the second-highest in the class. She writes 'see? memorable.' in the margin." },
+      { "min": 50, "text": "Your first week of classes went fine. Not great, not scary. Fine is a foundation." },
+      { "min": 0, "text": "Your planner is still mostly blank. Okafor's office hours are Thursday. You should probably go." }
+    ],
+    "trait": {
+      "grind": "This week, you were the one who outworked the room.",
+      "scholar": "This week, you were the one who did the reading.",
+      "social": "This week, you were the one people were glad to see.",
+      "rest": "This week, you were the one who knew when to stop.",
+      "": "This week, you kept your options open."
+    }
+  }
+}

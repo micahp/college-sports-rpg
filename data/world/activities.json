@@ -1,0 +1,469 @@
+{
+  "spots": [
+    {
+      "id": "club_table",
+      "location": "campus",
+      "spot": "club_table",
+      "prompt": "CLUBS",
+      "title": "Ridgehawks Club Fair",
+      "text": "Every club at North Valley has a folding table, a banner, and someone who wants your email. There's a cooler of free burritos at the end of the row.",
+      "choices": [
+        {
+          "id": "work_tables",
+          "label": "Work the tables — meet people",
+          "periods": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "tags": [
+            "social"
+          ],
+          "duration_blocks": 1,
+          "effects": {
+            "roommate_relationship": 4,
+            "energy": -4
+          },
+          "reaction": "You sign up for three newsletters you'll never read and learn the names of half your floor. When you mention Jordan, everybody already knows him. Of course they do."
+        },
+        {
+          "id": "free_burritos",
+          "label": "Grab free burritos and sit in the sun",
+          "periods": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "tags": [
+            "rest"
+          ],
+          "duration_blocks": 1,
+          "effects": {
+            "energy": 12
+          },
+          "reaction": "Two burritos, one bench, zero obligations. Cheap calories count. You feel like a person again."
+        }
+      ]
+    },
+    {
+      "id": "quad_bench",
+      "location": "campus",
+      "spot": "bench",
+      "prompt": "SIT",
+      "title": "Bench on the Quad",
+      "text": "A sun-warm bench facing the center plaza. Students cut across in every direction, all of them late for something.",
+      "choices": [
+        {
+          "id": "people_watch",
+          "label": "Sit for a while and people-watch",
+          "periods": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "tags": [
+            "rest"
+          ],
+          "duration_blocks": 1,
+          "effects": {
+            "energy": 9
+          },
+          "reaction": "You let the campus happen around you for an hour. A frisbee lands at your feet twice. Nobody needs anything from you. It's great."
+        },
+        {
+          "id": "call_home",
+          "label": "Call home",
+          "periods": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "tags": [
+            "social"
+          ],
+          "duration_blocks": 1,
+          "requirements": {
+            "not_flag": "called_home"
+          },
+          "set_flags": [
+            "called_home"
+          ],
+          "effects": {
+            "energy": 8
+          },
+          "reaction": "Your mom answers on the first ring and asks if you're eating vegetables. Your dad gets on and asks one question: 'You sign up for that tryout?' You hang up feeling twelve feet tall and slightly guilty about the burritos."
+        }
+      ]
+    },
+    {
+      "id": "dorm_bed",
+      "location": "dorm",
+      "spot": "bed",
+      "prompt": "BED",
+      "title": "Your Bed",
+      "text": "Extra-long twin. The mattress is plastic-wrapped and smells like a warehouse. It's still the best thing in the room.",
+      "choices": [
+        {
+          "id": "nap",
+          "label": "Take a nap",
+          "periods": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "tags": [
+            "rest"
+          ],
+          "duration_blocks": 1,
+          "effects": {
+            "energy": 22
+          },
+          "reaction": "You close your eyes for 'five minutes' and wake up with the sheet pattern printed on your face. Your legs thank you."
+        },
+        {
+          "id": "sleep",
+          "label": "Go to sleep",
+          "periods": [
+            "night"
+          ],
+          "tags": [
+            "rest"
+          ],
+          "duration_blocks": 1,
+          "effects": {
+            "energy": 30
+          },
+          "reaction": "You're out in four minutes. Somewhere down the hall someone is losing a video game very loudly. You don't hear it."
+        }
+      ]
+    },
+    {
+      "id": "dorm_desk",
+      "location": "dorm",
+      "spot": "desk",
+      "prompt": "STUDY",
+      "title": "Your Desk",
+      "text": "A desk lamp, a Kinesiology textbook still in its shrink-wrap, and a planner you promised yourself you'd use.",
+      "choices": [
+        {
+          "id": "study",
+          "label": "Study for an hour",
+          "periods": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "tags": [
+            "scholar"
+          ],
+          "duration_blocks": 1,
+          "requirements": {
+            "energy_min": 10
+          },
+          "effects": {
+            "academics": 6,
+            "energy": -7
+          },
+          "reaction": "Muscle fiber types. Energy systems. Half of this is literally about your own body, which helps. You fill four pages of notes."
+        },
+        {
+          "id": "study_late",
+          "label": "Study late, then crash",
+          "periods": [
+            "night"
+          ],
+          "tags": [
+            "scholar"
+          ],
+          "duration_blocks": 1,
+          "effects": {
+            "academics": 7,
+            "energy": 14
+          },
+          "reaction": "You read until your eyes cross. At midnight Jordan tosses you a granola bar without a word. You sleep, but not enough."
+        }
+      ]
+    },
+    {
+      "id": "class_seat",
+      "location": "classroom",
+      "spot": "seat",
+      "prompt": "CLASS",
+      "title": "Moreno Hall 104 — Intro to Kinesiology",
+      "text": "Professor Okafor's lecture hall. Sixty seats, and the front row is always empty.",
+      "choices": [
+        {
+          "id": "opening_lecture",
+          "label": "Sit in on the opening lecture",
+          "periods": [
+            "afternoon"
+          ],
+          "days": [
+            1
+          ],
+          "tags": [
+            "scholar"
+          ],
+          "duration_blocks": 1,
+          "effects": {
+            "academics": 10,
+            "energy": -8
+          },
+          "reaction": "Professor Okafor doesn't do syllabus day. You leave with actual notes, an assignment due Friday, and one useful fact: she gives athletes zero special treatment, and she says it like a warning."
+        },
+        {
+          "id": "attend_lecture",
+          "label": "Attend lecture",
+          "periods": [
+            "morning"
+          ],
+          "days": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "tags": [
+            "scholar"
+          ],
+          "duration_blocks": 1,
+          "requirements": {
+            "energy_min": 8
+          },
+          "effects": {
+            "academics": 8,
+            "energy": -6
+          },
+          "reaction": "Okafor walks the aisles while she talks, which makes it impossible to zone out. Today: why your heart rate lies to you in the fourth quarter. You take good notes."
+        },
+        {
+          "id": "office_hours",
+          "label": "Go to office hours",
+          "periods": [
+            "afternoon"
+          ],
+          "days": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "tags": [
+            "scholar"
+          ],
+          "duration_blocks": 1,
+          "effects": {
+            "academics": 5,
+            "energy": -3
+          },
+          "reaction": "You're the only one there. Okafor seems almost pleased. She walks you through the Friday material twice, then says, 'Most of your classmates will learn this Thursday night. Badly.'"
+        },
+        {
+          "id": "evening_review",
+          "label": "Review notes in the empty hall",
+          "periods": [
+            "evening"
+          ],
+          "days": [
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "tags": [
+            "scholar"
+          ],
+          "duration_blocks": 1,
+          "requirements": {
+            "energy_min": 10
+          },
+          "effects": {
+            "academics": 6,
+            "energy": -8
+          },
+          "reaction": "The lecture hall at night is weirdly peaceful. You copy the week's diagrams onto the whiteboard and explain them to nobody. It works."
+        },
+        {
+          "id": "kin_quiz",
+          "label": "Take the Kinesiology quiz",
+          "periods": [
+            "morning"
+          ],
+          "days": [
+            6
+          ],
+          "tags": [
+            "scholar"
+          ],
+          "duration_blocks": 1,
+          "requirements": {
+            "not_flag": "quiz_taken"
+          },
+          "set_flags": [
+            "quiz_taken"
+          ],
+          "check": {
+            "stat": "academics",
+            "min": 62,
+            "pass": {
+              "set_flags": [
+                "quiz_passed"
+              ],
+              "effects": {
+                "academics": 8,
+                "energy": -6
+              },
+              "reaction": "Question four is the heart-rate thing from Tuesday. Question nine is the energy-systems chart you drew on the whiteboard. You walk out ten minutes early. Okafor glances up as you leave and gives you the smallest nod in academic history."
+            },
+            "fail": {
+              "set_flags": [
+                "quiz_failed"
+              ],
+              "effects": {
+                "academics": -6,
+                "energy": -8
+              },
+              "reaction": "You recognize maybe half the words. You guess on the energy-systems chart and leave two short answers blank. On your way out, Okafor says quietly, 'Athletes who want to stay eligible come to office hours.' It isn't a threat. It's worse — it's advice."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "gym_court",
+      "location": "gym",
+      "spot": "court",
+      "prompt": "SHOOT",
+      "title": "Rec Center — Court 1",
+      "text": "Hardwood, eight hoops, and the squeak of somebody else's game on the far court. A rack of balls sits by the baseline.",
+      "choices": [
+        {
+          "id": "shootaround",
+          "label": "Shootaround — work on your shot",
+          "periods": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "days": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "tags": [
+            "grind"
+          ],
+          "duration_blocks": 1,
+          "requirements": {
+            "energy_min": 15
+          },
+          "minigame": "shootaround",
+          "effects": {
+            "basketball_skill": 3,
+            "energy": -12
+          },
+          "reaction": "You grab a rack and get up shots until your form stops lying to you."
+        },
+        {
+          "id": "pickup_run",
+          "label": "Jump into the pickup run",
+          "periods": [
+            "afternoon",
+            "evening"
+          ],
+          "days": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "tags": [
+            "grind"
+          ],
+          "duration_blocks": 1,
+          "requirements": {
+            "energy_min": 30
+          },
+          "effects": {
+            "basketball_skill": 6,
+            "athleticism": 3,
+            "energy": -20,
+            "coach_interest": 2
+          },
+          "reaction": "The run is faster than anything from high school. You hold your own — a couple of buckets, one chase-down block that gets an 'OHHH' from the sideline. Somebody in a North Valley polo watches the last game from the doorway, says nothing, and leaves."
+        }
+      ]
+    },
+    {
+      "id": "gym_weights",
+      "location": "gym",
+      "spot": "weights",
+      "prompt": "TRAIN",
+      "title": "Conditioning Corner",
+      "text": "Racks, a rowing machine with a sign that says DO NOT DROP THE HANDLE, and a whiteboard with someone's brutal circuit still on it.",
+      "choices": [
+        {
+          "id": "conditioning",
+          "label": "Run the circuit on the whiteboard",
+          "periods": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "days": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "tags": [
+            "grind"
+          ],
+          "duration_blocks": 1,
+          "requirements": {
+            "energy_min": 25
+          },
+          "effects": {
+            "athleticism": 6,
+            "energy": -16
+          },
+          "reaction": "Rows, box jumps, sled pushes, repeat. By round three you understand why someone wrote it in red marker. You finish. Barely. That's the point."
+        },
+        {
+          "id": "recovery",
+          "label": "Foam roll and stretch",
+          "periods": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "days": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "tags": [
+            "rest"
+          ],
+          "duration_blocks": 1,
+          "effects": {
+            "energy": 7,
+            "athleticism": 1
+          },
+          "reaction": "Twenty minutes on a foam roller, discovering muscles you didn't know you had by how much they hate you. You walk out looser than you walked in."
+        }
+      ]
+    }
+  ]
+}

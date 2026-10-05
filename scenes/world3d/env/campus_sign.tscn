@@ -1,62 +1,62 @@
 [gd_scene load_steps=11 format=3]
 
-[ext_resource type="Texture2D" path="res://assets/branding/emblem.png" id="1_bbwpb"]
+[ext_resource type="Texture2D" path="res://assets/branding/emblem.png" id="1_8ye01"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ew4jb"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_p24a0"]
 albedo_color = Color(0.12, 0.2, 0.36, 1)
 roughness = 0.55
 
-[sub_resource type="BoxMesh" id="BoxMesh_wvr2o"]
-material = SubResource("StandardMaterial3D_ew4jb")
+[sub_resource type="BoxMesh" id="BoxMesh_3rted"]
+material = SubResource("StandardMaterial3D_p24a0")
 size = Vector3(3.9, 1.5, 0.45)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ljixn"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yx4gm"]
 albedo_color = Color(0.92, 0.72, 0.3, 1)
 roughness = 0.4
 
-[sub_resource type="BoxMesh" id="BoxMesh_2i0hg"]
-material = SubResource("StandardMaterial3D_ljixn")
+[sub_resource type="BoxMesh" id="BoxMesh_cs46d"]
+material = SubResource("StandardMaterial3D_yx4gm")
 size = Vector3(4.05, 0.12, 0.55)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wmljd"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_58l0q"]
 albedo_color = Color(0.55, 0.53, 0.5, 1)
 roughness = 0.9
 
-[sub_resource type="BoxMesh" id="BoxMesh_t07d1"]
-material = SubResource("StandardMaterial3D_wmljd")
+[sub_resource type="BoxMesh" id="BoxMesh_3stwo"]
+material = SubResource("StandardMaterial3D_58l0q")
 size = Vector3(4.2, 0.22, 0.7)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ltr7k"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rrm6b"]
 transparency = 2
 alpha_scissor_threshold = 0.5
 alpha_antialiasing_mode = 0
 cull_mode = 2
-albedo_texture = ExtResource("1_bbwpb")
+albedo_texture = ExtResource("1_8ye01")
 roughness = 0.9
 
-[sub_resource type="QuadMesh" id="QuadMesh_okj5u"]
-material = SubResource("StandardMaterial3D_ltr7k")
+[sub_resource type="QuadMesh" id="QuadMesh_88kft"]
+material = SubResource("StandardMaterial3D_rrm6b")
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_vyfoo"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_qcyio"]
 size = Vector3(4, 1.6, 0.6)
 
 [node name="CampusSign" type="Node3D"]
 
 [node name="Slab" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
-mesh = SubResource("BoxMesh_wvr2o")
+mesh = SubResource("BoxMesh_3rted")
 
 [node name="Cap" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.56, 0)
-mesh = SubResource("BoxMesh_2i0hg")
+mesh = SubResource("BoxMesh_cs46d")
 
 [node name="Base" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.11, 0)
-mesh = SubResource("BoxMesh_t07d1")
+mesh = SubResource("BoxMesh_3stwo")
 
 [node name="Emblem" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.28, 0.82, 0.24)
-mesh = SubResource("QuadMesh_okj5u")
+mesh = SubResource("QuadMesh_88kft")
 
 [node name="@Label3D@3" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1.05, 0.24)
@@ -78,4 +78,4 @@ outline_size = 3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
 
 [node name="Shape" type="CollisionShape3D" parent="@StaticBody3D@5"]
-shape = SubResource("BoxShape3D_vyfoo")
+shape = SubResource("BoxShape3D_qcyio")
