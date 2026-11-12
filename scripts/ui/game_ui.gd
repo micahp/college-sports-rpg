@@ -147,7 +147,7 @@ func show_recap(day: int) -> void:
 	var col: VBoxContainer = VBoxContainer.new()
 	col.add_theme_constant_override("separation", 12)
 	panel.add_child(col)
-	col.add_child(UIKit.label("DAY %d · %s — DONE" % [day, TimeSystem.weekday_name(day).to_upper()], 15, UIKit.GOLD))
+	col.add_child(UIKit.label("DAY %d · %s: DONE" % [day, TimeSystem.weekday_name(day).to_upper()], 15, UIKit.GOLD))
 	var days_left: int = TimeSystem.FINAL_DAY - day
 	var headline: String = "Tomorrow is the evaluation." if days_left == 1 \
 		else "%d days until the walk-on evaluation." % days_left
@@ -164,7 +164,7 @@ func show_recap(day: int) -> void:
 	var spacer: Control = Control.new()
 	spacer.custom_minimum_size.y = 4
 	col.add_child(spacer)
-	var go: Button = UIKit.button("Sleep — start %s" % TimeSystem.weekday_name(day + 1), true, 52)
+	var go: Button = UIKit.button("Sleep, start %s" % TimeSystem.weekday_name(day + 1), true, 52)
 	go.name = "RecapContinue"
 	go.pressed.connect(_close_recap)
 	col.add_child(go)
@@ -389,7 +389,7 @@ func toggle_stats() -> void:
 	if GameState.has_flag("quiz_passed"):
 		notes.append("Kinesiology quiz: passed")
 	elif GameState.has_flag("quiz_failed"):
-		notes.append("Kinesiology quiz: failed — eligibility at risk")
+		notes.append("Kinesiology quiz: failed, eligibility at risk")
 	if GameState.has_flag("wristband"):
 		notes.append("Wearing Jordan's lucky wristband")
 	for note in notes:

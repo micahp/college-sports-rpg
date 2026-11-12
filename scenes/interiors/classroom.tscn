@@ -1537,7 +1537,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, -5.37)
 modulate = Color(0.2, 0.3, 0.55, 1)
 outline_modulate = Color(0.08, 0.1, 0.16, 1)
 text = "ATP-PC  →  GLYCOLYTIC  →  AEROBIC
-Quiz Friday — no curve"
+Quiz Friday, no curve"
 font_size = 30
 outline_size = 0
 

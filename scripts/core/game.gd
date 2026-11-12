@@ -327,13 +327,13 @@ func objective() -> Dictionary:
 			return {"text": event["objective"], "location": event["location"], "spot": event["spot"]}
 	match TimeSystem.period:
 		TimeSystem.Period.NIGHT:
-			return {"text": "Head back to Hargrove Hall — pick how your night ends", "location": "dorm", "spot": "bed"}
+			return {"text": "Head back to Hargrove Hall, pick how your night ends", "location": "dorm", "spot": "bed"}
 		TimeSystem.Period.MORNING:
 			if TimeSystem.day in [2, 3, 4, 5]:
-				return {"text": "Kinesiology lecture this morning at Moreno Hall — or skip it", "location": "classroom", "spot": "seat"}
+				return {"text": "Kinesiology lecture this morning at Moreno Hall, or skip it", "location": "classroom", "spot": "seat"}
 			if TimeSystem.day == 6:
 				return {"text": "Kinesiology quiz this morning at Moreno Hall", "location": "classroom", "spot": "seat"}
-	return {"text": "Free %s — class, the gym, or the quad. Each activity takes the period." % TimeSystem.period_name().to_lower(), "location": "", "spot": ""}
+	return {"text": "Free %s: class, the gym, or the quad. Each activity takes the period." % TimeSystem.period_name().to_lower(), "location": "", "spot": ""}
 
 
 # =============================================================================

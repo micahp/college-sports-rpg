@@ -67,7 +67,7 @@ func _ready() -> void:
 		# Opened directly in the editor: give it a usable state.
 		Game.in_game = true
 	var period_line: String = "%s · %s" % [TimeSystem.weekday_name(), TimeSystem.period_name()]
-	ui.toast(Game.LOCATION_NAMES.get(location_id, "") + "  —  " + period_line)
+	ui.toast(Game.LOCATION_NAMES.get(location_id, "") + "  ·  " + period_line)
 
 
 func _process(delta: float) -> void:

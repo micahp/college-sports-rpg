@@ -232,7 +232,7 @@ func _show_choices() -> void:
 		if not UIKit.is_touch():
 			text = "%d   %s" % [number, text]
 		if reason != "":
-			text += "   — " + reason
+			text += "   (" + reason + ")"
 		var b: Button = UIKit.button(text, false, 48)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS

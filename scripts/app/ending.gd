@@ -65,7 +65,7 @@ func _ready() -> void:
 	for line: String in Game.epilogue_lines():
 		col.add_child(UIKit.wrap_label(line, 18, Color(0.9, 0.9, 0.88)))
 
-	var again: Button = UIKit.button("Play again — make different choices", true, 56)
+	var again: Button = UIKit.button("Play again: make different choices", true, 56)
 	again.name = "PlayAgain"
 	again.pressed.connect(func() -> void: Game.change_scene("title"))
 	col.add_child(again)

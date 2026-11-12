@@ -101,7 +101,7 @@ func _build_classroom() -> Node3D:
 	title.outline_size = 0
 	title.position = Vector3(0, 2.15, -5.37)
 	_root.add_child(title)
-	var scrawl: Label3D = _label("ATP-PC  →  GLYCOLYTIC  →  AEROBIC\nQuiz Friday — no curve", 30, Color(0.2, 0.3, 0.55))
+	var scrawl: Label3D = _label("ATP-PC  →  GLYCOLYTIC  →  AEROBIC\nQuiz Friday, no curve", 30, Color(0.2, 0.3, 0.55))
 	scrawl.outline_size = 0
 	scrawl.position = Vector3(0, 1.6, -5.37)
 	_root.add_child(scrawl)

@@ -10,7 +10,7 @@
       "choices": [
         {
           "id": "work_tables",
-          "label": "Work the tables — meet people",
+          "label": "Work the tables, meet people",
           "periods": [
             "morning",
             "afternoon",
@@ -189,7 +189,7 @@
       "location": "classroom",
       "spot": "seat",
       "prompt": "CLASS",
-      "title": "Moreno Hall 104 — Intro to Kinesiology",
+      "title": "Moreno Hall 104: Intro to Kinesiology",
       "text": "Professor Okafor's lecture hall. Sixty seats, and the front row is always empty.",
       "choices": [
         {
@@ -324,7 +324,7 @@
                 "academics": -6,
                 "energy": -8
               },
-              "reaction": "You recognize maybe half the words. You guess on the energy-systems chart and leave two short answers blank. On your way out, Okafor says quietly, 'Athletes who want to stay eligible come to office hours.' It isn't a threat. It's worse — it's advice."
+              "reaction": "You recognize maybe half the words. You guess on the energy-systems chart and leave two short answers blank. On your way out, Okafor says quietly, 'Athletes who want to stay eligible come to office hours.' It isn't a threat. It's worse, it's advice."
             }
           }
         }
@@ -335,12 +335,12 @@
       "location": "gym",
       "spot": "court",
       "prompt": "SHOOT",
-      "title": "Rec Center — Court 1",
+      "title": "Rec Center: Court 1",
       "text": "Hardwood, eight hoops, and the squeak of somebody else's game on the far court. A rack of balls sits by the baseline.",
       "choices": [
         {
           "id": "shootaround",
-          "label": "Shootaround — work on your shot",
+          "label": "Shootaround, work on your shot",
           "periods": [
             "morning",
             "afternoon",
@@ -396,7 +396,7 @@
             "energy": -20,
             "coach_interest": 2
           },
-          "reaction": "The run is faster than anything from high school. You hold your own — a couple of buckets, one chase-down block that gets an 'OHHH' from the sideline. Somebody in a North Valley polo watches the last game from the doorway, says nothing, and leaves."
+          "reaction": "The run is faster than anything from high school. You hold your own, a couple of buckets, one chase-down block that gets an 'OHHH' from the sideline. Somebody in a North Valley polo watches the last game from the doorway, says nothing, and leaves."
         }
       ]
     },

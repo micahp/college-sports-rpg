@@ -14,7 +14,7 @@
       "text": "The list goes up on the Rec Center office door at noon. Twenty-nine names tried out. Two got kept. Yours is the second one, written in Delgado's square block capitals.\n\nHe passes you in the hallway and doesn't stop walking. \"Practice is at six. Six means five-forty-five.\" That's it. That's the whole speech. You will remember it for the rest of your life."
     },
     "conditional": {
-      "title": "You made the team — on paper.",
+      "title": "You made the team: on paper.",
       "text": "Your name is on the list. Then there's an asterisk, and next to the asterisk, in Delgado's handwriting: ACADEMIC REVIEW.\n\n\"You can play,\" he tells you in his office. \"Okafor says you can't think. Fix that and you're a Ridgehawk. Don't, and I never met you.\" You walk out with a roster spot and a study schedule, and you're not sure which one is heavier."
     },
     "practice": {
@@ -34,7 +34,7 @@
     "jordan": [
       { "min": 60, "text": "Jordan was in the bleachers at 7 AM holding a sign he made out of a pizza box. You are, it turns out, going to be friends for a very long time." },
       { "min": 35, "text": "Jordan texts you a single basketball emoji at 12:01. Then, a second later: 'pizza either way.' Room 214 is a good room." },
-      { "min": 0, "text": "Jordan is out when you get back. His half of the room is very neat and very quiet. You've got a whole year to fix that — or not." }
+      { "min": 0, "text": "Jordan is out when you get back. His half of the room is very neat and very quiet. You've got a whole year to fix that, or not." }
     ],
     "academics": [
       { "min": 70, "text": "Okafor posts the quiz grades on Monday. Yours is the second-highest in the class. She writes 'see? memorable.' in the margin." },

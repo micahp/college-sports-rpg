@@ -104,7 +104,7 @@ func _save_summary() -> String:
 	var day: int = int(time.get("day", 1))
 	var period: int = clampi(int(time.get("period", 0)), 0, 3)
 	var who: String = str((data.get("player", {}) as Dictionary).get("player_name", ""))
-	return "%s — Day %d, %s %s" % [who, day, TimeSystem.weekday_name(day), TimeSystem.PERIOD_NAMES[period]]
+	return "%s · Day %d, %s %s" % [who, day, TimeSystem.weekday_name(day), TimeSystem.PERIOD_NAMES[period]]
 
 
 func _show_create() -> void:
