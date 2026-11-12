@@ -53,14 +53,22 @@ func _ready() -> void:
 	frame_style.set_corner_radius_all(14)
 	frame_style.border_color = UIKit.GOLD
 	frame_style.set_border_width_all(2)
-	frame_style.set_content_margin_all(3)
+	frame_style.set_content_margin_all(2)
 	_portrait_frame.add_theme_stylebox_override("panel", frame_style)
 	_portrait = TextureRect.new()
 	_portrait.custom_minimum_size = Vector2(104, 104)
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	_portrait_frame.add_child(_portrait)
+	# Rounded mask so the square art follows the frame's corners exactly.
+	var mask: PanelContainer = PanelContainer.new()
+	var mask_style: StyleBoxFlat = StyleBoxFlat.new()
+	mask_style.bg_color = Color.WHITE
+	mask_style.set_corner_radius_all(12)
+	mask.add_theme_stylebox_override("panel", mask_style)
+	mask.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	mask.add_child(_portrait)
+	_portrait_frame.add_child(mask)
 	row.add_child(_portrait_frame)
 
 	var column: VBoxContainer = VBoxContainer.new()
