@@ -1,4 +1,4 @@
-[gd_scene load_steps=79 format=3]
+[gd_scene load_steps=80 format=3]
 
 [ext_resource type="Script" path="res://scripts/world3d/location.gd" id="1_2kwo1"]
 [ext_resource type="Texture2D" path="res://assets/ground/T_Grass_Soft.png" id="2_1fw2i"]
@@ -209,6 +209,9 @@ radius = 0.4
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_uc4vg"]
 height = 3.0
 radius = 0.4
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_sidewalk_planter"]
+size = Vector3(1.97, 0.51, 1.77)
 
 [node name="Campus3D" type="Node3D"]
 script = ExtResource("1_2kwo1")
@@ -784,8 +787,7 @@ phase_offset = 0.4
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0, -9.5)
 script = ExtResource("34_qn4cy")
 model_key = "male_longsleeve"
-activity = 0
-waypoints = PackedVector3Array(-0.9, 0, -10.5, -0.9, 0, 1)
+activity = 3
 walk_speed = 1.9
 jog_speed = 4.2
 shirt_color = Color(0.92, 0.72, 0.3, 1)
@@ -856,3 +858,17 @@ volume_db = -10.0
 
 [node name="UISound" type="AudioStreamPlayer" parent="."]
 volume_db = -6.0
+
+[node name="PlanterWestBody" type="StaticBody3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 0, 6.9)
+
+[node name="Shape" type="CollisionShape3D" parent="Props/PlanterWestBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+shape = SubResource("BoxShape3D_sidewalk_planter")
+
+[node name="PlanterEastBody" type="StaticBody3D" parent="Props"]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 11, 0, 1.9)
+
+[node name="Shape" type="CollisionShape3D" parent="Props/PlanterEastBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+shape = SubResource("BoxShape3D_sidewalk_planter")

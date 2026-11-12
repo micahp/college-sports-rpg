@@ -358,11 +358,15 @@ func _build_banner() -> void:
 
 func _build_toast() -> void:
 	_toast = UIKit.label("", 18, UIKit.TEXT)
+	# Bottom center: clear of the top-left objective block and the stat bar.
 	_toast.anchor_left = 0.5
 	_toast.anchor_right = 0.5
+	_toast.anchor_top = 1.0
+	_toast.anchor_bottom = 1.0
 	_toast.offset_left = -300
 	_toast.offset_right = 300
-	_toast.offset_top = 110
+	_toast.offset_top = -150
+	_toast.offset_bottom = -116
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_toast.add_theme_constant_override("outline_size", 6)

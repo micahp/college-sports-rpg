@@ -89,7 +89,9 @@ func _ready() -> void:
 	_text.name = "Text"
 	column.add_child(_text)
 
-	_result_row = Control.new()
+	# A VBox gives the chip row the full card width and grows with it, so the
+	# stat chips sit on as few lines as possible and never run off the card.
+	_result_row = VBoxContainer.new()
 	column.add_child(_result_row)
 
 	_choices = VBoxContainer.new()
@@ -151,8 +153,8 @@ func show_result(text: String, applied: Dictionary) -> void:
 	_text.text = text
 	var chips: HFlowContainer = UIKit.delta_row(applied)
 	chips.name = "Deltas"
+	chips.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_result_row.add_child(chips)
-	_result_row.custom_minimum_size.y = 30 if not applied.is_empty() else 0
 	_lines = []
 	_pending_choices = []
 	_continue.visible = true

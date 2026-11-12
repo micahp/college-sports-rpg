@@ -9,7 +9,7 @@ extends CharacterBody3D
 @export var pants_color: Color = Color(0.16, 0.22, 0.38)
 @export var skin_tone: String = "brown"
 @export var hair_color: Color = Color(0.1, 0.08, 0.07)
-@export var wears_backpack: bool = true
+@export var wears_backpack: bool = false
 
 const WALK_SPEED: float = 3.4
 const ACCELERATION: float = 14.0
@@ -71,8 +71,12 @@ func _attach_backpack() -> void:
 	# Attached to the model root, not the spine bone: the torso barely bends
 	# during idle/walk, and root attachment keeps the transform predictable.
 	# Recolored to campus navy so it reads as gear, not a random brown bag.
-	backpack.scale = Vector3(0.45, 0.45, 0.45)
-	backpack.position = Vector3(0, 1.35, -0.16)
+	# The model root is scaled to 0.375 (the character is ~4.8 units tall in its
+	# own space), so offsets here are in model units. The character faces +z,
+	# so the bag goes at negative z (behind the shoulders), at shoulder-blade
+	# height (~1.3 m). Checked from the front and back in tests/bag_views.
+	backpack.scale = Vector3.ONE
+	backpack.position = Vector3(0, 3.75, -0.72)
 	_model.add_child(backpack)
 	var mesh: MeshInstance3D = CharacterAppearance.find_mesh(backpack)
 	if mesh != null:

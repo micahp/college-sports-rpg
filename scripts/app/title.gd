@@ -187,7 +187,26 @@ func _build_create() -> Control:
 			pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 			pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			b.add_child(pic)
+			# Rounded mask so the square art matches the rounded button.
+			var mask: Panel = Panel.new()
+			var mask_style: StyleBoxFlat = StyleBoxFlat.new()
+			mask_style.bg_color = Color.WHITE
+			mask_style.set_corner_radius_all(22)
+			mask.add_theme_stylebox_override("panel", mask_style)
+			mask.set_anchors_preset(Control.PRESET_FULL_RECT)
+			mask.offset_left = 4
+			mask.offset_top = 4
+			mask.offset_right = -4
+			mask.offset_bottom = -4
+			mask.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+			mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+			pic.offset_left = 0
+			pic.offset_top = 0
+			pic.offset_right = 0
+			pic.offset_bottom = 0
+			mask.add_child(pic)
+			b.add_child(mask)
 		else:
 			b.text = str(look.get("name", look["id"]))
 		b.pressed.connect(_pick_look.bind(str(look["id"])))

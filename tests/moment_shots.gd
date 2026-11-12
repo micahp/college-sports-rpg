@@ -58,15 +58,19 @@ func _ready() -> void:
 	loc.ui.card.pick(0)
 	await _frames(90)
 	await _shoot("minigame_sweep")
-	for i in 6:
+	# Play the minigame until the location releases its busy flag, so the
+	# stats sheet is not left behind an unfinished shootaround.
+	var presses: int = 0
+	while loc.busy and presses < 600:
+		presses += 1
 		Input.action_press("interact")
 		await _frames(1)
 		Input.action_release("interact")
 		await _frames(25)
-		if i == 0:
+		if presses == 2:
 			await _shoot("minigame_flight")
-		await _frames(60)
-	await _frames(120)
+		await _frames(40)
+	await _frames(60)
 	await _shoot("minigame_result")
 	loc.ui.card.advance()
 	await _frames(60)

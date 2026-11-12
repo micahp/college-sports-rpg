@@ -77,6 +77,7 @@ func _process(delta: float) -> void:
 	if not modal:
 		_follow_camera(delta)
 		_update_current()
+		_cull_occluders()
 	_update_beacon(delta)
 	if Input.is_action_just_pressed("interact"):
 		if ui.card.is_open():
@@ -129,6 +130,54 @@ func _follow_camera(delta: float) -> void:
 		return
 	var target: Vector3 = _clamp_rig(player.global_position + look_ahead)
 	_rig.global_position = _rig.global_position.lerp(target, minf(1.0, 6.0 * delta))
+
+
+## Trees and bushes between the camera and the player fade out of the way:
+## a ray from the camera to the player hides any foliage it hits for a short
+## time, so the player is never hidden behind a tree.
+const OCCLUDER_FRAMES: int = 14
+var _occluded: Dictionary = {}  # Node3D -> frames left hidden
+
+
+func _cull_occluders() -> void:
+	if _camera == null or player == null:
+		return
+	var from: Vector3 = _camera.global_position
+	var to: Vector3 = player.global_position + Vector3(0.0, 1.0, 0.0)
+	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(from, to)
+	query.exclude = [player.get_rid()]
+	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty():
+		var foliage: Node3D = _foliage_root(hit["collider"])
+		if foliage != null:
+			_occluded[foliage] = OCCLUDER_FRAMES
+	for node: Node3D in _occluded.keys():
+		if not is_instance_valid(node):
+			_occluded.erase(node)
+			continue
+		var left: int = int(_occluded[node]) - 1
+		if left <= 0:
+			node.visible = true
+			_occluded.erase(node)
+		else:
+			node.visible = false
+			_occluded[node] = left
+
+
+## The tree or bush a collider belongs to. Colliders are named "TreeNBody"
+## next to their "TreeN" visual, so the sibling with the matching name wins.
+func _foliage_root(collider: Object) -> Node3D:
+	var n: Node = collider as Node
+	while n != null and n != self:
+		var nm: String = n.name
+		if nm.ends_with("Body"):
+			var sibling: Node = n.get_parent().get_node_or_null(NodePath(nm.trim_suffix("Body")))
+			if sibling is Node3D:
+				return sibling
+		elif (nm.begins_with("Tree") or nm.begins_with("Bush")) and n is Node3D:
+			return n as Node3D
+		n = n.get_parent()
+	return null
 
 
 func _clamp_rig(p: Vector3) -> Vector3:
