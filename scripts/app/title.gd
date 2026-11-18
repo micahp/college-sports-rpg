@@ -19,10 +19,45 @@ var _start_button: Button
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	Game.in_game = false
+	if _wants("swipelab"):
+		# Swipe Lab: index.html?swipelab (web) or `-- swipelab` (desktop).
+		get_tree().change_scene_to_file.call_deferred("res://scenes/court/swipe_lab.tscn")
+		return
+	if _wants_court_preview():
+		# Phase 2 preview: index.html?court (web) or `-- court` (desktop)
+		# opens a playable game stretch straight away.
+		var looks: Array = ContentDB.get_looks()
+		if not looks.is_empty():
+			GameState.look_id = str(looks[0]["id"])
+		# ?sprites / `-- sprites`: the drawn 2D players, for comparison.
+		var sprites: bool = "sprites" in OS.get_cmdline_user_args()
+		if OS.has_feature("web"):
+			sprites = str(JavaScriptBridge.eval("window.location.search", true)).contains("sprites")
+		(load("res://scripts/court/court_game.gd") as GDScript).set("use_sprites", sprites)
+		get_tree().change_scene_to_file.call_deferred("res://scenes/court/court_game.tscn")
+		return
 	_build_background()
 	_main = _build_main()
 	_create = _build_create()
 	_create.visible = false
+
+
+func _wants(flag: String) -> bool:
+	if flag in OS.get_cmdline_user_args():
+		return true
+	if OS.has_feature("web"):
+		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
+		return search is String and (search as String).contains(flag)
+	return false
+
+
+func _wants_court_preview() -> bool:
+	if "court" in OS.get_cmdline_user_args() or "court3d" in OS.get_cmdline_user_args():
+		return true
+	if OS.has_feature("web"):
+		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
+		return search is String and (search as String).contains("court")
+	return false
 
 
 func _build_background() -> void:
