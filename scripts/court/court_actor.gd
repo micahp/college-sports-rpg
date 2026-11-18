@@ -72,7 +72,11 @@ const ARM_TRACKS: Array[String] = ["LeftShoulder", "LeftUpperArm", "LeftLowerArm
 	"RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand"]
 const UPPER_ACTIONS: Array[String] = ["Reach", "Pass", "Clap"]
 const GRAVITY: float = 9.81
-const STATURE: float = 1.81  # the court model's standing height
+const STATURE: float = 1.81  # the court model's standing height (top of the head)
+## Thigh + shin + hips-to-head, the sum the football segments add up to (0.45 + 0.43
+## + 0.70). The court player is scaled so its own sum equals this.
+const LEG_TORSO: float = 1.58
+const JOINT_HEIGHT: float = 1.61  # ankle-to-head joint, for the dribble scale
 const BOUNCE: float = 0.78  # share of its speed the ball keeps off the floor
 const GAITS: Array[String] = ["Idle", "Walk", "JogM", "Run", "Jog", "DribbleRun", "SlideL", "SlideR", "Backpedal"]
 const ARM_BONES: Dictionary = {"R": ["RightUpperArm", "RightLowerArm", "RightHand"],
@@ -138,7 +142,7 @@ func setup(_model_key: String, colors: Dictionary, hair: int = 0, bulk: float = 
 	var sk: Skeleton3D = CourtPlayerModel.find_skeleton(_model)
 	_skeleton = sk
 	if sk != null:
-		_fit_proportions(sk)  # before anything measures the limbs (reach, feet, arms)
+		_normalise_height(sk)  # before anything measures the limbs (reach, feet, arms)
 		_crouch = Crouch.new()
 		sk.add_child(_crouch)
 		# Feet first: lift any foot the animation leaves under the floor.
@@ -529,7 +533,7 @@ func _source_hand(side: String) -> Vector3:
 	var hips: Vector3 = _skeleton.global_transform * _skeleton.get_bone_global_pose(_skeleton.find_bone("Hips")).origin
 	# Everything is in proportion to body height: the performer is shorter
 	# than this player, so his offsets and heights are scaled up to match.
-	var k: float = STATURE * _model.scale.x / float(table.get("stature", 1.45))
+	var k: float = JOINT_HEIGHT * _model.scale.x / float(table.get("stature", 1.45))
 	var goal: Vector3 = hips + Basis(Vector3.UP, _model.rotation.y) * (rel * k)
 	goal.y = global_position.y + (float(table.get("hips_height", 0.96)) + rel.y) * k
 	return goal
@@ -608,32 +612,28 @@ func pose_reset() -> void:
 ## a caller aim the wrist (what the IK places) so the palm lands on a point.
 ## Same palm definition as tests/body_metrics.gd: 8 cm along the hand from
 ## the wrist, 2 cm out of the palm side (palm down at rest).
-## Limb lengths to the football body's measured proportions (web/stack/skeleton.js,
-## for a 1.81 m body): parent bone, child bone, target metres. The mocap rig's
-## thighs were 26% short, shins 20% long, forearms 27% long, and the hips sat
-## 17% low. Each child's rest offset from its parent is scaled, so the clips'
-## rotations still apply and every bone below moves with its segment.
-const PROPORTIONS: Array = [
-	["LeftUpperLeg", "LeftLowerLeg", 0.45], ["LeftLowerLeg", "LeftFoot", 0.43],
-	["RightUpperLeg", "RightLowerLeg", 0.45], ["RightLowerLeg", "RightFoot", 0.43],
-	["LeftUpperArm", "LeftLowerArm", 0.29], ["LeftLowerArm", "LeftHand", 0.26],
-	["RightUpperArm", "RightLowerArm", 0.29], ["RightLowerArm", "RightHand", 0.26],
-]
+## Proportions come from the character import (tools/character_rig_fit.gd).
+## Here the court player is scaled so its ankle-to-head joint height reads
+## JOINT_HEIGHT, the measure the football segments add up to.
+func _normalise_height(sk: Skeleton3D) -> void:
+	var hips: int = sk.find_bone("Hips")
+	var head: int = sk.find_bone("Head")
+	var thigh_b: int = sk.find_bone("LeftLowerLeg")
+	var shin_end: int = sk.find_bone("LeftFoot")
+	if shin_end < 0:
+		shin_end = sk.find_bone("LowerLeg.L_end")
+	if hips < 0 or head < 0 or thigh_b < 0 or shin_end < 0:
+		return
+	var g := func(a: int, b: int) -> float:
+		return (sk.get_bone_global_rest(b).origin - sk.get_bone_global_rest(a).origin).length()
+	var legs_torso: float = g.call(sk.find_bone("LeftUpperLeg") if sk.find_bone("LeftUpperLeg") >= 0 else sk.find_bone("UpperLeg.L"), thigh_b) 		+ g.call(thigh_b, shin_end) + g.call(hips, head)
+	var world: float = legs_torso * sk.global_transform.basis.get_scale().x
+	if world > 0.1:
+		_base_scale = _model.scale.x * LEG_TORSO / world
+		_model.scale = Vector3.ONE * _base_scale
 
 
-func _fit_proportions(sk: Skeleton3D) -> void:
-	for seg: Array in PROPORTIONS:
-		var a: int = sk.find_bone(seg[0])
-		var b: int = sk.find_bone(seg[1])
-		if a < 0 or b < 0:
-			continue
-		var gap: Vector3 = sk.get_bone_global_rest(b).origin - sk.get_bone_global_rest(a).origin
-		var measured: float = gap.length() * sk.global_transform.basis.get_scale().x
-		if measured < 0.01:
-			continue
-		var rest: Transform3D = sk.get_bone_rest(b)
-		rest.origin *= float(seg[2]) / measured
-		sk.set_bone_rest(b, rest)
+var _base_scale: float = 1.0  # model scale that makes the player JOINT_HEIGHT tall
 
 
 func palm_offset(side: String) -> Vector3:
@@ -842,8 +842,9 @@ func elbow_position(side: String) -> Vector3:
 	return _skeleton.global_transform * _skeleton.get_bone_global_pose(bone).origin
 
 
+## Scale relative to the normal player: 1.0 is the football proportions, 1.08 is 8% taller.
 func set_height(factor: float) -> void:
-	_model.scale = Vector3.ONE * factor
+	_model.scale = Vector3.ONE * _base_scale * factor
 
 
 ## One transition node holds every gait; switching cross-fades over a

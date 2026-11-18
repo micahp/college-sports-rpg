@@ -38,5 +38,6 @@ func _ready() -> void:
 		var raw: float = rows[k]
 		var ref: float = REF[k]
 		print("%-14s rig %.3f m  reference %.3f m  off by %+.1f%%" % [k, raw, ref, (raw / ref - 1.0) * 100.0])
-	print("foot-to-head %.3f m (the body is %.2f m; the reference is 1.81 m)" % [ltop, a.STATURE])
+	var top: float = (P.call("Head_end") as Vector3).y - (P.call("LeftFoot") as Vector3).y if sk.find_bone("Head_end") >= 0 else -1.0
+	print("ankle-to-head joint %.3f m (football: 1.61 m)   top of head %.3f m (football: 1.81 m)" % [ltop, top])
 	get_tree().quit(0)
