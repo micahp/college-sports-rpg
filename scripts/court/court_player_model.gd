@@ -119,6 +119,7 @@ static func build_student(colors: Dictionary) -> Node3D:
 		"Pants": colors.get("Pants", Color.WHITE), "Socks": colors.get("Socks", Color.WHITE)}
 	var mi: MeshInstance3D = CharacterAppearance.find_mesh(model)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.mesh = _crotch_reweighted(mi.mesh, mi.skin)
 	for i in mi.mesh.get_surface_count():
 		var base: Material = mi.mesh.surface_get_material(i)
 		if base != null and wanted.has(base.resource_name):
@@ -130,6 +131,82 @@ static func build_student(colors: Dictionary) -> Node3D:
 		player.remove_animation_library(lib)
 	player.add_animation_library("", library())
 	return model
+
+
+## The student's shorts have a seam of vertices along the crotch and back panel, at the lowest edge
+## of the shorts, that the source weights almost wholly to the hips, while the vertices around them
+## follow the thighs. The defensive slide throws the legs far apart, the seam stays on the pelvis, and
+## the triangles between it and the thigh vertices stretch into spikes (a jagged skirt hanging behind
+## the player). Here that seam follows the nearer thigh: SEAM_TO_THIGH of its hip weight moves to the
+## upper leg whose joint is closer to the vertex, shared between both when it is central.
+const SEAM_TO_THIGH: float = 0.65
+const SEAM_BAND: float = 0.3  # lowest fraction of the shorts' height that counts as the seam
+static var _reweighted: Dictionary = {}
+
+static func _crotch_reweighted(mesh: ArrayMesh, skin: Skin) -> ArrayMesh:
+	var key: int = mesh.get_instance_id()
+	if _reweighted.has(key):
+		return _reweighted[key]
+	var names: Array = []
+	for i in skin.get_bind_count():
+		names.append(str(skin.get_bind_name(i)))
+	var hips: int = names.find("Hips")
+	var left: int = names.find("LeftUpperLeg")
+	var right: int = names.find("RightUpperLeg")
+	if hips < 0 or left < 0 or right < 0:
+		return mesh
+	var out: ArrayMesh = ArrayMesh.new()
+	for s in mesh.get_surface_count():
+		var arr: Array = mesh.surface_get_arrays(s)
+		var mat: Material = mesh.surface_get_material(s)
+		var fmt: int = mesh.surface_get_format(s)
+		if mat != null and mat.resource_name == "Pants":
+			var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+			var wts: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+			var per: int = bones.size() / verts.size()
+			var ymin: float = INF
+			var ymax: float = -INF
+			for v: Vector3 in verts:
+				ymin = minf(ymin, v.y)
+				ymax = maxf(ymax, v.y)
+			for v in verts.size():
+				if verts[v].y > ymin + (ymax - ymin) * SEAM_BAND:
+					continue
+				var slot_hips: int = -1
+				for k in per:
+					if bones[v * per + k] == hips and wts[v * per + k] > 0.5:
+						slot_hips = k
+				if slot_hips < 0:
+					continue
+				var d_left: float = (skin.get_bind_pose(left) * verts[v]).length()
+				var d_right: float = (skin.get_bind_pose(right) * verts[v]).length()
+				var share_left: float = 0.5 if absf(d_left - d_right) < 0.1 * minf(d_left, d_right) else (1.0 if d_left < d_right else 0.0)
+				var moved: float = wts[v * per + slot_hips] * SEAM_TO_THIGH
+				wts[v * per + slot_hips] -= moved
+				for pair: Array in [[left, share_left], [right, 1.0 - share_left]]:
+					if float(pair[1]) <= 0.0:
+						continue
+					var slot: int = -1
+					for k in per:
+						if bones[v * per + k] == int(pair[0]):
+							slot = k
+					if slot < 0:
+						for k in per:
+							if wts[v * per + k] <= 0.0 and slot < 0:
+								slot = k
+						if slot < 0:
+							continue
+						bones[v * per + slot] = int(pair[0])
+					wts[v * per + slot] += moved * float(pair[1])
+			arr[Mesh.ARRAY_BONES] = bones
+			arr[Mesh.ARRAY_WEIGHTS] = wts
+		var flags: int = Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if (arr[Mesh.ARRAY_BONES] as PackedInt32Array).size() == 8 * (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() else 0
+		out.add_surface_from_arrays(mesh.surface_get_primitive_type(s), arr, [], {}, flags)
+		out.surface_set_material(s, mat)
+		out.surface_set_name(s, mesh.surface_get_name(s))
+	_reweighted[key] = out
+	return out
 
 
 static func find_skeleton(model: Node) -> Skeleton3D:
