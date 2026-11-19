@@ -133,6 +133,7 @@ var _ball_y: float = 0.0
 var _ball_was_up: bool = true
 var _skeleton: Skeleton3D
 var _stride_arms := preload("res://scripts/court/defender_stride_arms.gd").new()
+var _torso_posture: SkeletonModifier3D
 var _gait: String = ""
 var _feet: SkeletonModifier3D
 var _crouch: SkeletonModifier3D
@@ -175,7 +176,8 @@ func setup(_model_key: String, colors: Dictionary, hair: int = 0, bulk: float = 
 			body.set("_hips", -1)
 			sk.add_child(body)
 			_body_floor = body
-		sk.add_child(TorsoPosture.new())  # before the arm IK, so the hands see the corrected torso
+		_torso_posture = TorsoPosture.new()
+		sk.add_child(_torso_posture)  # before arm IK
 		_reach_lean = ReachLean.new()  # after the posture fix (it would undo it), before the arms
 		sk.add_child(_reach_lean)
 		_stride_arms.influence = 0.0
@@ -385,6 +387,11 @@ func animate(delta: float) -> void:
 				at = _drib_t  # the dribble keeps its own beat; the legs join it
 			_tree.set("parameters/seek_%s/seek_request" % gait, at)
 	var forward_guard := idle_hands and _gait in ["Walk", "JogM", "Run", "Jog"]
+	# The forward clips already lean into the stride. Straightening them at
+	# the spine pulls the shoulders back while the pelvis is still tilted.
+	var forward_locomotion := team == 1 and _gait in ["Walk", "JogM", "Run", "Jog"] and _action_time <= 0.0
+	if _torso_posture != null:
+		_torso_posture.influence = move_toward(_torso_posture.influence, 0.0 if forward_locomotion else 1.0, delta * 6.0)
 	_stride_arms.forward = facing()
 	_stride_arms.influence = move_toward(_stride_arms.influence, float(forward_guard), delta * 8.0)
 	var rate: float = 1.0

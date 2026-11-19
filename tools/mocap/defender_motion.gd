@@ -35,6 +35,10 @@ func _ready() -> void:
 	defender.team = 1
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 	cam.size = 2.6
+	if "no_posture" in OS.get_cmdline_user_args():
+		for modifier in defender._skeleton.get_children():
+			if modifier.get_script() == preload("res://scripts/court/torso_posture.gd"):
+				modifier.active = false
 	var stages := ["walk", "run"] if "forward" in OS.get_cmdline_user_args() else ["idle", "right", "left", "stop"]
 	if "clap" in OS.get_cmdline_user_args():
 		stages = ["clap"]
@@ -53,7 +57,7 @@ func _ready() -> void:
 			defender.animate(1.0/60.0)
 			var center: Vector3 = defender.position + Vector3.UP * 0.95
 			if stage == "clap": center.y = 1.32
-			cam.position = center + Vector3(1, 0.3, -4)
+			cam.position = center + (Vector3(4, 0, 0) if "side" in OS.get_cmdline_user_args() else Vector3(1, 0.3, -4))
 			cam.look_at(center)
 			await get_tree().process_frame
 			if frame == 59:

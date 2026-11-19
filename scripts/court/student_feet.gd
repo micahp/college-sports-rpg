@@ -43,10 +43,9 @@ func _process_modification_with_delta(_delta: float) -> void:
 		var turned: Basis = ankle.basis * ankle_rest.basis.inverse()
 		var heading: Vector3 = turned * Vector3.BACK
 		var yaw: Basis = Basis(Vector3.UP, atan2(heading.x, heading.z))
-		# Horizontally the shoe keeps its rest offset from the ankle (shin end). Vertically it hangs a
-		# small fixed distance below it: the rig fit lengthens the shin, so the rest offset (the shin end
-		# sits 0.44 below the shoe) is not what the animated pose has (the legs bend and the shin end is
-		# already at the shoe's height), and applying it lifted the shoes ~16 cm, onto their toes.
-		var pose: Transform3D = Transform3D((yaw * foot_rest.basis).scaled(Vector3.ONE * SHOE_SCALE),
-			ankle.origin + yaw * Vector3(0.0, 0.0, SHOE_AHEAD) + Vector3(0.0, SHOE_FLOOR_Y - ankle.origin.y, 0.0))
+		# Follow the ankle through swing. Pinning the root-level control to
+		# the court pulls the shoe away from the rising shin and stretches the cuff.
+		var origin := ankle.origin + yaw * Vector3(0.0, 0.0, SHOE_AHEAD)
+		origin.y = maxf(SHOE_FLOOR_Y, ankle.origin.y + SHOE_BELOW_ANKLE)
+		var pose := Transform3D((yaw * foot_rest.basis).scaled(Vector3.ONE * SHOE_SCALE), origin)
 		sk.set_bone_global_pose(leg[0], pose)
