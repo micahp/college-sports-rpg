@@ -281,7 +281,7 @@ func _physics_process(delta: float) -> void:
 		Phase.FINAL:
 			_idle_actors(delta)
 	_update_ball(delta)
-	_pose_all()
+	_pose_all(delta)
 	for a: Actor in _all:
 		a.animate(delta)
 	_update_markers()
@@ -1558,7 +1558,7 @@ func _chasers(group: Array, count: int) -> Array:
 # Poses: what every body is doing with its arms this frame
 # =============================================================================
 
-func _pose_all() -> void:
+func _pose_all(delta: float = 1.0 / 60.0) -> void:
 	for a: Actor in _all:
 		a.pose_reset()
 		a.has_ball = a == _holder and _ball_mode == "held"
@@ -1594,35 +1594,29 @@ func _pose_all() -> void:
 	# Defense
 	var reach_d: Actor = _reach.get("d", null)
 	for d: Actor in _defense:
+		# Enter the low stance at guarding distance. Use a wider exit radius so
+		# small changes in spacing cannot repeatedly raise and lower the hips.
+		var ball_gap := d.flat().distance_to(Vector3(bp.x, 0.0, bp.z))
+		d.pressure_stance = ball_gap < (3.2 if d.pressure_stance else 2.6)
 		d.lock_face(bp if _holder != d.man else (d.man as Actor).position)
 		var near_shooter: bool = (_charging or _phase == Phase.SHOT) and _shooter != null \
 			and d.flat().distance_to((_user if _charging else _shooter).flat()) < 2.2
 		if (_charging or _layup) and d.flat().distance_to(_user.flat()) < 2.2:
 			near_shooter = true
-		if near_shooter:
+		d.contest_lift = move_toward(d.contest_lift, 1.0 if near_shooter else 0.0, delta * 3.8)
+		if d.contest_lift > 0.0 and d != reach_d:
 			d.elbow_up = true
-			d.hand("R", d.body_point(0.3, 0.2, 2.5), 1.0)
-			d.hand("L", d.body_point(0.3, -0.2, 2.5), 1.0)
+			for side: String in ["L", "R"]:
+				var lateral := 1.0 if side == "R" else -1.0
+				var lift := smoothstep(0.0, 1.0, d.contest_lift)
+				var palm := d.body_point(0.34, lateral * lerpf(0.40, 0.25, lift), lerpf(1.14, 2.18, lift))
+				d.hand(side, palm, 1.0)
+				d.palm_on(side, palm, palm + d.facing(), 1.0)
 			continue
 		if d == reach_d:
 			_pose_swipe(d, bp)
 			continue
-		if _holder != null and d.man == _holder and _ball_mode == "held":
-			# Shade the dribbling side with one hand and cover the lane with the other.
-			# Read the handler's side, so neither wrist chases each vertical bounce.
-			var shade := clampf((bp - d.position).dot(d.right()) / 0.65, -1.0, 1.0)
-			for side: String in ["L", "R"]:
-				var lateral := 1.0 if side == "R" else -1.0
-				var near_ball := (1.0 + lateral * shade) * 0.5
-				# Real ball pressure: hands low at hip height, a forearm's length out in front of the
-				# body, elbows bent and kept in (the elbow pole comes from d.guard_elbow). Not chest-high.
-				var palm := d.body_point(0.18 + 0.02 * near_ball,
-					lateral * (0.20 - 0.02 * near_ball), 0.90 + 0.02 * near_ball)
-				d.hand(side, palm - d.facing() * 0.08, 1.0)
-				# Palm turned in and a touch down: thumbs up, as the CMU defenders hold them (+0.55 / +0.71).
-				d.palm_on(side, palm, palm + d.facing() - Vector3.UP * 0.3 - d.right() * lateral * 0.5, 1.0)
-				d.guard_elbow = true
-		# Otherwise the mocap slide/stance owns the arms.
+		# Ordinary coverage keeps the arms from the current movement clip.
 
 
 ## A swipe at the dribble: the hand comes from the defender's side, open palm

@@ -178,13 +178,14 @@ static func _crotch_reweighted(mesh: ArrayMesh, skin: Skin) -> ArrayMesh:
 			var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
 			var wts: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
 			var per: int = bones.size() / verts.size()
-			var ymin: float = INF
-			var ymax: float = -INF
+			# The FBX vertex buffer is Z-up before the armature transform.
+			var min_height: float = INF
+			var max_height: float = -INF
 			for v: Vector3 in verts:
-				ymin = minf(ymin, v.y)
-				ymax = maxf(ymax, v.y)
+				min_height = minf(min_height, v.z)
+				max_height = maxf(max_height, v.z)
 			for v in verts.size():
-				if verts[v].y > ymin + (ymax - ymin) * SEAM_BAND:
+				if verts[v].z > min_height + (max_height - min_height) * SEAM_BAND:
 					continue
 				var slot_hips: int = -1
 				for k in per:

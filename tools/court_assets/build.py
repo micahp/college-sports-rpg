@@ -352,7 +352,9 @@ def make_clip(bvh, name, kind, pick):
         return v.dot(right)
 
     loop = kind == "loop"
-    if pick == "peak":  # jump: window around the highest hips point
+    if pick == "full":
+        a, b = 0, len(data) - 1
+    elif pick == "peak":  # jump: window around the highest hips point
         k = max(range(len(hz)), key=lambda i: hz[i])
         a, b = max(0, k - int(1.0 * fps)), min(len(data) - 1, k + int(0.55 * fps))
     elif pick in ("slide+", "slide-"):
@@ -451,6 +453,13 @@ def find_loop(data, a, b, fps):
     print("   loop match dist %.4f" % best[0])
     return best[1], best[2]
 
+
+if "--defense-takes" in sys.argv:
+    for take in (24, 25, 27, 28, 22, 23, 26, 29):
+        name = "defense_102_%d" % take
+        if not make_clip("102_%d.bvh" % take, name, "once", "full"):
+            raise RuntimeError(name)
+    sys.exit(0)
 
 if "--clips-only" not in sys.argv:
     build_player()

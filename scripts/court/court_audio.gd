@@ -18,6 +18,28 @@ const SOUNDS: Dictionary = {
 const POOL: int = 8
 ## Everything sits this far under its authored level.
 const MASTER_DB: float = -12.0
+const PREFS_PATH := "user://court_audio.cfg"
+const PREFS_SECTION := "court"
+const PREFS_KEY := "volume"
+static var _saved_volume := -1.0
+
+static func volume() -> float:
+	if _saved_volume >= 0.0:
+		return _saved_volume
+	var cfg := ConfigFile.new()
+	if cfg.load(PREFS_PATH) == OK:
+		_saved_volume = clampf(float(cfg.get_value(PREFS_SECTION, PREFS_KEY, 1.0)), 0.0, 1.0)
+	else:
+		_saved_volume = 1.0
+	return _saved_volume
+
+static func set_volume(value: float) -> void:
+	_saved_volume = clampf(value, 0.0, 1.0)
+	var cfg := ConfigFile.new()
+	cfg.load(PREFS_PATH)
+	cfg.set_value(PREFS_SECTION, PREFS_KEY, _saved_volume)
+	cfg.save(PREFS_PATH)
+	AudioServer.set_bus_volume_linear(AudioServer.get_bus_index("Master"), _saved_volume)
 
 var _streams: Dictionary = {}
 var _players: Array[AudioStreamPlayer] = []
@@ -26,6 +48,7 @@ var _crowd: AudioStreamPlayer
 
 
 func _ready() -> void:
+	AudioServer.set_bus_volume_linear(AudioServer.get_bus_index("Master"), volume())
 	for key: String in SOUNDS:
 		var takes: Array[AudioStream] = []
 		for file: String in SOUNDS[key]:

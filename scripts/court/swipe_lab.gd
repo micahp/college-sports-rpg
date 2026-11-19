@@ -153,6 +153,12 @@ func _build_ui() -> void:
 		_cycle.button_pressed = false
 		_restart())
 	box.add_child(_pick)
+	var recordings := Button.new()
+	recordings.text = "CMU defensive recordings"
+	recordings.pressed.connect(func():
+		Engine.time_scale = 1.0
+		get_tree().change_scene_to_file("res://scenes/court/movement_lab.tscn"))
+	box.add_child(recordings)
 	var row: HBoxContainer = HBoxContainer.new()
 	box.add_child(row)
 	_cycle = CheckBox.new()

@@ -25,6 +25,7 @@ const FLEX_MAX: float = deg_to_rad(148.0)
 ## {"point": world palm-centre goal, "face": world point the palm faces,
 ##  "weight": 0..1}. Set by court_actor each frame; empty = off.
 var palm_goal: Dictionary = {}
+var clap_forward := Vector3.ZERO
 var debug_print: bool = false
 const PALM_FROM_WRIST: float = 0.08  # same palm point as tests/body_metrics.gd
 const PALM_SKIN: float = 0.02
@@ -71,6 +72,12 @@ func _setup(sk: Skeleton3D) -> void:
 			"palm_l": wb.inverse() * Vector3.DOWN,  # palm side, in hand space (palm down at rest)
 		}
 
+		var thumb := sk.find_bone("Thumb2." + side)
+		var fingers := sk.find_bone("Fingers." + side)
+		if thumb >= 0 and fingers >= 0:
+			var along := (sk.get_bone_global_rest(fingers).origin - w0.origin).normalized()
+			var edge := (sk.get_bone_global_rest(thumb).origin - w0.origin).slide(along).normalized()
+			_d[side]["hand_axes"] = wb.inverse() * Basis(along, edge, along.cross(edge))
 
 ## The side of the arm the forearm folds toward, in skeleton space at rest.
 ## The rig's elbow convention is the IK pole axis (court_actor POLE_AXIS):
@@ -226,6 +233,11 @@ func _fix_arm(sk: Skeleton3D, d: Dictionary) -> void:
 	#    forearm (relative to a flat, untwisted hand) goes into the forearm.
 	var hrel0: Basis = d["hrel0"]
 	var hb_want: Basis = w.basis.orthonormalized()
+	if clap_forward != Vector3.ZERO and d.has("hand_axes"):
+		var inverse := sk.global_transform.basis.inverse()
+		var along := (inverse * (clap_forward + Vector3.UP * 0.35)).normalized()
+		var edge := (inverse * Vector3.UP).slide(along).normalized()
+		hb_want = Basis(along, edge, along.cross(edge)) * (d["hand_axes"] as Basis).inverse()
 	var flat: Basis = neutral * hrel0
 	# Twist about the forearm as it now lies (not the pose's direction: if the
 	# bend was clamped they differ, and twisting about the old one swings the

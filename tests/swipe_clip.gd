@@ -53,6 +53,14 @@ func _physics_process(delta: float) -> void:
 		return
 	if _court._ball_mode == "loose" and _court._loose_t > 1.2:
 		_court._give_ball(u)
+	if "shuffle" in OS.get_cmdline_user_args():
+		for defender: Actor in _court._defense:
+			defender.reach_cd = 10.0
+		var left := int(_t / 0.85) % 2 == 0
+		Input.action_release("move_right" if left else "move_left")
+		Input.action_press("move_left" if left else "move_right")
+		_n = 1 if _t < 3.4 else 2
+		return
 	if _t >= EVERY and _court._reach.is_empty() and _court._ball_mode == "held":
 		_t = 0.0
 		_n += 1
@@ -82,3 +90,18 @@ func _process(_delta: float) -> void:
 	var flip: float = -1.0 if "otherside" in OS.get_cmdline_user_args() else 1.0
 	_cam.position = mid + side * 3.2 * flip + Vector3(0, 1.1, 0)
 	_cam.look_at(mid + Vector3(0, 0.8, 0), Vector3.UP)
+
+	if "solo" in OS.get_cmdline_user_args():
+		for actor: Actor in _court._all:
+			actor.visible = actor == d
+		_court._layer.hide()
+		_label.hide()
+		_court._ball.hide()
+		var focus := d.position + Vector3.UP * 1.2
+		_cam.position = focus + (side * 0.72 + d.facing() * 0.7).normalized() * 2.6
+		_cam.look_at(focus, Vector3.UP)
+		if _n == 1:
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(OS.get_environment("TEMP") + ("/shufflearm_%04d.png" if "shuffle" in OS.get_cmdline_user_args() else "/soloarm_%04d.png") % Engine.get_process_frames())
+		elif _n > 1:
+			get_tree().quit()

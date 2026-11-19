@@ -27,18 +27,20 @@ var role: String = "space"
 var role_time: float = 0.0
 var role_target: Vector3 = Vector3.ZERO
 var reach_cd: float = 1.0
-var guard_elbow: bool = false  # set by the game for a defender holding ball pressure: elbows down, in, bent
 
 # Pose goals set by the game each frame (world space), and blended values.
 var hand_r: Vector3 = Vector3.ZERO
 var hand_l: Vector3 = Vector3.ZERO
 var w_r: float = 0.0
 var w_l: float = 0.0
+var pressure_stance := true
+var contest_lift := 0.0
 var goal_w_r: float = 0.0
 var goal_w_l: float = 0.0
 var lean_now: float = 0.0
 var lean_goal: float = 0.0
 var elbow_up: bool = false
+var guard_elbow: bool = false  # set by the game for a defender holding ball pressure: elbows down, in, bent
 ## Gameplay palm aim (world point the palm should face) per hand, 0 = off.
 var palm_at_r: Vector3 = Vector3.ZERO
 var palm_at_l: Vector3 = Vector3.ZERO
@@ -66,8 +68,6 @@ const POLE_AXIS: int = SkeletonModifier3D.SECONDARY_DIRECTION_PLUS_Z
 const STANCE_WRIST: Vector3 = Vector3(0.7, -0.6, -0.1)
 const STANCE_SWAY: Vector3 = Vector3(0.2, 0.2, 0.25)
 const STANCE_ELBOW: Vector3 = Vector3(0.4, -0.35, 0.25)
-## Gaits whose recorded clips carry the defenders' own arms.
-const RECORDED_ARM_GAITS: Array[String] = ["SlideL", "SlideR", "Backpedal"]
 ## Standing stance uses a held frame of the defensive shuffle.
 const STANCE_ARMS_FROM_HANDS: bool = false
 const FootFloor = preload("res://scripts/court/foot_floor.gd")
@@ -132,6 +132,7 @@ var _hand_still: float = 0.0
 var _ball_y: float = 0.0
 var _ball_was_up: bool = true
 var _skeleton: Skeleton3D
+var _stride_arms := preload("res://scripts/court/defender_stride_arms.gd").new()
 var _gait: String = ""
 var _feet: SkeletonModifier3D
 var _crouch: SkeletonModifier3D
@@ -177,6 +178,8 @@ func setup(_model_key: String, colors: Dictionary, hair: int = 0, bulk: float = 
 		sk.add_child(TorsoPosture.new())  # before the arm IK, so the hands see the corrected torso
 		_reach_lean = ReachLean.new()  # after the posture fix (it would undo it), before the arms
 		sk.add_child(_reach_lean)
+		_stride_arms.influence = 0.0
+		sk.add_child(_stride_arms)
 		for side: String in ["R", "L"]:
 			_build_arm_ik(sk, side)  # used only to put dribbling hands where the performer's were
 		sk.add_child(ArmClearance.new())  # after the IK, so it has the last word on the elbows
@@ -238,13 +241,13 @@ func animate(delta: float) -> void:
 	reach_cd = maxf(0.0, reach_cd - delta)
 	# Defenders play in a stance: knees bent, hands up and out, unless the
 	# game has given them something to do with their hands.
-	var stance: bool = face_lock and team == 1 and not has_ball and _action_time <= 0.0 and _clap_t <= 0.0
+	var stance: bool = pressure_stance and face_lock and team == 1 and not has_ball and _action_time <= 0.0 and _clap_t <= 0.0
 	_stance_hands = false
-	# A defender with nothing to do with his hands, while sliding or backpedalling, plays the recorded
-	# defenders' own arms (his clip) instead of the neutral arms the hand IK normally starts from.
+	# Use the held guard pose only while stationary. Walking, recovery runs
+	# and lateral footwork keep the shoulder and arm motion of their gait.
 	var idle_hands: bool = stance and goal_w_r <= 0.0 and goal_w_l <= 0.0
-	var recorded_arms: bool = idle_hands and RECORDED_ARM_GAITS.has(_gait)
-	_guard_amt = move_toward(_guard_amt, 0.0 if recorded_arms else (1.0 if team == 1 and face_lock else 0.0), delta * 6.0)
+	var recorded_arms: bool = idle_hands and _gait != "Idle" and _gait != ""
+	_guard_amt = move_toward(_guard_amt, 0.0 if recorded_arms else (1.0 if pressure_stance and team == 1 and face_lock else 0.0), delta * 6.0)
 	_tree.set("parameters/guard/blend_amount", _guard_amt)
 	_stance_arms_amt = move_toward(_stance_arms_amt, 1.0 if idle_hands else 0.0, delta * 6.0)
 	_tree.set("parameters/stance_arms/blend_amount", _stance_arms_amt)
@@ -282,6 +285,7 @@ func animate(delta: float) -> void:
 		_reach_lean.set("twist", _lean_twist)
 	if _elbow_hinge != null:
 		_elbow_hinge.active = not idle_hands or not _palm_goals.is_empty()
+		_elbow_hinge.set("clap_forward", facing() if _clap_t > 0.0 else Vector3.ZERO)
 		_elbow_hinge.set("palm_goal", _palm_goals.duplicate())
 	if _crouch != null:
 		_crouch.set("amount", _crouch_now)
@@ -380,6 +384,9 @@ func animate(delta: float) -> void:
 			if gait == "DribbleRun":
 				at = _drib_t  # the dribble keeps its own beat; the legs join it
 			_tree.set("parameters/seek_%s/seek_request" % gait, at)
+	var forward_guard := idle_hands and _gait in ["Walk", "JogM", "Run", "Jog"]
+	_stride_arms.forward = facing()
+	_stride_arms.influence = move_toward(_stride_arms.influence, float(forward_guard), delta * 8.0)
 	var rate: float = 1.0
 	if CourtPlayerModel.CLIP_SPEED.has(_gait):
 		rate = clampf(s / float(CourtPlayerModel.CLIP_SPEED[_gait]), 0.8 if _gait == "DribbleRun" else 0.5, 1.9)
@@ -608,7 +615,7 @@ static func _dribble_table() -> Dictionary:
 func _pick_gait(s: float) -> String:
 	if s < (0.25 if _gait == "Idle" else 0.15):
 		return "Idle"
-	if face_lock and team == 1:
+	if pressure_stance and face_lock and team == 1:
 		# Defending: he faces his man, so pick by which way he is moving.
 		var lat: float = vel.dot(right())
 		var fwd: float = vel.dot(facing())
@@ -641,6 +648,7 @@ func pose_reset() -> void:
 	goal_w_l = 0.0
 	lean_goal = 0.0
 	elbow_up = false
+	guard_elbow = false
 	face_lock = false
 	palm_w_r = 0.0
 	palm_w_l = 0.0
@@ -648,7 +656,6 @@ func pose_reset() -> void:
 	lean_twist_goal = 0.0
 	lean_amount_goal = 0.0
 	crouch_goal = -1.0
-	guard_elbow = false
 
 
 ## Middle of the palm minus the wrist joint, from the pose as last drawn: lets
@@ -762,10 +769,10 @@ func elbow_hint(side: String) -> Vector3:
 	# Only for that stance, so swipes and catches keep their pole.
 	if _stance_hands:
 		return right() * sgn * STANCE_ELBOW.x + Vector3.UP * STANCE_ELBOW.y - facing() * STANCE_ELBOW.z
-	# Hands held in front (swipe, catch): the elbow hangs down and a
 	if guard_elbow:
 		# Ball pressure: elbow down by the ribs and a little back, so the forearm reaches out and the arm bends.
 		return right() * sgn * 0.2 + Vector3.DOWN * 0.9 - facing() * 0.3
+	# Hands held in front (swipe, catch): the elbow hangs down and a
 	# little out. Pointing it back drags the upper arm behind the body.
 	return right() * sgn * 0.55 + Vector3.DOWN * 0.8 - facing() * 0.1
 

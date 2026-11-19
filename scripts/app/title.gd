@@ -19,6 +19,12 @@ var _start_button: Button
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	Game.in_game = false
+	if _wants("defenderlab"):
+		get_tree().change_scene_to_file.call_deferred("res://scenes/court/defender_lab.tscn")
+		return
+	if _wants("movementlab"):
+		get_tree().change_scene_to_file.call_deferred("res://scenes/court/movement_lab.tscn")
+		return
 	if _wants("swipelab"):
 		# Swipe Lab: index.html?swipelab (web) or `-- swipelab` (desktop).
 		get_tree().change_scene_to_file.call_deferred("res://scenes/court/swipe_lab.tscn")
