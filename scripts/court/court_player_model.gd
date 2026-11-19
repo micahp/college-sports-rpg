@@ -51,6 +51,12 @@ const CLIP_DIR: Dictionary = {"Walk": Vector2(0, 1), "JogM": Vector2(0, 1), "Run
 ## The game's own campus students (assets/characters) as court players: the
 ## same model the rest of the game uses, retargeted to the court's clips.
 const STUDENT: String = "res://assets/court/students/Male_Casual.fbx"
+## Basketball mocap retargeted onto the student by MocapRetarget instead of the
+## engine's import retarget (which folds the chest on these and drops the jump).
+const Retarget = preload("res://scripts/court/mocap_retarget.gd")
+const RETARGETED: Array[String] = ["JumpShot", "Layup", "DribbleRun"]
+## Off: those clips keep the engine's import retarget (for side-by-side checks).
+static var mocap_retarget: bool = true
 static var students: bool = true
 static var _library: AnimationLibrary
 static var _skin_shader: Shader
@@ -149,6 +155,8 @@ static func library() -> AnimationLibrary:
 		var anim: Animation = src.get_animation(spec[1]).duplicate()
 		anim.loop_mode = Animation.LOOP_LINEAR if spec[2] else Animation.LOOP_NONE
 		_library.add_animation(clip, anim)
+	if students and mocap_retarget:
+		_retarget_mocap(sources)
 	for scene: Node in sources.values():
 		scene.free()
 	_ground_clips()
@@ -187,7 +195,8 @@ const SHOULDER_KEEP: float = 0.3
 static func _calm_shoulders() -> void:
 	var idle: Animation = _library.get_animation("Idle")
 	for clip: String in CLIPS:
-		if not CLIPS[clip][3] or not _library.has_animation(clip):
+		# the retargeted clips carry the CMU clavicles as recorded, without the shrug the import retarget added
+		if not CLIPS[clip][3] or not _library.has_animation(clip) or (students and mocap_retarget and clip in RETARGETED):
 			continue
 		var anim: Animation = _library.get_animation(clip)
 		for t in anim.get_track_count():
@@ -201,6 +210,20 @@ static func _calm_shoulders() -> void:
 			for k in anim.track_get_key_count(t):
 				var q: Quaternion = anim.track_get_key_value(t, k)
 				anim.track_set_key_value(t, k, rest.slerp(q, SHOULDER_KEEP))
+
+
+## Rebuilds the RETARGETED clips for the campus student from the CMU files.
+static func _retarget_mocap(sources: Dictionary) -> void:
+	var student: Node = (load(STUDENT) as PackedScene).instantiate()
+	var sk: Skeleton3D = find_skeleton(student)
+	for clip: String in RETARGETED:
+		if not _library.has_animation(clip):
+			continue
+		var spec: Array = CLIPS[clip]
+		var src: Node = sources[spec[0]]
+		var cmu_player: AnimationPlayer = src.find_children("*", "AnimationPlayer", true, false)[0]
+		Retarget.apply(_library.get_animation(clip), find_skeleton(src), cmu_player.get_animation(spec[1]), sk)
+	student.free()
 
 
 static func _get_skin_shader() -> Shader:
