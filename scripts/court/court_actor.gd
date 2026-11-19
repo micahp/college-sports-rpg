@@ -391,7 +391,7 @@ func animate(delta: float) -> void:
 	# the spine pulls the shoulders back while the pelvis is still tilted.
 	var forward_locomotion := team == 1 and _gait in ["Walk", "JogM", "Run", "Jog"] and _action_time <= 0.0
 	if _torso_posture != null:
-		_torso_posture.influence = move_toward(_torso_posture.influence, 0.0 if forward_locomotion else 1.0, delta * 6.0)
+		_torso_posture.influence = move_toward(_torso_posture.influence, 1.0, delta * 6.0)
 	_stride_arms.forward = facing()
 	_stride_arms.influence = move_toward(_stride_arms.influence, float(forward_guard), delta * 8.0)
 	var rate: float = 1.0
