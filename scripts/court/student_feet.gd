@@ -6,6 +6,19 @@ extends SkeletonModifier3D
 ## control bone goes to its ankle and stays flat on the floor, turning only
 ## with the leg's heading. (The skeleton stands upright: +Y is up.)
 
+## How far below the shin end the shoe control sits when the foot is planted, in skeleton units
+## (measured at idle: shin end 0.069, control 0.054 with the shoes flat on the floor).
+const SHOE_BELOW_ANKLE: float = -0.015
+## How far in front of the ankle the shoe centre sits, in skeleton units. The rest offset (0.41 m, with the rig fit off)
+## put the shoe a full shoe-length and more ahead of the ankle, so any ankle yaw swung it about 0.4 m sideways.
+const SHOE_AHEAD: float = 0.10
+## Shoe control height above the floor, in skeleton units: the standing reference (flat shoes at idle).
+## Set absolutely, not relative to the ankle: the ankle moves with the slide and the soles dropped ~3.5 cm.
+const SHOE_FLOOR_Y: float = 0.054
+
+## Court sneaker volume relative to the imported student shoe.
+const SHOE_SCALE := 1.14
+
 var _legs: Array = []
 
 
@@ -30,6 +43,9 @@ func _process_modification_with_delta(_delta: float) -> void:
 		var turned: Basis = ankle.basis * ankle_rest.basis.inverse()
 		var heading: Vector3 = turned * Vector3.BACK
 		var yaw: Basis = Basis(Vector3.UP, atan2(heading.x, heading.z))
-		var pose: Transform3D = Transform3D(yaw * foot_rest.basis,
-			ankle.origin + yaw * (foot_rest.origin - ankle_rest.origin))
+		# Follow the ankle through swing. Pinning the root-level control to
+		# the court pulls the shoe away from the rising shin and stretches the cuff.
+		var origin := ankle.origin + yaw * Vector3(0.0, 0.0, SHOE_AHEAD)
+		origin.y = maxf(SHOE_FLOOR_Y, ankle.origin.y + SHOE_BELOW_ANKLE)
+		var pose := Transform3D((yaw * foot_rest.basis).scaled(Vector3.ONE * SHOE_SCALE), origin)
 		sk.set_bone_global_pose(leg[0], pose)

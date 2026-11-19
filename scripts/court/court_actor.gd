@@ -33,11 +33,14 @@ var hand_r: Vector3 = Vector3.ZERO
 var hand_l: Vector3 = Vector3.ZERO
 var w_r: float = 0.0
 var w_l: float = 0.0
+var pressure_stance := true
+var contest_lift := 0.0
 var goal_w_r: float = 0.0
 var goal_w_l: float = 0.0
 var lean_now: float = 0.0
 var lean_goal: float = 0.0
 var elbow_up: bool = false
+var guard_elbow: bool = false  # set by the game for a defender holding ball pressure: elbows down, in, bent
 ## Gameplay palm aim (world point the palm should face) per hand, 0 = off.
 var palm_at_r: Vector3 = Vector3.ZERO
 var palm_at_l: Vector3 = Vector3.ZERO
@@ -58,6 +61,15 @@ var face_target: Vector3 = Vector3.ZERO
 
 ## Which local axis of the forearm bone the elbow bends toward on this rig.
 const POLE_AXIS: int = SkeletonModifier3D.SECONDARY_DIRECTION_PLUS_Z
+## Defender stance, from the CMU defenders (assets/court/defense_102_*.glb, slide_*.glb, measured by
+## tools/mocap/def_arms.gd): the hands hang low and wide beside the body and keep moving. Wrist offset from
+## the shoulder midpoint in arm lengths (out, up, forward); sway amplitude on each axis; the elbow pole
+## (out, up, back) that gives that pose the recording's arm roll (see elbow_hint).
+const STANCE_WRIST: Vector3 = Vector3(0.7, -0.6, -0.1)
+const STANCE_SWAY: Vector3 = Vector3(0.2, 0.2, 0.25)
+const STANCE_ELBOW: Vector3 = Vector3(0.4, -0.35, 0.25)
+## Standing stance uses a held frame of the defensive shuffle.
+const STANCE_ARMS_FROM_HANDS: bool = false
 const FootFloor = preload("res://scripts/court/foot_floor.gd")
 const ArmClearance = preload("res://scripts/court/arm_clearance.gd")
 const HandAim = preload("res://scripts/court/hand_aim.gd")
@@ -72,7 +84,11 @@ const ARM_TRACKS: Array[String] = ["LeftShoulder", "LeftUpperArm", "LeftLowerArm
 	"RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand"]
 const UPPER_ACTIONS: Array[String] = ["Reach", "Pass", "Clap"]
 const GRAVITY: float = 9.81
-const STATURE: float = 1.81  # the court model's standing height
+const STATURE: float = 1.81  # the court model's standing height (top of the head)
+## Thigh + shin + hips-to-head, the sum the football segments add up to (0.45 + 0.43
+## + 0.70). The court player is scaled so its own sum equals this.
+const LEG_TORSO: float = 1.58
+const JOINT_HEIGHT: float = 1.61  # ankle-to-head joint, for the dribble scale
 const BOUNCE: float = 0.78  # share of its speed the ball keeps off the floor
 const GAITS: Array[String] = ["Idle", "Walk", "JogM", "Run", "Jog", "DribbleRun", "SlideL", "SlideR", "Backpedal"]
 const ARM_BONES: Dictionary = {"R": ["RightUpperArm", "RightLowerArm", "RightHand"],
@@ -116,6 +132,8 @@ var _hand_still: float = 0.0
 var _ball_y: float = 0.0
 var _ball_was_up: bool = true
 var _skeleton: Skeleton3D
+var _stride_arms := preload("res://scripts/court/defender_stride_arms.gd").new()
+var _torso_posture: SkeletonModifier3D
 var _gait: String = ""
 var _feet: SkeletonModifier3D
 var _crouch: SkeletonModifier3D
@@ -124,6 +142,10 @@ var _body_floor: SkeletonModifier3D
 var _stride: float = 0.0  # 0..1 through the stride, 0 = left foot lands
 var _switch_wait: float = 0.0
 var _action_time: float = 0.0
+var _stance_hands: bool = false  # this frame the default stance placed the hands (see elbow_hint)
+var _sway_t: float = 0.0
+var _guard_amt: float = 0.0
+var _stance_arms_amt: float = 0.0  # 1 while the standing stance plays the recorded defender arms
 var _ik: Dictionary = {}  # side -> {ik, target, pole}
 var _arm_reach: Dictionary = {}  # measured upper-arm + forearm length, in world units
 var _openness_label: Label3D
@@ -138,7 +160,7 @@ func setup(_model_key: String, colors: Dictionary, hair: int = 0, bulk: float = 
 	var sk: Skeleton3D = CourtPlayerModel.find_skeleton(_model)
 	_skeleton = sk
 	if sk != null:
-		_fit_proportions(sk)  # before anything measures the limbs (reach, feet, arms)
+		_normalise_height(sk)  # before anything measures the limbs (reach, feet, arms)
 		_crouch = Crouch.new()
 		sk.add_child(_crouch)
 		# Feet first: lift any foot the animation leaves under the floor.
@@ -154,9 +176,12 @@ func setup(_model_key: String, colors: Dictionary, hair: int = 0, bulk: float = 
 			body.set("_hips", -1)
 			sk.add_child(body)
 			_body_floor = body
-		sk.add_child(TorsoPosture.new())  # before the arm IK, so the hands see the corrected torso
+		_torso_posture = TorsoPosture.new()
+		sk.add_child(_torso_posture)  # before arm IK
 		_reach_lean = ReachLean.new()  # after the posture fix (it would undo it), before the arms
 		sk.add_child(_reach_lean)
+		_stride_arms.influence = 0.0
+		sk.add_child(_stride_arms)
 		for side: String in ["R", "L"]:
 			_build_arm_ik(sk, side)  # used only to put dribbling hands where the performer's were
 		sk.add_child(ArmClearance.new())  # after the IK, so it has the last word on the elbows
@@ -218,12 +243,37 @@ func animate(delta: float) -> void:
 	reach_cd = maxf(0.0, reach_cd - delta)
 	# Defenders play in a stance: knees bent, hands up and out, unless the
 	# game has given them something to do with their hands.
-	var stance: bool = face_lock and team == 1 and not has_ball and _action_time <= 0.0 and _clap_t <= 0.0
-	if stance and goal_w_r <= 0.0 and goal_w_l <= 0.0:
-		hand_r = body_point(0.4, 0.55, 1.15)
-		hand_l = body_point(0.4, -0.55, 1.15)
+	var stance: bool = pressure_stance and face_lock and team == 1 and not has_ball and _action_time <= 0.0 and _clap_t <= 0.0
+	_stance_hands = false
+	# Use the held guard pose only while stationary. Walking, recovery runs
+	# and lateral footwork keep the shoulder and arm motion of their gait.
+	var idle_hands: bool = stance and goal_w_r <= 0.0 and goal_w_l <= 0.0
+	var recorded_arms: bool = idle_hands and _gait != "Idle" and _gait != ""
+	_guard_amt = move_toward(_guard_amt, 0.0 if recorded_arms else (1.0 if pressure_stance and team == 1 and face_lock else 0.0), delta * 6.0)
+	_tree.set("parameters/guard/blend_amount", _guard_amt)
+	_stance_arms_amt = move_toward(_stance_arms_amt, 1.0 if idle_hands else 0.0, delta * 6.0)
+	_tree.set("parameters/stance_arms/blend_amount", _stance_arms_amt)
+	if STANCE_ARMS_FROM_HANDS and idle_hands and not recorded_arms:
+		# Standing stance: hands low and wide beside the body as the recorded defenders hold them,
+		# swaying a little (the recordings' hands are never still).
+		var mid: Vector3 = (shoulder_position("R") + shoulder_position("L")) * 0.5
+		var arm_len: float = arm_length("R") / 0.94  # shoulder to wrist (the measured reach is 94% of it)
+		_sway_t += delta
+		var phase: float = float(get_instance_id() % 628) * 0.01
+		for side: String in ["R", "L"]:
+			var sgn: float = 1.0 if side == "R" else -1.0
+			var ph: float = phase + (0.0 if side == "R" else 2.1)
+			var out: float = STANCE_WRIST.x + STANCE_SWAY.x * sin(1.9 * _sway_t + ph)
+			var up: float = STANCE_WRIST.y + STANCE_SWAY.y * sin(2.6 * _sway_t + ph * 1.3)
+			var fwd: float = STANCE_WRIST.z + STANCE_SWAY.z * sin(1.4 * _sway_t + ph * 2.1)
+			var p: Vector3 = mid + (right() * sgn * out + Vector3.UP * up + facing() * fwd) * arm_len
+			if side == "R":
+				hand_r = p
+			else:
+				hand_l = p
 		goal_w_r = 0.9
 		goal_w_l = 0.9
+		_stance_hands = true
 	# The side slide is already a low shuffle; the crouch is for standing and backing up.
 	var crouch_want: float = 0.55 if stance and (_gait == "Idle" or _gait == "Backpedal") else 0.0
 	if crouch_goal >= 0.0:
@@ -236,6 +286,8 @@ func animate(delta: float) -> void:
 		_reach_lean.set("amount", _lean_amount)
 		_reach_lean.set("twist", _lean_twist)
 	if _elbow_hinge != null:
+		_elbow_hinge.active = not idle_hands or not _palm_goals.is_empty()
+		_elbow_hinge.set("clap_forward", facing() if _clap_t > 0.0 else Vector3.ZERO)
 		_elbow_hinge.set("palm_goal", _palm_goals.duplicate())
 	if _crouch != null:
 		_crouch.set("amount", _crouch_now)
@@ -334,6 +386,14 @@ func animate(delta: float) -> void:
 			if gait == "DribbleRun":
 				at = _drib_t  # the dribble keeps its own beat; the legs join it
 			_tree.set("parameters/seek_%s/seek_request" % gait, at)
+	var forward_guard := idle_hands and _gait in ["Walk", "JogM", "Run", "Jog"]
+	# The forward clips already lean into the stride. Straightening them at
+	# the spine pulls the shoulders back while the pelvis is still tilted.
+	var forward_locomotion := team == 1 and _gait in ["Walk", "JogM", "Run", "Jog"] and _action_time <= 0.0
+	if _torso_posture != null:
+		_torso_posture.influence = move_toward(_torso_posture.influence, 0.0 if forward_locomotion else 1.0, delta * 6.0)
+	_stride_arms.forward = facing()
+	_stride_arms.influence = move_toward(_stride_arms.influence, float(forward_guard), delta * 8.0)
 	var rate: float = 1.0
 	if CourtPlayerModel.CLIP_SPEED.has(_gait):
 		rate = clampf(s / float(CourtPlayerModel.CLIP_SPEED[_gait]), 0.8 if _gait == "DribbleRun" else 0.5, 1.9)
@@ -529,7 +589,7 @@ func _source_hand(side: String) -> Vector3:
 	var hips: Vector3 = _skeleton.global_transform * _skeleton.get_bone_global_pose(_skeleton.find_bone("Hips")).origin
 	# Everything is in proportion to body height: the performer is shorter
 	# than this player, so his offsets and heights are scaled up to match.
-	var k: float = STATURE * _model.scale.x / float(table.get("stature", 1.45))
+	var k: float = JOINT_HEIGHT * _model.scale.x / float(table.get("stature", 1.45))
 	var goal: Vector3 = hips + Basis(Vector3.UP, _model.rotation.y) * (rel * k)
 	goal.y = global_position.y + (float(table.get("hips_height", 0.96)) + rel.y) * k
 	return goal
@@ -562,7 +622,7 @@ static func _dribble_table() -> Dictionary:
 func _pick_gait(s: float) -> String:
 	if s < (0.25 if _gait == "Idle" else 0.15):
 		return "Idle"
-	if face_lock and team == 1:
+	if pressure_stance and face_lock and team == 1:
 		# Defending: he faces his man, so pick by which way he is moving.
 		var lat: float = vel.dot(right())
 		var fwd: float = vel.dot(facing())
@@ -595,6 +655,7 @@ func pose_reset() -> void:
 	goal_w_l = 0.0
 	lean_goal = 0.0
 	elbow_up = false
+	guard_elbow = false
 	face_lock = false
 	palm_w_r = 0.0
 	palm_w_l = 0.0
@@ -608,32 +669,28 @@ func pose_reset() -> void:
 ## a caller aim the wrist (what the IK places) so the palm lands on a point.
 ## Same palm definition as tests/body_metrics.gd: 8 cm along the hand from
 ## the wrist, 2 cm out of the palm side (palm down at rest).
-## Limb lengths to the football body's measured proportions (web/stack/skeleton.js,
-## for a 1.81 m body): parent bone, child bone, target metres. The mocap rig's
-## thighs were 26% short, shins 20% long, forearms 27% long, and the hips sat
-## 17% low. Each child's rest offset from its parent is scaled, so the clips'
-## rotations still apply and every bone below moves with its segment.
-const PROPORTIONS: Array = [
-	["LeftUpperLeg", "LeftLowerLeg", 0.45], ["LeftLowerLeg", "LeftFoot", 0.43],
-	["RightUpperLeg", "RightLowerLeg", 0.45], ["RightLowerLeg", "RightFoot", 0.43],
-	["LeftUpperArm", "LeftLowerArm", 0.29], ["LeftLowerArm", "LeftHand", 0.26],
-	["RightUpperArm", "RightLowerArm", 0.29], ["RightLowerArm", "RightHand", 0.26],
-]
+## Proportions come from the character import (tools/character_rig_fit.gd).
+## Here the court player is scaled so its ankle-to-head joint height reads
+## JOINT_HEIGHT, the measure the football segments add up to.
+func _normalise_height(sk: Skeleton3D) -> void:
+	var hips: int = sk.find_bone("Hips")
+	var head: int = sk.find_bone("Head")
+	var thigh_b: int = sk.find_bone("LeftLowerLeg")
+	var shin_end: int = sk.find_bone("LeftFoot")
+	if shin_end < 0:
+		shin_end = sk.find_bone("LowerLeg.L_end")
+	if hips < 0 or head < 0 or thigh_b < 0 or shin_end < 0:
+		return
+	var g := func(a: int, b: int) -> float:
+		return (sk.get_bone_global_rest(b).origin - sk.get_bone_global_rest(a).origin).length()
+	var legs_torso: float = g.call(sk.find_bone("LeftUpperLeg") if sk.find_bone("LeftUpperLeg") >= 0 else sk.find_bone("UpperLeg.L"), thigh_b) 		+ g.call(thigh_b, shin_end) + g.call(hips, head)
+	var world: float = legs_torso * sk.global_transform.basis.get_scale().x
+	if world > 0.1:
+		_base_scale = _model.scale.x * LEG_TORSO / world
+		_model.scale = Vector3.ONE * _base_scale
 
 
-func _fit_proportions(sk: Skeleton3D) -> void:
-	for seg: Array in PROPORTIONS:
-		var a: int = sk.find_bone(seg[0])
-		var b: int = sk.find_bone(seg[1])
-		if a < 0 or b < 0:
-			continue
-		var gap: Vector3 = sk.get_bone_global_rest(b).origin - sk.get_bone_global_rest(a).origin
-		var measured: float = gap.length() * sk.global_transform.basis.get_scale().x
-		if measured < 0.01:
-			continue
-		var rest: Transform3D = sk.get_bone_rest(b)
-		rest.origin *= float(seg[2]) / measured
-		sk.set_bone_rest(b, rest)
+var _base_scale: float = 1.0  # model scale that makes the player JOINT_HEIGHT tall
 
 
 func palm_offset(side: String) -> Vector3:
@@ -714,7 +771,15 @@ func elbow_hint(side: String) -> Vector3:
 		# side and a little back and up, not straight back, which would pull
 		# the upper arm back past vertical (outside the shoulder's range).
 		return right() * sgn * 0.9 - facing() * 0.25 + Vector3.UP * 0.2
-	# Hands held in front (stance, swipe, catch): the elbow hangs down and a
+	# The defender's default stance (STANCE_WRIST). The pole decides how the IK swivels the arm, and with it
+	# where the thumbs point: an elbow hanging straight down had both thumbs at the floor in the slide.
+	# Only for that stance, so swipes and catches keep their pole.
+	if _stance_hands:
+		return right() * sgn * STANCE_ELBOW.x + Vector3.UP * STANCE_ELBOW.y - facing() * STANCE_ELBOW.z
+	if guard_elbow:
+		# Ball pressure: elbow down by the ribs and a little back, so the forearm reaches out and the arm bends.
+		return right() * sgn * 0.2 + Vector3.DOWN * 0.9 - facing() * 0.3
+	# Hands held in front (swipe, catch): the elbow hangs down and a
 	# little out. Pointing it back drags the upper arm behind the body.
 	return right() * sgn * 0.55 + Vector3.DOWN * 0.8 - facing() * 0.1
 
@@ -842,8 +907,9 @@ func elbow_position(side: String) -> Vector3:
 	return _skeleton.global_transform * _skeleton.get_bone_global_pose(bone).origin
 
 
+## Scale relative to the normal player: 1.0 is the football proportions, 1.08 is 8% taller.
 func set_height(factor: float) -> void:
-	_model.scale = Vector3.ONE * factor
+	_model.scale = Vector3.ONE * _base_scale * factor
 
 
 ## One transition node holds every gait; switching cross-fades over a
@@ -901,7 +967,29 @@ func _build_tree() -> void:
 	root.add_node("uact", _uact_node)
 	root.add_node("uact_speed", AnimationNodeTimeScale.new())
 	root.connect_node("speed", 0, "gait")
-	root.connect_node("carry", 0, "speed")
+	# Anchor the shoulders and arms before defensive IK. Otherwise the swing
+	# from each locomotion clip changes the pose under the same hand target.
+	var guard := AnimationNodeBlend2.new()
+	guard.filter_enabled = true
+	for bone: String in ARM_TRACKS:
+		guard.set_filter_path(NodePath("%GeneralSkeleton:" + bone), true)
+	var neutral := AnimationNodeAnimation.new()
+	neutral.animation = "Idle"
+	var stance_bp := AnimationNodeAnimation.new()
+	stance_bp.animation = "GuardHold"
+	var stance_arms := AnimationNodeBlend2.new()
+	stance_arms.filter_enabled = true
+	for bone: String in ARM_TRACKS:
+		stance_arms.set_filter_path(NodePath("%GeneralSkeleton:" + bone), true)
+	root.add_node("guard", guard)
+	root.add_node("neutral", neutral)
+	root.add_node("stance_bp", stance_bp)
+	root.add_node("stance_arms", stance_arms)
+	root.connect_node("guard", 0, "speed")
+	root.connect_node("guard", 1, "stance_arms")
+	root.connect_node("stance_arms", 0, "neutral")
+	root.connect_node("stance_arms", 1, "stance_bp")
+	root.connect_node("carry", 0, "guard")
 	root.connect_node("carry", 1, "d_speed")
 	root.connect_node("uact_speed", 0, "uact")
 	root.connect_node("upper", 0, "carry")

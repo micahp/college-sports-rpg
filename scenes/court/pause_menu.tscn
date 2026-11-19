@@ -43,6 +43,41 @@ text = "Resume"
 custom_minimum_size = Vector2(0, 50)
 text = "Controls"
 
+[node name="SettingsButton" type="Button" parent="Menu/Col"]
+custom_minimum_size = Vector2(0, 50)
+text = "Settings"
+
+[node name="Settings" type="PanelContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -100.0
+offset_right = 260.0
+offset_bottom = 100.0
+
+[node name="Col" type="VBoxContainer" parent="Settings"]
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Settings/Col"]
+theme_override_font_sizes/font_size = 26
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="AudioLabel" type="Label" parent="Settings/Col"]
+text = "Game audio"
+
+[node name="AudioSlider" type="HSlider" parent="Settings/Col"]
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="Back" type="Button" parent="Settings/Col"]
+custom_minimum_size = Vector2(0, 46)
+text = "Back"
+
 [node name="Controls" type="PanelContainer" parent="."]
 anchor_left = 0.5
 anchor_top = 0.5

@@ -66,6 +66,8 @@ func _ready() -> void:
 			for sz: float in SIZES:
 				_cases.append({"move": mv, "aggr": ag, "size": sz,
 					"name": "%s, guard %s, defender x%.2f" % [MOVE_NAMES[mv], {0.6: "loose", 1.0: "normal", 1.4: "tight"}[ag], sz]})
+	for preview in [["Guard stance", "stand"], ["Lateral containment", "lateral"], ["Hands-up contest", "contest"]]:
+		_cases.append({"name": preview[0], "move": preview[1], "aggr": 0.0, "size": 1.0, "preview": true})
 	_court = CourtScene.instantiate()
 	_court.scenario = CourtGame.demo_scenario()
 	add_child(_court)
@@ -117,6 +119,7 @@ func _apply_args() -> void:
 		for i in _speed.item_count:
 			if is_equal_approx(float(_speed.get_item_metadata(i)), float(a["speed"])):
 				_speed.select(i)
+	_court._charging = false
 	_pick.select(_ci)
 	Engine.time_scale = float(_speed.get_item_metadata(_speed.selected))
 
@@ -150,6 +153,12 @@ func _build_ui() -> void:
 		_cycle.button_pressed = false
 		_restart())
 	box.add_child(_pick)
+	var recordings := Button.new()
+	recordings.text = "CMU defensive recordings"
+	recordings.pressed.connect(func():
+		Engine.time_scale = 1.0
+		get_tree().change_scene_to_file("res://scenes/court/movement_lab.tscn"))
+	box.add_child(recordings)
 	var row: HBoxContainer = HBoxContainer.new()
 	box.add_child(row)
 	_cycle = CheckBox.new()
@@ -233,6 +242,7 @@ func _unhandled_input(e: InputEvent) -> void:
 
 func _restart() -> void:
 	var c: Dictionary = _cases[_ci]
+	_court._charging = false
 	_pick.select(_ci)
 	for act: String in ["move_left", "move_right", "move_up", "move_down"]:
 		Input.action_release(act)
@@ -286,6 +296,15 @@ func _physics_process(delta: float) -> void:
 		_court._give_ball(u)
 	_drive_input(delta)
 	_t += delta
+	if _cases[_ci].get("preview", false):
+		for defender: Actor in _court._defense:
+			defender.reach_cd = 2.0
+		_court._charging = _cases[_ci]["move"] == "contest" and fmod(_move_t, 3.0) > 1.5
+		_court._meter_pos = 0.0
+		if _cycle.button_pressed and _move_t > 8.0:
+			_ci = (_ci + 1) % _cases.size()
+			_restart()
+		return
 	if _t >= SWIPE_EVERY and _court._reach.is_empty() and _court._ball_mode == "held":
 		if _swipes >= SWIPES_EACH and _cycle.button_pressed:
 			_ci = (_ci + 1) % _cases.size()
