@@ -10,6 +10,9 @@ extends SkeletonModifier3D
 ## (measured at idle: shin end 0.069, control 0.054 with the shoes flat on the floor).
 const SHOE_BELOW_ANKLE: float = -0.015
 
+## Court sneaker volume relative to the imported student shoe.
+const SHOE_SCALE := 1.14
+
 var _legs: Array = []
 
 
@@ -39,6 +42,6 @@ func _process_modification_with_delta(_delta: float) -> void:
 		# sits 0.44 below the shoe) is not what the animated pose has (the legs bend and the shin end is
 		# already at the shoe's height), and applying it lifted the shoes ~16 cm, onto their toes.
 		var rest_off: Vector3 = foot_rest.origin - ankle_rest.origin
-		var pose: Transform3D = Transform3D(yaw * foot_rest.basis,
+		var pose: Transform3D = Transform3D((yaw * foot_rest.basis).scaled(Vector3.ONE * SHOE_SCALE),
 			ankle.origin + yaw * Vector3(rest_off.x, 0.0, rest_off.z) + Vector3(0.0, SHOE_BELOW_ANKLE, 0.0))
 		sk.set_bone_global_pose(leg[0], pose)

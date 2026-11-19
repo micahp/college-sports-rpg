@@ -1608,9 +1608,16 @@ func _pose_all() -> void:
 			_pose_swipe(d, bp)
 			continue
 		if _holder != null and d.man == _holder and _ball_mode == "held":
-			# Guarding the ball: palms open toward the ball, not flat to the floor.
-			d.palm_to("R", Vector3(bp.x, maxf(bp.y, 0.9), bp.z), 0.7)
-			d.palm_to("L", Vector3(bp.x, maxf(bp.y, 0.9), bp.z), 0.7)
+			# Shade the dribbling side with one hand and cover the lane with the other.
+			# Read the handler's side, so neither wrist chases each vertical bounce.
+			var ball_right := (bp - d.position).dot(d.right()) >= 0.0
+			for side: String in ["L", "R"]:
+				var sign_side := 1.0 if side == "R" else -1.0
+				var shading := (side == "R") == ball_right
+				var target := d.body_point(0.36 if shading else 0.18,
+					sign_side * (0.38 if shading else 0.51), 1.04 if shading else 1.20)
+				d.hand(side, target, 0.60 if shading else 0.45)
+				d.palm_to(side, Vector3(bp.x, target.y, bp.z), 0.4)
 		# Otherwise the mocap slide/stance owns the arms.
 
 
