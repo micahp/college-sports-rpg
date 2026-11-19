@@ -120,6 +120,19 @@ static func build_student(colors: Dictionary) -> Node3D:
 	var mi: MeshInstance3D = CharacterAppearance.find_mesh(model)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.mesh = _crotch_reweighted(mi.mesh, mi.skin)
+	# The FBX Body controller and deforming pelvis are separate bones.
+	# Keep waist vertices on the pelvis as the controller tilts.
+	var skin := mi.skin.duplicate() as Skin
+	var pelvis := -1
+	var body := -1
+	for bind in skin.get_bind_count():
+		match str(skin.get_bind_name(bind)):
+			"Spine": pelvis = bind
+			"Hips": body = bind
+	if pelvis >= 0 and body >= 0:
+		skin.set_bind_name(body, skin.get_bind_name(pelvis))
+		skin.set_bind_pose(body, skin.get_bind_pose(pelvis))
+		mi.skin = skin
 	for i in mi.mesh.get_surface_count():
 		var base: Material = mi.mesh.surface_get_material(i)
 		if base != null and wanted.has(base.resource_name):
@@ -238,6 +251,16 @@ static func library() -> AnimationLibrary:
 		scene.free()
 	_ground_clips()
 	_calm_shoulders()
+	# Keep the planted shuffle pose while the defender waits. A running clip
+	# here cycles one wrist even while both feet are stationary.
+	var shuffle := _library.get_animation("SlideR")
+	var hold := Animation.new()
+	for track in shuffle.get_track_count():
+		if shuffle.track_get_type(track) == Animation.TYPE_ROTATION_3D:
+			var idx := hold.add_track(Animation.TYPE_ROTATION_3D)
+			hold.track_set_path(idx, shuffle.track_get_path(track))
+			hold.rotation_track_insert_key(idx, 0, shuffle.rotation_track_interpolate(track, 0.20))
+	_library.add_animation("GuardHold", hold)
 	_borrow_run_arms("Jog")
 	_neutral_upper("Pass")
 	_neutral_upper("Reach")

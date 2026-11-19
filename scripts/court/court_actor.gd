@@ -68,7 +68,7 @@ const STANCE_SWAY: Vector3 = Vector3(0.2, 0.2, 0.25)
 const STANCE_ELBOW: Vector3 = Vector3(0.4, -0.35, 0.25)
 ## Gaits whose recorded clips carry the defenders' own arms.
 const RECORDED_ARM_GAITS: Array[String] = ["SlideL", "SlideR", "Backpedal"]
-## Standing stance: hand IK off; the arms play the recorded backpedal arms (CMU defender) instead.
+## Standing stance uses a held frame of the defensive shuffle.
 const STANCE_ARMS_FROM_HANDS: bool = false
 const FootFloor = preload("res://scripts/court/foot_floor.gd")
 const ArmClearance = preload("res://scripts/court/arm_clearance.gd")
@@ -281,6 +281,7 @@ func animate(delta: float) -> void:
 		_reach_lean.set("amount", _lean_amount)
 		_reach_lean.set("twist", _lean_twist)
 	if _elbow_hinge != null:
+		_elbow_hinge.active = not idle_hands or not _palm_goals.is_empty()
 		_elbow_hinge.set("palm_goal", _palm_goals.duplicate())
 	if _crouch != null:
 		_crouch.set("amount", _crouch_now)
@@ -961,7 +962,7 @@ func _build_tree() -> void:
 	var neutral := AnimationNodeAnimation.new()
 	neutral.animation = "Idle"
 	var stance_bp := AnimationNodeAnimation.new()
-	stance_bp.animation = "Backpedal"
+	stance_bp.animation = "GuardHold"
 	var stance_arms := AnimationNodeBlend2.new()
 	stance_arms.filter_enabled = true
 	for bone: String in ARM_TRACKS:
