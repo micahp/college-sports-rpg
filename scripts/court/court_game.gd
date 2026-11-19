@@ -1610,14 +1610,18 @@ func _pose_all() -> void:
 		if _holder != null and d.man == _holder and _ball_mode == "held":
 			# Shade the dribbling side with one hand and cover the lane with the other.
 			# Read the handler's side, so neither wrist chases each vertical bounce.
-			var ball_right := (bp - d.position).dot(d.right()) >= 0.0
+			var shade := clampf((bp - d.position).dot(d.right()) / 0.65, -1.0, 1.0)
 			for side: String in ["L", "R"]:
-				var sign_side := 1.0 if side == "R" else -1.0
-				var shading := (side == "R") == ball_right
-				var target := d.body_point(0.36 if shading else 0.18,
-					sign_side * (0.38 if shading else 0.51), 1.04 if shading else 1.20)
-				d.hand(side, target, 0.60 if shading else 0.45)
-				d.palm_to(side, Vector3(bp.x, target.y, bp.z), 0.4)
+				var lateral := 1.0 if side == "R" else -1.0
+				var near_ball := (1.0 + lateral * shade) * 0.5
+				# Real ball pressure: hands low at hip height, a forearm's length out in front of the
+				# body, elbows bent and kept in (the elbow pole comes from d.guard_elbow). Not chest-high.
+				var palm := d.body_point(0.18 + 0.02 * near_ball,
+					lateral * (0.20 - 0.02 * near_ball), 0.90 + 0.02 * near_ball)
+				d.hand(side, palm - d.facing() * 0.08, 1.0)
+				# Palm turned in and a touch down: thumbs up, as the CMU defenders hold them (+0.55 / +0.71).
+				d.palm_on(side, palm, palm + d.facing() - Vector3.UP * 0.3 - d.right() * lateral * 0.5, 1.0)
+				d.guard_elbow = true
 		# Otherwise the mocap slide/stance owns the arms.
 
 

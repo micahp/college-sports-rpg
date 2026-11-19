@@ -27,6 +27,7 @@ var role: String = "space"
 var role_time: float = 0.0
 var role_target: Vector3 = Vector3.ZERO
 var reach_cd: float = 1.0
+var guard_elbow: bool = false  # set by the game for a defender holding ball pressure: elbows down, in, bent
 
 # Pose goals set by the game each frame (world space), and blended values.
 var hand_r: Vector3 = Vector3.ZERO
@@ -641,6 +642,7 @@ func pose_reset() -> void:
 	lean_twist_goal = 0.0
 	lean_amount_goal = 0.0
 	crouch_goal = -1.0
+	guard_elbow = false
 
 
 ## Middle of the palm minus the wrist joint, from the pose as last drawn: lets
@@ -755,6 +757,9 @@ func elbow_hint(side: String) -> Vector3:
 	if _stance_hands:
 		return right() * sgn * STANCE_ELBOW.x + Vector3.UP * STANCE_ELBOW.y - facing() * STANCE_ELBOW.z
 	# Hands held in front (swipe, catch): the elbow hangs down and a
+	if guard_elbow:
+		# Ball pressure: elbow down by the ribs and a little back, so the forearm reaches out and the arm bends.
+		return right() * sgn * 0.2 + Vector3.DOWN * 0.9 - facing() * 0.3
 	# little out. Pointing it back drags the upper arm behind the body.
 	return right() * sgn * 0.55 + Vector3.DOWN * 0.8 - facing() * 0.1
 

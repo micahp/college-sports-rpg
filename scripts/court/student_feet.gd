@@ -9,6 +9,12 @@ extends SkeletonModifier3D
 ## How far below the shin end the shoe control sits when the foot is planted, in skeleton units
 ## (measured at idle: shin end 0.069, control 0.054 with the shoes flat on the floor).
 const SHOE_BELOW_ANKLE: float = -0.015
+## How far in front of the ankle the shoe centre sits, in skeleton units. The rest offset (0.41 m, with the rig fit off)
+## put the shoe a full shoe-length and more ahead of the ankle, so any ankle yaw swung it about 0.4 m sideways.
+const SHOE_AHEAD: float = 0.10
+## Shoe control height above the floor, in skeleton units: the standing reference (flat shoes at idle).
+## Set absolutely, not relative to the ankle: the ankle moves with the slide and the soles dropped ~3.5 cm.
+const SHOE_FLOOR_Y: float = 0.054
 
 ## Court sneaker volume relative to the imported student shoe.
 const SHOE_SCALE := 1.14
@@ -41,7 +47,6 @@ func _process_modification_with_delta(_delta: float) -> void:
 		# small fixed distance below it: the rig fit lengthens the shin, so the rest offset (the shin end
 		# sits 0.44 below the shoe) is not what the animated pose has (the legs bend and the shin end is
 		# already at the shoe's height), and applying it lifted the shoes ~16 cm, onto their toes.
-		var rest_off: Vector3 = foot_rest.origin - ankle_rest.origin
 		var pose: Transform3D = Transform3D((yaw * foot_rest.basis).scaled(Vector3.ONE * SHOE_SCALE),
-			ankle.origin + yaw * Vector3(rest_off.x, 0.0, rest_off.z) + Vector3(0.0, SHOE_BELOW_ANKLE, 0.0))
+			ankle.origin + yaw * Vector3(0.0, 0.0, SHOE_AHEAD) + Vector3(0.0, SHOE_FLOOR_Y - ankle.origin.y, 0.0))
 		sk.set_bone_global_pose(leg[0], pose)
