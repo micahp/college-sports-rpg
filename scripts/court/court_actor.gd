@@ -55,6 +55,7 @@ var _lean_amount: float = 0.0
 ## Trunk rotation goal for a swipe (radians, + turns the left side forward).
 var lean_twist_goal: float = 0.0
 var _lean_twist: float = 0.0
+var mocap_swipe_active: bool = false
 var _reach_lean: SkeletonModifier3D
 var face_lock: bool = false
 var face_target: Vector3 = Vector3.ZERO
@@ -82,7 +83,7 @@ const Crouch = preload("res://scripts/court/crouch.gd")
 const StudentFeet = preload("res://scripts/court/student_feet.gd")
 const ARM_TRACKS: Array[String] = ["LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand",
 	"RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand"]
-const UPPER_ACTIONS: Array[String] = ["Reach", "Pass", "Clap"]
+const UPPER_ACTIONS: Array[String] = ["Reach", "Pass", "Clap", "SwipeCMU", "SwipeCMU_R", "SwipeCMU_L"]
 const GRAVITY: float = 9.81
 const STATURE: float = 1.81  # the court model's standing height (top of the head)
 ## Thigh + shin + hips-to-head, the sum the football segments add up to (0.45 + 0.43
@@ -284,8 +285,9 @@ func animate(delta: float) -> void:
 	_lean_twist = move_toward(_lean_twist, lean_twist_goal, delta * 9.0)
 	if _reach_lean != null:
 		_reach_lean.set("target", lean_at)
-		_reach_lean.set("amount", _lean_amount)
-		_reach_lean.set("twist", _lean_twist)
+		_reach_lean.set("disabled", mocap_swipe_active)
+		_reach_lean.set("amount", 0.0 if mocap_swipe_active else _lean_amount)
+		_reach_lean.set("twist", 0.0 if mocap_swipe_active else _lean_twist)
 	if _elbow_hinge != null:
 		_elbow_hinge.active = not idle_hands or not _palm_goals.is_empty()
 		_elbow_hinge.set("clap_forward", facing() if _clap_t > 0.0 else Vector3.ZERO)
@@ -388,9 +390,8 @@ func animate(delta: float) -> void:
 				at = _drib_t  # the dribble keeps its own beat; the legs join it
 			_tree.set("parameters/seek_%s/seek_request" % gait, at)
 	var forward_guard := idle_hands and _gait in ["Walk", "JogM", "Run", "Jog"]
-	# The forward clips already lean into the stride. Straightening them at
-	# the spine pulls the shoulders back while the pelvis is still tilted.
-	var forward_locomotion := team == 1 and _gait in ["Walk", "JogM", "Run", "Jog"] and _action_time <= 0.0
+	# Keep the trunk correction active over locomotion too; the bound is applied
+	# in both pitch and side-bend, so it does not pull the shoulders across the chest.
 	if _torso_posture != null:
 		_torso_posture.influence = move_toward(_torso_posture.influence, 1.0, delta * 6.0)
 	_stride_arms.forward = facing()
@@ -664,6 +665,7 @@ func pose_reset() -> void:
 	lean_twist_goal = 0.0
 	lean_amount_goal = 0.0
 	crouch_goal = -1.0
+	mocap_swipe_active = false
 
 
 ## Middle of the palm minus the wrist joint, from the pose as last drawn: lets

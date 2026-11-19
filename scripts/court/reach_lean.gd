@@ -9,6 +9,7 @@ const MAX_LEAN: float = deg_to_rad(42.0)
 
 var target: Vector3 = Vector3.ZERO
 var amount: float = 0.0
+var disabled: bool = false
 ## Trunk rotation about the vertical, radians, + turns the body's left side
 ## forward (so the right shoulder leads a right-handed swipe). The trunk turns
 ## ahead of the arm: the shoulder is carried through the swing, not just the arm.
@@ -22,7 +23,7 @@ const HEAD_UP: float = 0.65
 
 func _process_modification_with_delta(_delta: float) -> void:
 	var sk: Skeleton3D = get_skeleton()
-	if sk == null or (amount <= 0.001 and absf(twist) <= 0.001):
+	if disabled or sk == null or (amount <= 0.001 and absf(twist) <= 0.001):
 		return
 	if _spine < 0:
 		_spine = sk.find_bone("Spine")

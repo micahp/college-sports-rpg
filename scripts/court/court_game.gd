@@ -1180,7 +1180,7 @@ func _start_reach(d: Actor) -> void:
 	var side: String = "R" if (_ball.position - d.position).dot(d.right()) > 0.0 else "L"
 	_reach = {"d": d, "t": 0.0, "side": side, "resolved": false, "roll": _rng.randf(),
 		"b_pred": _holder.predict_ball(SWIPE_HIT_T, BALL_FLOOR) if _holder != null else _ball.position}
-	d.action("Reach", 1.5)
+	d.action("SwipeCMU_R" if side == "R" else "SwipeCMU_L", 1.5)
 
 
 ## Can `d`'s palm get to the ball, and the chance a swipe that does knocks it
@@ -1619,21 +1619,10 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 		# Ordinary coverage keeps the arms from the current movement clip.
 
 
-## A swipe at the dribble: the hand comes from the defender's side, open palm
-## leading, sweeps across the ball and on through. The palm meets the side of
-## the ball facing the defender at the moment the swipe resolves (t = 0.2), the
-## trunk bends toward the ball and the hips sink for a low one.
-##   t 0.00-0.06  load: hand out to his side, beside the ball
-##   t 0.06-0.19  strike: palm onto the ball's near side
-##   t 0.19-0.23  contact (the swipe resolves at 0.2)
-##   t 0.23-0.36  follow-through across, then the hand comes back
-const SWIPE_ARC_RAD: float = 0.8   # the arm swings this far about the shoulder into the ball, and as far again through it (~46 deg)
-const SWIPE_UP: float = 0.35       # the sweep rises a little: lifting the ball off its bounce
-const SWIPE_FOLLOW: float = 0.5    # the follow-through is this share of the arc into the ball
-const SWIPE_TWIST: float = 0.5     # trunk rotation at the strike, radians (~29 deg)
-const SWIPE_WIND_T: float = 0.10   # hand drawn back to the wind-up
+## The CMU full-arm reach supplies the swipe. IK applies only a small correction
+## near contact; it does not invent the shoulder, elbow, or wrist trajectory.
+const SWIPE_UP: float = 0.35       # slight upward bias for the contact correction
 const SWIPE_HIT_T: float = 0.26     # palm meets the ball (the swipe resolves here)
-const SWIPE_END_T: float = 0.42    # end of the follow-through
 ## How far short of the ball a swipe that won't knock it loose stops.
 const SWIPE_SHORT_M: float = 0.12
 ## The jab step: for the first part of the swipe he steps until his body is
@@ -1643,95 +1632,33 @@ const SWIPE_STEP_TO_M: float = 0.55
 
 
 func _pose_swipe(d: Actor, _bp: Vector3) -> void:
+	d.mocap_swipe_active = true
 	var t: float = float(_reach["t"])
 	var side: String = str(_reach["side"])
 	var sgn: float = 1.0 if side == "R" else -1.0
-	# Aim at where the ball will be when the palm gets there. Forecast afresh
-	# every frame for the time left, so the aim sharpens as the hand arrives (a
-	# single forecast made at the start was off by 0.2 m typically, 1.7 m at
-	# worst, once the handler changed direction). After contact it is fixed
-	# where it was struck.
+	# CMU 56_04 supplies the shoulder, elbow and wrist motion. IK only makes a
+	# small correction near contact, so the arm does not get dragged through the
+	# whole swipe by a moving hand target.
 	var b: Vector3 = _reach["b_pred"]
 	if _reach.has("ball_at"):
 		b = _reach["ball_at"]
 	elif _holder != null and _ball_mode == "held":
 		b = _holder.predict_ball(maxf(SWIPE_HIT_T - t, 0.0), BALL_FLOOR)
 		_reach["b_pred"] = b
-	# The palm travels through the ball across his body and a little up, palm
-	# leading: the arm swings about the shoulder like a pendulum, fingers along
-	# the arm, wrist near neutral. (A palm facing the ball with the forearm
-	# pointing at it would need a wrist bent ninety degrees: that was the flick.)
 	var v: Vector3 = (-d.right() * sgn + Vector3.UP * SWIPE_UP).normalized()
 	var connects: bool = _swipe_connects(d)
 	var reach_to: float = BALL_FLOOR + 0.02 + (0.0 if connects else SWIPE_SHORT_M)
-	var sh: Vector3 = d.shoulder_position(side)  # as drawn: moves with the lean, twist and step
-	if not _reach.has("rel_start"):
-		_reach["rel_start"] = (d.hand_position(side) + d.palm_offset(side)) - sh  # from where the hand is now
-	# The swing is an arc about the SHOULDER: the palm stays at one radius from
-	# it (as far as the arm reaches to the ball) and sweeps through an angle, so
-	# the movement is the shoulder joint turning and the arm riding it, never a
-	# point the arm can't reach. All of it is recomputed from the shoulder as it
-	# is drawn now, so the contact stays on the ball while the trunk leans and turns.
-	var c_vec: Vector3 = (b - v * reach_to) - sh              # shoulder to palm at contact
-	var rho: float = clampf(c_vec.length(), 0.35, d.arm_length(side) + 0.07)
-	var c_dir: Vector3 = c_vec.normalized()
-	# The arc's axis is fixed when the swipe starts (from the way the palm is to
-	# travel), then only squared up to the current shoulder-to-ball line. Worked
-	# out fresh each frame it flips when the swing lines up with that line.
-	if not _reach.has("axis"):
-		var v_perp: Vector3 = v - c_dir * c_dir.dot(v)
-		v_perp = v_perp.normalized() if v_perp.length() > 0.2 else Vector3.UP.cross(c_dir).normalized()
-		_reach["axis"] = c_dir.cross(v_perp).normalized()
-	var axis0: Vector3 = _reach["axis"]
-	var n_s: Vector3 = (axis0 - c_dir * c_dir.dot(axis0)).normalized()  # axis of the arc
-	var theta: float                                          # angle about the axis, 0 at the ball
-	var rel: Vector3
-	if t < SWIPE_WIND_T:
-		# Draw back by turning the hand's direction about the shoulder and easing
-		# the radius, never by lerping the two points (a straight line between
-		# nearly opposite points runs through the shoulder and the direction flips).
-		var from_rel: Vector3 = _reach["rel_start"]
-		var k: float = smoothstep(0.0, SWIPE_WIND_T, t)
-		var wind_dir: Vector3 = c_dir.rotated(n_s, -SWIPE_ARC_RAD)
-		rel = from_rel.normalized().slerp(wind_dir, k) * lerpf(from_rel.length(), rho, k)
-		theta = -SWIPE_ARC_RAD
-	else:
-		if t < SWIPE_HIT_T:
-			var u: float = (t - SWIPE_WIND_T) / (SWIPE_HIT_T - SWIPE_WIND_T)
-			theta = -SWIPE_ARC_RAD * (1.0 - u * u)  # accelerating: fastest at the ball
-		else:
-			var u2: float = clampf((t - SWIPE_HIT_T) / (SWIPE_END_T - SWIPE_HIT_T), 0.0, 1.0)
-			var through: float = 1.0 - (1.0 - u2) * (1.0 - u2)  # slowing after the ball
-			# on through (a shorter arc: a longer one sweeps the hand across his
-			# own chest) / or back the way it came when it stopped short
-			theta = SWIPE_ARC_RAD * SWIPE_FOLLOW * through if connects else -SWIPE_ARC_RAD * through
-		rel = c_dir.rotated(n_s, theta) * rho
-	var palm: Vector3 = sh + rel
-	var dir_now: Vector3 = rel.normalized()
-	var tangent: Vector3 = n_s.cross(dir_now)                 # the way the palm is moving: the palm leads this way
-	# The IK places the wrist: aim it so the palm (not the wrist) lands on the
-	# point. Fingers run along the arm (radially out), the wrist stays near neutral.
-	var wrist: Vector3 = palm - dir_now * 0.08 - tangent * 0.02
-	d.hand(side, wrist, 1.0)  # rough placement; the palm is solved last, on the final body
-	# Palm contact fades in as the hand leaves the stance and out on recovery,
-	# so it never snaps; the palm faces where it is going.
-	var pw: float = smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.42, 0.5, t))
-	d.palm_on(side, palm, palm + tangent * 0.5, pw)
-	# The trunk turns ahead of the arm: the shoulder is carried through the swing.
-	var tw: float = smoothstep(0.0, SWIPE_HIT_T, t) * (1.0 - smoothstep(0.34, 0.5, t))
-	d.lean_twist_goal = sgn * SWIPE_TWIST * tw
+	var target: Vector3 = b - v * reach_to - d.facing() * 0.08
+	var correction: float = 0.08 * smoothstep(0.16, SWIPE_HIT_T, t) * (1.0 - smoothstep(SWIPE_HIT_T + 0.03, SWIPE_HIT_T + 0.12, t))
+	d.hand(side, target, correction)
+	d.palm_on(side, target, b, correction)
 	var other: String = "L" if side == "R" else "R"
-	# Off hand up and out in front of its shoulder, so it moves with the lean
-	# (a target fixed above the floor ends up behind a leaning shoulder).
-	var osh: Vector3 = d.shoulder_position(other)
-	d.hand(other, osh + d.facing() * 0.32 - d.right() * sgn * 0.22 + Vector3(0, 0.02, 0), 0.8)
-	if _holder != null:
-		d.palm_to(other, _holder.body_point(0.0, 0.0, 1.1), 0.7)
-	# Trunk and hips: lean into it, sink for a low ball.
-	var reach_flat: float = Vector2(b.x - sh.x, b.z - sh.z).length()
-	d.lean_at = b
-	d.lean_amount_goal = clampf((reach_flat - 0.35) / 0.45, 0.25, 1.0) if t < 0.4 else 0.0
-	d.crouch_goal = clampf((1.05 - b.y) / 0.7, 0.4, 1.0) if t < 0.4 else -1.0
+	d.hand(other, Vector3.ZERO, 0.0)
+	d.palm_on(other, Vector3.ZERO, Vector3.ZERO, 0.0)
+	d.lean_at = Vector3.ZERO
+	d.lean_amount_goal = 0.0
+	d.lean_twist_goal = 0.0
+	d.crouch_goal = -1.0
 
 
 # =============================================================================

@@ -19,6 +19,7 @@ const CLIPS: Dictionary = {
 	"Clap": [UAL, "Interact", false, false],
 	"Reach": [UAL, "Interact", false, false],
 	"Pass": [UAL, "Push", false, false],
+	"SwipeCMU": ["res://assets/court/swipe_cmu_56_04.glb", "SwipeCMU", false, true],
 	"DribbleRun": ["res://assets/court/dribble_run.glb", "dribble_run", true, true],
 	"SlideL": ["res://assets/court/slide_l.glb", "slide_l", true, true],
 	"SlideR": ["res://assets/court/slide_r.glb", "slide_r", true, true],
@@ -54,7 +55,7 @@ const STUDENT: String = "res://assets/court/students/Male_Casual.fbx"
 ## Basketball mocap retargeted onto the student by MocapRetarget instead of the
 ## engine's import retarget (which folds the chest on these and drops the jump).
 const Retarget = preload("res://scripts/court/mocap_retarget.gd")
-const RETARGETED: Array[String] = ["JumpShot", "Layup", "DribbleRun", "SlideL", "SlideR", "Backpedal"]
+const RETARGETED: Array[String] = ["JumpShot", "Layup", "DribbleRun", "SlideL", "SlideR", "Backpedal", "SwipeCMU"]
 ## Off: those clips keep the engine's import retarget (for side-by-side checks).
 static var mocap_retarget: bool = true
 static var students: bool = true
@@ -248,6 +249,10 @@ static func library() -> AnimationLibrary:
 		_library.add_animation(clip, anim)
 	if students and mocap_retarget:
 		_retarget_mocap(sources)
+	if students and mocap_retarget and _library.has_animation("SwipeCMU"):
+		_adapt_swipe_mocap(_library.get_animation("SwipeCMU"))
+		_library.add_animation("SwipeCMU_R", _library.get_animation("SwipeCMU").duplicate())
+		_library.add_animation("SwipeCMU_L", _mirror_swipe(_library.get_animation("SwipeCMU")))
 	for scene: Node in sources.values():
 		scene.free()
 	_ground_clips()
@@ -430,8 +435,73 @@ static func _retarget_mocap(sources: Dictionary) -> void:
 		var spec: Array = CLIPS[clip]
 		var src: Node = sources[spec[0]]
 		var cmu_player: AnimationPlayer = src.find_children("*", "AnimationPlayer", true, false)[0]
+		if clip == "SwipeCMU":
+			# The exported GLB has its own node paths; the court retarget uses the
+			# shared student skeleton paths, so keep only the retargeted tracks.
+			var target: Animation = _library.get_animation(clip)
+			for t in range(target.get_track_count() - 1, -1, -1):
+				target.remove_track(t)
+			target.length = cmu_player.get_animation(spec[1]).length
 		Retarget.apply(_library.get_animation(clip), find_skeleton(src), cmu_player.get_animation(spec[1]), sk)
 	student.free()
+
+
+## Keep the reach's shoulder and arm action from CMU 56_04, while reducing
+## that take's strong side bend and wrist curl for the court character.
+static func _adapt_swipe_mocap(anim: Animation) -> void:
+	var idle: Animation = _library.get_animation("Idle")
+	var time_scale: float = 1.4 / anim.length
+	for t in range(anim.get_track_count() - 1, -1, -1):
+		var path: String = str(anim.track_get_path(t))
+		var bone: String = str(anim.track_get_path(t).get_concatenated_subnames())
+		# The take's torso folds sideways and its free arm crosses the chest.
+		# Keep the complete reaching-side chain (including the shoulder), while
+		# letting the game's stable locomotion/posture pose own the trunk and the
+		# opposite arm. This prevents two systems from twisting the shirt at once.
+		if bone not in ["RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand"]:
+			anim.remove_track(t)
+			continue
+		if anim.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+			continue
+		var idle_track: int = idle.find_track(anim.track_get_path(t), Animation.TYPE_ROTATION_3D)
+		if idle_track < 0 or idle.track_get_key_count(idle_track) == 0:
+			# The imported student Idle has no Spine animation track. Leaving the
+			# source rotation here would apply its full bend instead of a delta.
+			anim.remove_track(t)
+			continue
+		var neutral: Quaternion = idle.rotation_track_interpolate(idle_track, 0.0)
+		var keep: float = 0.4 if bone == "RightShoulder" else (0.55 if bone == "RightUpperArm" else (0.50 if bone == "RightLowerArm" else 0.15))
+		var times: PackedFloat32Array = []
+		var values: Array[Quaternion] = []
+		for k in anim.track_get_key_count(t):
+			times.append(anim.track_get_key_time(t, k) * time_scale)
+			var posed: Quaternion = anim.track_get_key_value(t, k)
+			values.append(neutral.slerp(posed, keep))
+		for k in range(anim.track_get_key_count(t) - 1, -1, -1):
+			anim.track_remove_key(t, k)
+		for k in times.size():
+			anim.rotation_track_insert_key(t, times[k], values[k])
+	anim.length = 1.4
+
+
+## CMU 56_04 reaches with its right arm. Reflect the clip across the body's
+## centerline and swap arm tracks so the game can use the same beat on either
+## side of the dribbler.
+static func _mirror_swipe(source: Animation) -> Animation:
+	var anim: Animation = source.duplicate()
+	for t in anim.get_track_count():
+		var path: String = str(anim.track_get_path(t))
+		if path.contains("Left"):
+			path = path.replace("Left", "__SWIPE_SIDE__").replace("Right", "Left").replace("__SWIPE_SIDE__", "Right")
+		elif path.contains("Right"):
+			path = path.replace("Right", "Left")
+		anim.track_set_path(t, NodePath(path))
+		if anim.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+			continue
+		for k in anim.track_get_key_count(t):
+			var q: Quaternion = anim.track_get_key_value(t, k)
+			anim.track_set_key_value(t, k, Quaternion(q.x, -q.y, -q.z, q.w))
+	return anim
 
 
 static func _get_skin_shader() -> Shader:
