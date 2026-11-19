@@ -68,6 +68,8 @@ const STANCE_SWAY: Vector3 = Vector3(0.2, 0.2, 0.25)
 const STANCE_ELBOW: Vector3 = Vector3(0.4, -0.35, 0.25)
 ## Gaits whose recorded clips carry the defenders' own arms.
 const RECORDED_ARM_GAITS: Array[String] = ["SlideL", "SlideR", "Backpedal"]
+## Standing stance: hand IK off; the arms play the recorded backpedal arms (CMU defender) instead.
+const STANCE_ARMS_FROM_HANDS: bool = false
 const FootFloor = preload("res://scripts/court/foot_floor.gd")
 const ArmClearance = preload("res://scripts/court/arm_clearance.gd")
 const HandAim = preload("res://scripts/court/hand_aim.gd")
@@ -141,6 +143,7 @@ var _action_time: float = 0.0
 var _stance_hands: bool = false  # this frame the default stance placed the hands (see elbow_hint)
 var _sway_t: float = 0.0
 var _guard_amt: float = 0.0
+var _stance_arms_amt: float = 0.0  # 1 while the standing stance plays the recorded defender arms
 var _ik: Dictionary = {}  # side -> {ik, target, pole}
 var _arm_reach: Dictionary = {}  # measured upper-arm + forearm length, in world units
 var _openness_label: Label3D
@@ -243,7 +246,9 @@ func animate(delta: float) -> void:
 	var recorded_arms: bool = idle_hands and RECORDED_ARM_GAITS.has(_gait)
 	_guard_amt = move_toward(_guard_amt, 0.0 if recorded_arms else (1.0 if team == 1 and face_lock else 0.0), delta * 6.0)
 	_tree.set("parameters/guard/blend_amount", _guard_amt)
-	if idle_hands and not recorded_arms:
+	_stance_arms_amt = move_toward(_stance_arms_amt, 1.0 if idle_hands else 0.0, delta * 6.0)
+	_tree.set("parameters/stance_arms/blend_amount", _stance_arms_amt)
+	if STANCE_ARMS_FROM_HANDS and idle_hands and not recorded_arms:
 		# Standing stance: hands low and wide beside the body as the recorded defenders hold them,
 		# swaying a little (the recordings' hands are never still).
 		var mid: Vector3 = (shoulder_position("R") + shoulder_position("L")) * 0.5
@@ -947,7 +952,29 @@ func _build_tree() -> void:
 	root.add_node("uact", _uact_node)
 	root.add_node("uact_speed", AnimationNodeTimeScale.new())
 	root.connect_node("speed", 0, "gait")
-	root.connect_node("carry", 0, "speed")
+	# Anchor the shoulders and arms before defensive IK. Otherwise the swing
+	# from each locomotion clip changes the pose under the same hand target.
+	var guard := AnimationNodeBlend2.new()
+	guard.filter_enabled = true
+	for bone: String in ARM_TRACKS:
+		guard.set_filter_path(NodePath("%GeneralSkeleton:" + bone), true)
+	var neutral := AnimationNodeAnimation.new()
+	neutral.animation = "Idle"
+	var stance_bp := AnimationNodeAnimation.new()
+	stance_bp.animation = "Backpedal"
+	var stance_arms := AnimationNodeBlend2.new()
+	stance_arms.filter_enabled = true
+	for bone: String in ARM_TRACKS:
+		stance_arms.set_filter_path(NodePath("%GeneralSkeleton:" + bone), true)
+	root.add_node("guard", guard)
+	root.add_node("neutral", neutral)
+	root.add_node("stance_bp", stance_bp)
+	root.add_node("stance_arms", stance_arms)
+	root.connect_node("guard", 0, "speed")
+	root.connect_node("guard", 1, "stance_arms")
+	root.connect_node("stance_arms", 0, "neutral")
+	root.connect_node("stance_arms", 1, "stance_bp")
+	root.connect_node("carry", 0, "guard")
 	root.connect_node("carry", 1, "d_speed")
 	root.connect_node("uact_speed", 0, "uact")
 	root.connect_node("upper", 0, "carry")
