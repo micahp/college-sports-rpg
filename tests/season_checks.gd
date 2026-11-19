@@ -64,5 +64,6 @@ func run() -> void:
 			labels.append(child.text)
 	check("Regular season complete" in labels, "Missing ending")
 	check("Play game" not in labels and "Practice" not in labels, "Postseason activity exposed")
+	board.free()
 	print("Season: %d checks, %d failures" % [checks, failures])
 	get_tree().quit(int(failures > 0))

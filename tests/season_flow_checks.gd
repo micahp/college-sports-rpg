@@ -123,6 +123,7 @@ func test_ending_transition() -> void:
 		check(Game.in_game, "Button marks the game as in progress")
 		check(Game.is_changing_scene(), "Button starts the scene change")
 	check(ResourceLoader.exists(str(Game.SCENES["season"])), "Season scene file exists for the change")
+	ending.free()
 	Game.outcome = {}
 
 
