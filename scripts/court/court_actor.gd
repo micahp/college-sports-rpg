@@ -161,6 +161,7 @@ func setup(_model_key: String, colors: Dictionary, hair: int = 0, bulk: float = 
 	_skeleton = sk
 	if sk != null:
 		_normalise_height(sk)  # before anything measures the limbs (reach, feet, arms)
+		CourtPlayerModel.balance_idle_once(sk)  # the Idle clip, solved on this rest pose
 		_crouch = Crouch.new()
 		sk.add_child(_crouch)
 		# Feet first: lift any foot the animation leaves under the floor.

@@ -288,6 +288,113 @@ static func _ground_clips() -> void:
 				anim.track_set_key_value(t, k, v + Vector3(0, delta, 0))
 
 
+## Idle holds its feet staggered front to back, with the knees bent unevenly.
+## For every key the clip's own spacing and height are kept, both ankles are
+## moved to the same depth, and each leg is solved with two-bone IK (the knee
+## bends by whatever that depth needs, and forward is the pole). Only the leg
+## rotations change; the hips, spine, and arms keep the clip's motion.
+static var _idle_balanced: bool = false
+
+
+## Runs once, on the skeleton the clip will play on (its rest pose is the
+## normalised character, not the source file's).
+static func balance_idle_once(sk: Skeleton3D) -> void:
+	if _idle_balanced or sk == null or _library == null or not _library.has_animation("Idle"):
+		return
+	_idle_balanced = true
+	_balance_idle(sk)
+
+
+static func _balance_idle(sk: Skeleton3D) -> void:
+	if sk == null:
+		return
+	var anim: Animation = _library.get_animation("Idle")
+	var leg_bones: Array[String] = ["LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot"]
+	var tracks: Dictionary = {}
+	for t in anim.get_track_count():
+		if anim.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+			continue
+		var bone: String = str(anim.track_get_path(t)).get_slice(":", 1)
+		if bone in leg_bones:
+			tracks[bone] = t
+	if tracks.size() < leg_bones.size():
+		push_warning("court idle: leg tracks missing, idle left unbalanced")
+		return
+	var times: Array[float] = []
+	for bone: String in leg_bones:
+		var t: int = tracks[bone]
+		for k in anim.track_get_key_count(t):
+			var time: float = anim.track_get_key_time(t, k)
+			if not times.has(time):
+				times.append(time)
+	var solved: Dictionary = {}
+	for time: float in times:
+		_pose_track_at(anim, sk, time)
+		solved[time] = _solve_legs(sk)
+	for bone: String in leg_bones:
+		var t: int = tracks[bone]
+		for k in anim.track_get_key_count(t):
+			var time: float = anim.track_get_key_time(t, k)
+			anim.track_set_key_value(t, k, solved[time][bone])
+	sk.reset_bone_poses()
+
+
+static func _pose_track_at(anim: Animation, sk: Skeleton3D, time: float) -> void:
+	sk.reset_bone_poses()
+	for t in anim.get_track_count():
+		var bi: int = sk.find_bone(str(anim.track_get_path(t)).get_slice(":", 1))
+		if bi < 0:
+			continue
+		if anim.track_get_type(t) == Animation.TYPE_ROTATION_3D:
+			sk.set_bone_pose_rotation(bi, anim.rotation_track_interpolate(t, time))
+		elif anim.track_get_type(t) == Animation.TYPE_POSITION_3D:
+			sk.set_bone_pose_position(bi, anim.position_track_interpolate(t, time))
+	sk.force_update_all_bone_transforms()
+
+
+## Solves both legs at the current pose and returns each leg bone's pose rotation.
+static func _solve_legs(sk: Skeleton3D) -> Dictionary:
+	var out: Dictionary = {}
+	# Both ankles sit under the hips' depth: the body stays centred over the feet.
+	var ankle_z: float = sk.get_bone_global_pose(sk.find_bone("Hips")).origin.z
+	for side: String in ["Left", "Right"]:
+		var bu: int = sk.find_bone(side + "UpperLeg")
+		var bl: int = sk.find_bone(side + "LowerLeg")
+		var bf: int = sk.find_bone(side + "Foot")
+		var hip: Vector3 = sk.get_bone_global_pose(bu).origin
+		var knee: Vector3 = sk.get_bone_global_pose(bl).origin
+		var ankle: Vector3 = sk.get_bone_global_pose(bf).origin
+		var gu: Basis = sk.get_bone_global_pose(bu).basis
+		var gl: Basis = sk.get_bone_global_pose(bl).basis
+		var gf: Basis = sk.get_bone_global_pose(bf).basis
+		var l1: float = hip.distance_to(knee)
+		var l2: float = knee.distance_to(ankle)
+		var to_target: Vector3 = Vector3(ankle.x, ankle.y, ankle_z) - hip
+		var d: float = clampf(to_target.length(), absf(l1 - l2) + 0.001, l1 + l2 - 0.001)
+		var u: Vector3 = to_target.normalized()
+		var a: float = (l1 * l1 - l2 * l2 + d * d) / (2.0 * d)
+		var h: float = sqrt(maxf(l1 * l1 - a * a, 0.0))
+		var pole: Vector3 = Vector3(0, 0, 1) - u * u.z
+		if pole.length_squared() < 0.0001:
+			pole = Vector3.RIGHT
+		pole = pole.normalized()
+		var knee_new: Vector3 = hip + u * a + pole * h
+		var ankle_new: Vector3 = hip + u * d
+		var q1: Quaternion = Quaternion((knee - hip).normalized(), (knee_new - hip).normalized())
+		var gu_new: Basis = Basis(q1) * gu
+		var q2: Quaternion = Quaternion((q1 * (ankle - knee)).normalized(), (ankle_new - knee_new).normalized())
+		var gl_new: Basis = Basis(q2) * Basis(q1) * gl
+		sk.set_bone_global_pose(bu, Transform3D(gu_new, hip))
+		sk.force_update_all_bone_transforms()
+		sk.set_bone_global_pose(bl, Transform3D(gl_new, knee_new))
+		sk.force_update_all_bone_transforms()
+		sk.set_bone_global_pose(bf, Transform3D(gf, ankle_new))
+		sk.force_update_all_bone_transforms()
+		for bone: int in [bu, bl, bf]:
+			out[sk.get_bone_name(bone)] = sk.get_bone_pose_rotation(bone)
+	return out
+
+
 ## Mocap shoulders arrive shrugged and rolled forward (a different body's
 ## clavicle rest), which reads as shoulder pads. Each clavicle keeps only
 ## SHOULDER_KEEP of its motion, measured against where Idle holds it.
