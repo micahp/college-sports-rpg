@@ -78,7 +78,10 @@ func test_save_round_trip() -> void:
 	var expected: String = JSON.stringify(JSON.parse_string(JSON.stringify(Game.season)))
 	Game.location = "season"
 	Game.save()
-	check(FileAccess.file_exists(SAVE_PATH) and SAVE_PATH == SaveSystem.SAVE_PATH, "Test writes the real save path")
+	check(SAVE_PATH == SaveSystem.SAVE_PATH and FileAccess.file_exists(SAVE_PATH), "Test writes the real save path")
+	var on_disk: Variant = JSON.parse_string(FileAccess.open(SAVE_PATH, FileAccess.READ).get_as_text())
+	check(on_disk is Dictionary and str(on_disk.get("flow", {}).get("location", "")) == "season", "Save file on disk holds the season location")
+	check(on_disk is Dictionary and JSON.stringify(on_disk.get("flow", {}).get("season", {})) == expected, "Save file on disk holds the season state")
 	var flow: Variant = SaveSystem.load_game()
 	check(flow is Dictionary, "Save file reads back")
 	if flow is Dictionary:
