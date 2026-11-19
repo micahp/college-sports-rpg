@@ -22,7 +22,7 @@ var column := VBoxContainer.new()
 func _ready() -> void:
 	state = Game.season
 	if state.is_empty():
-		state.merge({"results": [], "slots": 3, "heat": 0, "practice": 0, "bond": 0, "note": "", "wins": [0,0,0,0,0,0,0,0]})
+		state.merge({"results": [], "slots": 3, "heat": 0, "practice": 0, "bond": 0, "note": "", "wins": [0,0,0,0,0,0,0,0], "games": [0,0,0,0,0,0,0,0]})
 		Game.save()
 	add_child(board)
 	board.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -120,11 +120,15 @@ func finish_game(result: Dictionary) -> void:
 		result[winner] += 2
 		state.note += " Decided in overtime."
 	state.wins[0 if result.team_score > result.opp_score else rival] += 1
+	state.games[0] += 1
+	state.games[rival] += 1
 	# Pair the remaining teams in the same round of the conference schedule.
 	var rotation := range(1,8)
 	for i in range(week % 7):
 		rotation.append(rotation.pop_front())
 	for pair in [[1,6],[2,5],[3,4]]:
+		state.games[rotation[pair[0]]] += 1
+		state.games[rotation[pair[1]]] += 1
 		state.wins[rotation[pair[randi_range(0,1)]]] += 1
 	state.results.append(result)
 	state.slots = 3
