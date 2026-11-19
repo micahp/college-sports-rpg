@@ -58,6 +58,10 @@ var face_target: Vector3 = Vector3.ZERO
 
 ## Which local axis of the forearm bone the elbow bends toward on this rig.
 const POLE_AXIS: int = SkeletonModifier3D.SECONDARY_DIRECTION_PLUS_Z
+## Defender stance: where the hands go (forward, out to the side, up) and the elbow pole that gives the
+## arms the recording's roll (out, up, back; see elbow_hint).
+const STANCE_HAND: Vector3 = Vector3(0.4, 0.55, 1.15)
+const STANCE_ELBOW: Vector3 = Vector3(0.5, 0.1, 0.3)
 const FootFloor = preload("res://scripts/court/foot_floor.gd")
 const ArmClearance = preload("res://scripts/court/arm_clearance.gd")
 const HandAim = preload("res://scripts/court/hand_aim.gd")
@@ -224,8 +228,8 @@ func animate(delta: float) -> void:
 	# game has given them something to do with their hands.
 	var stance: bool = face_lock and team == 1 and not has_ball and _action_time <= 0.0 and _clap_t <= 0.0
 	if stance and goal_w_r <= 0.0 and goal_w_l <= 0.0:
-		hand_r = body_point(0.4, 0.55, 1.15)
-		hand_l = body_point(0.4, -0.55, 1.15)
+		hand_r = body_point(STANCE_HAND.x, STANCE_HAND.y, STANCE_HAND.z)
+		hand_l = body_point(STANCE_HAND.x, -STANCE_HAND.y, STANCE_HAND.z)
 		goal_w_r = 0.9
 		goal_w_l = 0.9
 	# The side slide is already a low shuffle; the crouch is for standing and backing up.
@@ -714,7 +718,14 @@ func elbow_hint(side: String) -> Vector3:
 		# side and a little back and up, not straight back, which would pull
 		# the upper arm back past vertical (outside the shoulder's range).
 		return right() * sgn * 0.9 - facing() * 0.25 + Vector3.UP * 0.2
-	# Hands held in front (stance, swipe, catch): the elbow hangs down and a
+	# The defender's default stance holds the hands out wide (STANCE_HAND). With the elbow hanging
+	# straight down the IK swivels the whole arm so the thumbs point at the floor (measured -0.9 against
+	# +0.55 in the CMU slide); an elbow near shoulder height, slightly out and back, brings the thumbs up
+	# (+0.4) as the recording has them. Only for that stance, so swipes and catches keep their pole.
+	var stance_hand: Vector3 = body_point(STANCE_HAND.x, sgn * STANCE_HAND.y, STANCE_HAND.z)
+	if (hand_r if side == "R" else hand_l).distance_to(stance_hand) < 0.06:
+		return right() * sgn * STANCE_ELBOW.x + Vector3.UP * STANCE_ELBOW.y - facing() * STANCE_ELBOW.z
+	# Hands held in front (swipe, catch): the elbow hangs down and a
 	# little out. Pointing it back drags the upper arm behind the body.
 	return right() * sgn * 0.55 + Vector3.DOWN * 0.8 - facing() * 0.1
 
