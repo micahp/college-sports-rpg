@@ -8,6 +8,7 @@ signal objective_changed
 
 const SCENES: Dictionary = {
 	"title": "res://scenes/app/title.tscn",
+	"season": "res://scenes/app/season.tscn",
 	"ending": "res://scenes/app/ending.tscn",
 	"campus": "res://scenes/world3d/campus3d.tscn",
 	"dorm": "res://scenes/interiors/dorm.tscn",
@@ -59,7 +60,11 @@ func _ready() -> void:
 # Lifecycle
 # =============================================================================
 
+var season: Dictionary = {}
+
+
 func new_game(player_name: String, identity_id: String, look_id: String) -> void:
+	season = {}
 	GameState.reset()
 	TimeSystem.reset()
 	GameState.player_name = player_name.strip_edges() if player_name.strip_edges() != "" else "Freshman"
@@ -83,6 +88,7 @@ func continue_game() -> bool:
 	var flow: Variant = SaveSystem.load_game()
 	if flow == null:
 		return false
+	season = flow.get("season", {})
 	location = str((flow as Dictionary).get("location", "dorm"))
 	arrival = str((flow as Dictionary).get("arrival", "bed"))
 	if not SCENES.has(location):
@@ -97,7 +103,7 @@ func continue_game() -> bool:
 
 func save() -> void:
 	if in_game:
-		SaveSystem.save_game({"location": location, "arrival": arrival})
+		SaveSystem.save_game({"location": location, "arrival": arrival, "season": season})
 
 
 func quit_to_title() -> void:

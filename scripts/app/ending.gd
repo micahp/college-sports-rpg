@@ -65,6 +65,14 @@ func _ready() -> void:
 	for line: String in Game.epilogue_lines():
 		col.add_child(UIKit.wrap_label(line, 18, Color(0.9, 0.9, 0.88)))
 
+	if Game.outcome.get("id") in ["conditional", "roster"]:
+		var join := UIKit.button("Start regular season")
+		col.add_child(join)
+		join.pressed.connect(func() -> void:
+			Game.location = "season"
+			Game.in_game = true
+			Game.save()
+			Game.change_scene("season"))
 	var again: Button = UIKit.button("Play again: make different choices", true, 56)
 	again.name = "PlayAgain"
 	again.pressed.connect(func() -> void: Game.change_scene("title"))
