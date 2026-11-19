@@ -131,6 +131,7 @@ var _catch_grace: float = 0.0
 var _ai_decide: float = 0.0
 var _hold_time: float = 0.0
 var _last_pass_by_user_t: float = -10.0
+var _shot_assisted := false
 var _last_pass_to: Actor = null
 var _time: float = 0.0
 
@@ -432,9 +433,10 @@ func _reset_positions(kind: String) -> void:
 
 func _give_ball(a: Actor) -> void:
 	_holder = a
+	_last_pass_to = null
 	_ball_mode = "held"
 	_hold_time = 0.0
-	_ai_decide = _rng.randf_range(0.45, 0.9)
+	_ai_decide = 0.18
 	_last_touch_team = 0
 	_last_handler_user = a == _user
 	_cross_t = -1.0
@@ -936,6 +938,8 @@ func _shot_type(p: Vector3) -> String:
 
 func _take_shot(shooter: Actor, made: bool, kind: String, layup: bool = false, delay: float = 0.0) -> void:
 	_shooter = shooter
+	_shot_assisted = shooter == _last_pass_to and _time - _last_pass_by_user_t < 3.5
+	_last_pass_to = null
 	_shot_made = made
 	_shot_points = 3 if kind == "three" else 2
 	_follow_t = 0.55
@@ -1009,7 +1013,7 @@ func _tick_shot(delta: float) -> void:
 	var by_user: bool = _shooter == _user
 	if _shot_made:
 		_team_score += _shot_points
-		var assisted: bool = not by_user and _last_pass_to == _shooter and _time - _last_pass_by_user_t < 3.5
+		var assisted: bool = _shot_assisted
 		if by_user:
 			_stats["fgm"] = int(_stats["fgm"]) + 1
 			_stats["pts"] = int(_stats["pts"]) + _shot_points
@@ -1061,9 +1065,6 @@ func _throw_pass(from: Actor, to: Actor) -> void:
 	_flight_t = 0.0
 	from.face_point(to.position)
 	from.action("Pass", 1.8)
-	if from == _user:
-		_last_pass_by_user_t = _time
-		_last_pass_to = to
 
 
 func _tick_pass(delta: float) -> void:
@@ -1083,6 +1084,9 @@ func _tick_pass(delta: float) -> void:
 				return
 	if _flight_t >= 1.0:
 		_give_ball(_pass_target)
+		if _pass_from == _user:
+			_last_pass_to = _pass_target
+			_last_pass_by_user_t = _time
 		_catch_grace = 0.5
 		_audio.play("catch", -9.0)
 
@@ -1096,9 +1100,9 @@ func _ai_holder(delta: float) -> void:
 	var open: float = _nearest_defender_dist(h)
 	var dist: float = h.flat().distance_to(HOOP_FLAT)
 	var user_open: float = _nearest_defender_dist(_user)
-	if (h.role == "roll" or dist < 2.6) and open > 1.2:
+	if dist < 2.6 and open > 1.0:
 		_ai_shoot(h)  # roller with a lane finishes
-	elif _shot_clock < 3.0 or (open > 2.3 and dist < 7.6 and _rng.randf() < 0.55):
+	elif minf(_clock, _shot_clock) < 3.0 or (open >= 1.83 and dist <= 8.2):
 		_ai_shoot(h)
 	elif user_open > 1.3 or _hold_time > 1.5:
 		_throw_pass(h, _user)
