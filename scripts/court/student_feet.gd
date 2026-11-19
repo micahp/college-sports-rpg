@@ -6,6 +6,10 @@ extends SkeletonModifier3D
 ## control bone goes to its ankle and stays flat on the floor, turning only
 ## with the leg's heading. (The skeleton stands upright: +Y is up.)
 
+## How far below the shin end the shoe control sits when the foot is planted, in skeleton units
+## (measured at idle: shin end 0.069, control 0.054 with the shoes flat on the floor).
+const SHOE_BELOW_ANKLE: float = -0.015
+
 var _legs: Array = []
 
 
@@ -30,6 +34,11 @@ func _process_modification_with_delta(_delta: float) -> void:
 		var turned: Basis = ankle.basis * ankle_rest.basis.inverse()
 		var heading: Vector3 = turned * Vector3.BACK
 		var yaw: Basis = Basis(Vector3.UP, atan2(heading.x, heading.z))
+		# Horizontally the shoe keeps its rest offset from the ankle (shin end). Vertically it hangs a
+		# small fixed distance below it: the rig fit lengthens the shin, so the rest offset (the shin end
+		# sits 0.44 below the shoe) is not what the animated pose has (the legs bend and the shin end is
+		# already at the shoe's height), and applying it lifted the shoes ~16 cm, onto their toes.
+		var rest_off: Vector3 = foot_rest.origin - ankle_rest.origin
 		var pose: Transform3D = Transform3D(yaw * foot_rest.basis,
-			ankle.origin + yaw * (foot_rest.origin - ankle_rest.origin))
+			ankle.origin + yaw * Vector3(rest_off.x, 0.0, rest_off.z) + Vector3(0.0, SHOE_BELOW_ANKLE, 0.0))
 		sk.set_bone_global_pose(leg[0], pose)
