@@ -58,10 +58,15 @@ var face_target: Vector3 = Vector3.ZERO
 
 ## Which local axis of the forearm bone the elbow bends toward on this rig.
 const POLE_AXIS: int = SkeletonModifier3D.SECONDARY_DIRECTION_PLUS_Z
-## Defender stance: where the hands go (forward, out to the side, up) and the elbow pole that gives the
-## arms the recording's roll (out, up, back; see elbow_hint).
-const STANCE_HAND: Vector3 = Vector3(0.4, 0.55, 1.15)
-const STANCE_ELBOW: Vector3 = Vector3(0.5, 0.1, 0.3)
+## Defender stance, from the CMU defenders (assets/court/defense_102_*.glb, slide_*.glb, measured by
+## tools/mocap/def_arms.gd): the hands hang low and wide beside the body and keep moving. Wrist offset from
+## the shoulder midpoint in arm lengths (out, up, forward); sway amplitude on each axis; the elbow pole
+## (out, up, back) that gives that pose the recording's arm roll (see elbow_hint).
+const STANCE_WRIST: Vector3 = Vector3(0.7, -0.6, -0.1)
+const STANCE_SWAY: Vector3 = Vector3(0.2, 0.2, 0.25)
+const STANCE_ELBOW: Vector3 = Vector3(0.4, -0.35, 0.25)
+## Gaits whose recorded clips carry the defenders' own arms.
+const RECORDED_ARM_GAITS: Array[String] = ["SlideL", "SlideR", "Backpedal"]
 const FootFloor = preload("res://scripts/court/foot_floor.gd")
 const ArmClearance = preload("res://scripts/court/arm_clearance.gd")
 const HandAim = preload("res://scripts/court/hand_aim.gd")
@@ -132,6 +137,9 @@ var _body_floor: SkeletonModifier3D
 var _stride: float = 0.0  # 0..1 through the stride, 0 = left foot lands
 var _switch_wait: float = 0.0
 var _action_time: float = 0.0
+var _stance_hands: bool = false  # this frame the default stance placed the hands (see elbow_hint)
+var _sway_t: float = 0.0
+var _guard_amt: float = 0.0
 var _ik: Dictionary = {}  # side -> {ik, target, pole}
 var _arm_reach: Dictionary = {}  # measured upper-arm + forearm length, in world units
 var _openness_label: Label3D
@@ -227,11 +235,34 @@ func animate(delta: float) -> void:
 	# Defenders play in a stance: knees bent, hands up and out, unless the
 	# game has given them something to do with their hands.
 	var stance: bool = face_lock and team == 1 and not has_ball and _action_time <= 0.0 and _clap_t <= 0.0
-	if stance and goal_w_r <= 0.0 and goal_w_l <= 0.0:
-		hand_r = body_point(STANCE_HAND.x, STANCE_HAND.y, STANCE_HAND.z)
-		hand_l = body_point(STANCE_HAND.x, -STANCE_HAND.y, STANCE_HAND.z)
+	_stance_hands = false
+	# A defender with nothing to do with his hands, while sliding or backpedalling, plays the recorded
+	# defenders' own arms (his clip) instead of the neutral arms the hand IK normally starts from.
+	var idle_hands: bool = stance and goal_w_r <= 0.0 and goal_w_l <= 0.0
+	var recorded_arms: bool = idle_hands and RECORDED_ARM_GAITS.has(_gait)
+	_guard_amt = move_toward(_guard_amt, 0.0 if recorded_arms else (1.0 if team == 1 and face_lock else 0.0), delta * 6.0)
+	_tree.set("parameters/guard/blend_amount", _guard_amt)
+	if idle_hands and not recorded_arms:
+		# Standing stance: hands low and wide beside the body as the recorded defenders hold them,
+		# swaying a little (the recordings' hands are never still).
+		var mid: Vector3 = (shoulder_position("R") + shoulder_position("L")) * 0.5
+		var arm_len: float = arm_length("R") / 0.94  # shoulder to wrist (the measured reach is 94% of it)
+		_sway_t += delta
+		var phase: float = float(get_instance_id() % 628) * 0.01
+		for side: String in ["R", "L"]:
+			var sgn: float = 1.0 if side == "R" else -1.0
+			var ph: float = phase + (0.0 if side == "R" else 2.1)
+			var out: float = STANCE_WRIST.x + STANCE_SWAY.x * sin(1.9 * _sway_t + ph)
+			var up: float = STANCE_WRIST.y + STANCE_SWAY.y * sin(2.6 * _sway_t + ph * 1.3)
+			var fwd: float = STANCE_WRIST.z + STANCE_SWAY.z * sin(1.4 * _sway_t + ph * 2.1)
+			var p: Vector3 = mid + (right() * sgn * out + Vector3.UP * up + facing() * fwd) * arm_len
+			if side == "R":
+				hand_r = p
+			else:
+				hand_l = p
 		goal_w_r = 0.9
 		goal_w_l = 0.9
+		_stance_hands = true
 	# The side slide is already a low shuffle; the crouch is for standing and backing up.
 	var crouch_want: float = 0.55 if stance and (_gait == "Idle" or _gait == "Backpedal") else 0.0
 	if crouch_goal >= 0.0:
@@ -718,12 +749,10 @@ func elbow_hint(side: String) -> Vector3:
 		# side and a little back and up, not straight back, which would pull
 		# the upper arm back past vertical (outside the shoulder's range).
 		return right() * sgn * 0.9 - facing() * 0.25 + Vector3.UP * 0.2
-	# The defender's default stance holds the hands out wide (STANCE_HAND). With the elbow hanging
-	# straight down the IK swivels the whole arm so the thumbs point at the floor (measured -0.9 against
-	# +0.55 in the CMU slide); an elbow near shoulder height, slightly out and back, brings the thumbs up
-	# (+0.4) as the recording has them. Only for that stance, so swipes and catches keep their pole.
-	var stance_hand: Vector3 = body_point(STANCE_HAND.x, sgn * STANCE_HAND.y, STANCE_HAND.z)
-	if (hand_r if side == "R" else hand_l).distance_to(stance_hand) < 0.06:
+	# The defender's default stance (STANCE_WRIST). The pole decides how the IK swivels the arm, and with it
+	# where the thumbs point: an elbow hanging straight down had both thumbs at the floor in the slide.
+	# Only for that stance, so swipes and catches keep their pole.
+	if _stance_hands:
 		return right() * sgn * STANCE_ELBOW.x + Vector3.UP * STANCE_ELBOW.y - facing() * STANCE_ELBOW.z
 	# Hands held in front (swipe, catch): the elbow hangs down and a
 	# little out. Pointing it back drags the upper arm behind the body.

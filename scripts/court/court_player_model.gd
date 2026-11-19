@@ -54,7 +54,7 @@ const STUDENT: String = "res://assets/court/students/Male_Casual.fbx"
 ## Basketball mocap retargeted onto the student by MocapRetarget instead of the
 ## engine's import retarget (which folds the chest on these and drops the jump).
 const Retarget = preload("res://scripts/court/mocap_retarget.gd")
-const RETARGETED: Array[String] = ["JumpShot", "Layup", "DribbleRun"]
+const RETARGETED: Array[String] = ["JumpShot", "Layup", "DribbleRun", "SlideL", "SlideR", "Backpedal"]
 ## Off: those clips keep the engine's import retarget (for side-by-side checks).
 static var mocap_retarget: bool = true
 static var students: bool = true
