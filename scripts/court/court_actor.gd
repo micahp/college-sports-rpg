@@ -312,6 +312,7 @@ func animate(delta: float) -> void:
 	if _elbow_hinge != null:
 		_elbow_hinge.active = not swipe_chain_active and (not idle_hands or not _palm_goals.is_empty())
 		_elbow_hinge.influence = 0.0 if swipe_chain_active else 1.0
+		_elbow_hinge.set("rebound_grip", rebound_hands)
 		_elbow_hinge.set("clap_forward", facing() if _clap_t > 0.0 else Vector3.ZERO)
 		_elbow_hinge.set("palm_goal", {} if swipe_chain_active else _palm_goals.duplicate())
 	if _arm_clearance != null:

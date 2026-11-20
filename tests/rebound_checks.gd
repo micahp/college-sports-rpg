@@ -36,6 +36,10 @@ func _run_board(kind: String) -> void:
 	var landing := Vector3(court._ball.position.x, 0, court._ball.position.z) + Vector3(court._loose_vel.x, 0, court._loose_vel.z) * 0.66
 	winner.position = landing
 	var early_missed := false
+	var previous := {}
+	var peaks := Vector4.ZERO  # wrist bend, upper-arm rotation step, elbow direction step, palm penetration
+	var hand_step := 0.0
+	var torso_clearance := INF
 	var checked_gather := false
 	var worst_palm_angle := 0.0
 	var worst_gap := 0.0
@@ -56,6 +60,28 @@ func _run_board(kind: String) -> void:
 			winner.position -= shift
 			court._update_ball(0.0)
 			checked_gather = true
+		if court._holder == winner and court._ball_mode == "secured":
+			var chest := winner.shoulder_position("R").lerp(winner.shoulder_position("L"), 0.5)
+			var ball: Vector3 = court._ball.position
+			if ball.y < chest.y:
+				torso_clearance = minf(torso_clearance, (ball - chest).dot(winner.facing()) - Court.BALL_FLOOR)
+			for side: String in ["R", "L"]:
+				var wrist := winner.hand_position(side)
+				var elbow := winner.elbow_position(side)
+				var sk := winner._skeleton
+				var hand := sk.get_bone_global_rest(sk.find_bone(Actor.ARM_BONES[side][2]))
+				var lower := sk.get_bone_global_rest(sk.find_bone(Actor.ARM_BONES[side][1]))
+				var axis := hand.basis.inverse() * (hand.origin - lower.origin).normalized()
+				var hand_dir: Vector3 = winner._pose_tap.hand_basis(side) * axis
+				peaks.x = maxf(peaks.x, rad_to_deg((wrist - elbow).angle_to(hand_dir)))
+				var upper: Quaternion = winner._pose_tap.upper_basis(side).get_rotation_quaternion()
+				var elbow_dir := (elbow - winner.shoulder_position(side)).normalized()
+				if previous.has(side):
+					peaks.y = maxf(peaks.y, rad_to_deg(upper.angle_to(previous[side][0])))
+					peaks.z = maxf(peaks.z, rad_to_deg(elbow_dir.angle_to(previous[side][1])))
+					hand_step = maxf(hand_step, rad_to_deg(hand_dir.angle_to(previous[side][2])))
+				previous[side] = [upper, elbow_dir, hand_dir]
+				peaks.w = maxf(peaks.w, Court.BALL_FLOOR - ball.distance_to(wrist + winner.palm_offset(side)))
 		if court._holder == winner and court._ball_mode == "secured" and court._recovery_t > 0.20:
 			for side: String in ["L", "R"]:
 				var wrist := winner.hand_position(side)
@@ -82,6 +108,10 @@ func _run_board(kind: String) -> void:
 			early_missed = true
 		if court._phase != Court.Phase.REBOUND:
 			break
+	_check(peaks.x < 26.0 and peaks.y < 35.0 and peaks.z < 30.0 and hand_step < 60.0, "continuous upper arm, elbow and wrist through gather")
+	_check(torso_clearance > 0.10 and peaks.w < 0.025, "ball clears chest plane and palm overlap stays below 2.5 cm")
+	print(kind, " maximum hand step ", hand_step)
+	print(kind, " gather peaks ", peaks, " torso clearance ", torso_clearance)
 	print(kind, " palm angle/gap/min elbow ", Vector3(worst_palm_angle, worst_gap, min_elbow))
 	_check(min_elbow < 180.0 and worst_palm_angle < 30.0 and worst_gap < 0.015, "both drawn palms face and contact the secured ball")
 	_check(checked_gather, "sampled gather during landing")

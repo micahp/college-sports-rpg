@@ -1693,7 +1693,7 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 					var ready := chest + a.facing() * 0.32 + a.right() * (sign_side * 0.21) + Vector3.DOWN * 0.16
 					a.hand(side, ready.lerp(target + a.right() * (sign_side * 0.10), lift), 1.0)
 					if a == _holder:
-						_grip_ball(a, side, bp, smoothstep(0.0, 0.10, _recovery_t))
+						_grip_ball(a, side, bp, smoothstep(0.0, 0.065, _recovery_t))
 		return
 	# Offense
 	if _holder != null and _ball_mode == "held":

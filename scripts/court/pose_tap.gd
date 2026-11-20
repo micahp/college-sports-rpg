@@ -18,6 +18,7 @@ var model: Node3D  # set by the actor: the node whose frame positions are stored
 
 var _ids: Dictionary = {}
 var _local: Dictionary = {}   # "R_shoulder" -> Vector3 in the model's frame
+var _upper_basis: Dictionary = {}
 var _hand_basis: Dictionary = {}  # side -> Basis in the model's frame (rotation only)
 
 
@@ -40,6 +41,7 @@ func _process_modification_with_delta(_delta: float) -> void:
 		for i in 3:
 			var key: String = side + "_" + ["shoulder", "elbow", "hand"][i]
 			_local[key] = to_model * sk.get_bone_global_pose(ids[i]).origin
+		_upper_basis[side] = (to_model.basis * sk.get_bone_global_pose(ids[0]).basis).orthonormalized()
 		_hand_basis[side] = (to_model.basis * sk.get_bone_global_pose(ids[2]).basis).orthonormalized()
 
 
@@ -55,3 +57,7 @@ func world(side: String, what: String) -> Vector3:
 ## The hand's orientation in the world, as last drawn.
 func hand_basis(side: String) -> Basis:
 	return (model.global_transform.basis.orthonormalized() * (_hand_basis.get(side, Basis.IDENTITY) as Basis)).orthonormalized()
+
+
+func upper_basis(side: String) -> Basis:
+	return _upper_basis[side]
