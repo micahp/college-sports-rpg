@@ -52,7 +52,14 @@ func _ready() -> void:
 	if not args.has("noclear"):
 		sk.add_child(load("res://scripts/court/arm_clearance.gd").new())
 	print("clip          len   loop  seam(m)  foot_min  foot_max  drift(m)  hips_y_range")
+	# only=A,B: just those clips (the full set takes several minutes).
+	var only: PackedStringArray = PackedStringArray()
+	for a in args:
+		if a.begins_with("only="):
+			only = a.substr(5).split(",")
 	for clip: String in ap.get_animation_list():
+		if not only.is_empty() and not only.has(clip):
+			continue
 		var anim: Animation = ap.get_animation(clip)
 		var length: float = anim.length
 		var loops: bool = anim.loop_mode != Animation.LOOP_NONE
