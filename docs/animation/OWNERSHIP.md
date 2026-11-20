@@ -25,6 +25,19 @@ read from the code and still need a trace.
 | 12 | `elbow_hinge.gd` | UpperArm, LowerArm, Hand. Keeps shoulder and wrist, **re-chooses the elbow swivel** by cost (shoulder twist over 85 degrees, arm behind the body, inside the torso, distance from the pose's elbow, last frame), then rebuilds the hinge, forearm twist and wrist limits. Then `palm_on()` contact, which swings the whole arm. | not in the swipe chain, and not idle hands without palm goals. No swivel search with `rebound_grip` or `keep_swivel` | none |
 | 13 | `pose_tap.gd` | none (reads) | always. Game code reads drawn hands, elbows and shoulders here; `get_bone_global_pose` between frames is the pose before layers 2-12 | none |
 
+## Arm IK pole axis (rig foundation, 2026-11-20)
+
+`TwoBoneIK3D` aims one local axis of the forearm bone at the pole. On the
+campus student rig the elbow tip is the forearm's -Z (measured over every bent
+elbow in the court clips); the code used +Z, the axis the forearm folds toward
+(elbow_hinge's `front_of`, which is right). So every IK solve rolled the arm
+about half a turn: hand and elbow in the right place, upper arm and forearm
+twisted 150-170 deg from the clip. elbow_hinge was twisting them back, and
+every handoff from IK to clip blended across that half turn: the 15-20 m/s
+hand pop at dribble -> stance. Now `POLE_AXIS_STUDENT` (-Z). The handoffs also
+fade instead of switching: elbow_hinge and hand_aim over CORRECTION_FADE, and a
+releasing IK keeps its last target and pole in the body's frame.
+
 ## Jump shot: source to drawn (tests/jumpshot_fidelity, 2026-11-20)
 
 The CMU clip, the retargeted student clip, the AnimationTree output and the

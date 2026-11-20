@@ -62,8 +62,16 @@ var _reach_lean: SkeletonModifier3D
 var face_lock: bool = false
 var face_target: Vector3 = Vector3.ZERO
 
-## Which local axis of the forearm bone the elbow bends toward on this rig.
+## The forearm bone's local axis that points at the IK pole: the way the elbow
+## tip points. On the campus student rig that is -Z (measured over every bent
+## elbow in the court clips: -Z lines up with the elbow +0.83, +Z -0.83; the
+## forearm folds toward +Z, which is elbow_hinge's front_of). +Z here made the
+## IK roll every arm it touched about half a turn: hands in the right place,
+## upper arm and forearm twisted 150-170 deg from the clip, elbow_hinge
+## twisting them back, and a hand pop each time the IK handed an arm back to
+## the clip (court_runtime_qa "defense: stance"). The older player rig keeps +Z.
 const POLE_AXIS: int = SkeletonModifier3D.SECONDARY_DIRECTION_PLUS_Z
+const POLE_AXIS_STUDENT: int = SkeletonModifier3D.SECONDARY_DIRECTION_MINUS_Z
 ## Defender stance, from the CMU defenders (assets/court/defense_102_*.glb, slide_*.glb, measured by
 ## tools/mocap/def_arms.gd): the hands hang low and wide beside the body and keep moving. Wrist offset from
 ## the shoulder midpoint in arm lengths (out, up, forward); sway amplitude on each axis; the elbow pole
@@ -90,6 +98,9 @@ const ARM_TRACKS: Array[String] = ["LeftShoulder", "LeftUpperArm", "LeftLowerArm
 ## trunk pitch and roll at every moment; with torso_posture the gather lean was
 ## cut from 19 to 6 deg). Only clips measured this way belong here.
 const TRUNK_VERIFIED: Array[StringName] = [&"JumpShot"]
+## How long a correction layer (elbow_hinge, hand_aim) takes to hand a joint
+## over when its condition ends, instead of switching off in one frame.
+const CORRECTION_FADE: float = 0.15
 ## Blend times of the full-body action one-shot (JumpShot, Layup, ...).
 const SHOT_FADE_IN: float = 0.12
 const SHOT_FADE_OUT: float = 0.2
@@ -164,6 +175,7 @@ var _action_time: float = 0.0
 var _stance_hands: bool = false  # this frame the default stance placed the hands (see elbow_hint)
 var _sway_t: float = 0.0
 var _guard_amt: float = 0.0
+var _hinge_w: float = 1.0  # elbow_hinge's influence, faded on and off (CORRECTION_FADE)
 var _stance_arms_amt: float = 0.0  # 1 while the standing stance plays the recorded defender arms
 var _ik: Dictionary = {}  # side -> {ik, target, pole}
 var _arm_reach: Dictionary = {}  # measured upper-arm + forearm length, in world units
@@ -318,8 +330,17 @@ func animate(delta: float) -> void:
 		_reach_lean.set("amount", 0.0 if swipe_chain_active else _lean_amount)
 		_reach_lean.set("twist", 0.0 if swipe_chain_active else _lean_twist)
 	if _elbow_hinge != null:
-		_elbow_hinge.active = not swipe_chain_active and (not idle_hands or not _palm_goals.is_empty())
-		_elbow_hinge.influence = 0.0 if swipe_chain_active else 1.0
+		# Hand over instead of switching: the hinge rebuilds both arms, so turning
+		# it off in one frame (dribble -> stance) moved a wrist ~30 cm at once
+		# (court_runtime_qa "defense: stance" pose pop). The swipe chain still cuts
+		# it immediately: the baked clip owns the arms from its first frame.
+		var hinge_on: bool = not swipe_chain_active and (not idle_hands or not _palm_goals.is_empty())
+		if swipe_chain_active:
+			_hinge_w = 0.0
+		else:
+			_hinge_w = move_toward(_hinge_w, 1.0 if hinge_on else 0.0, delta / CORRECTION_FADE)
+		_elbow_hinge.active = _hinge_w > 0.001
+		_elbow_hinge.influence = _hinge_w
 		_elbow_hinge.set("rebound_grip", rebound_hands)
 		_elbow_hinge.set("clap_forward", facing() if _clap_t > 0.0 else Vector3.ZERO)
 		_elbow_hinge.set("palm_goal", {} if swipe_chain_active else _palm_goals.duplicate())
@@ -383,9 +404,25 @@ func animate(delta: float) -> void:
 			# For a ball handler, match the dribble curve. Generic gameplay
 			# goals (pass catch, screen, contest, reach) remain available to others.
 			target = _dribble_hand(side)
+		# Who holds this arm's IK this frame: a gameplay hand goal, or the
+		# dribble hand fix. When nobody does, the IK is fading out (w eases to
+		# 0) and keeps the last target and pole it had, held in the body's
+		# frame. Re-aiming a fading IK (the target falling back to a reset goal,
+		# the pole to another elbow rule) swung the arm as it let go: the
+		# 20 m/s hand pop at dribble -> stance in court_runtime_qa.
+		var goal_w: float = goal_w_r if side == "R" else goal_w_l
+		var dribble_owned: bool = _drib_w > 0.0 and fix_clip != "" and (side == "R" or fix_clip == "DribbleRun")
+		var releasing: bool = goal_w <= 0.0 and not dribble_owned and w > 0.001 and arm.has("held_target")
 		if w > 0.001:
 			target = _clamp_hand_target(side, target)
 		(arm["ik"] as SkeletonModifier3D).influence = clampf(w, 0.0, 1.0)
+		if releasing:
+			(arm["target"] as Node3D).global_position = global_transform * (arm["held_target"] as Vector3)
+			(arm["pole"] as Node3D).global_position = global_transform * (arm["held_pole"] as Vector3)
+			var fade_aim: SkeletonModifier3D = _hand_aim if side == "R" else _hand_aim_l
+			if fade_aim != null:
+				fade_aim.set("weight", move_toward(float(fade_aim.get("weight")), 0.0, delta / CORRECTION_FADE))
+			continue
 		(arm["target"] as Node3D).global_position = target
 		var elbow_bone: int = _skeleton.find_bone(ARM_BONES[side][1])
 		var elbow_world: Vector3 = _skeleton.global_transform * _skeleton.get_bone_global_pose(elbow_bone).origin
@@ -400,6 +437,9 @@ func animate(delta: float) -> void:
 			# leaves the IK plane undefined and lets the elbow flip.
 			elbow_world = shoulder_position(side) + elbow_hint(side).normalized() * 0.6
 		(arm["pole"] as Node3D).global_position = elbow_world
+		if goal_w > 0.0 or dribble_owned:
+			arm["held_target"] = global_transform.affine_inverse() * target
+			arm["held_pole"] = global_transform.affine_inverse() * elbow_world
 		var aim: SkeletonModifier3D = _hand_aim if side == "R" else _hand_aim_l
 		if aim != null:
 			var aim_on: bool = _drib_w > 0.3 and fix_clip == "DribbleRun"
@@ -414,7 +454,10 @@ func animate(delta: float) -> void:
 				aim.set("target", palm_at_r if side == "R" else palm_at_l)
 				aim.set("weight", pw)
 			else:
-				aim.set("weight", 0.0)
+				# Fade toward the unaimed hand (toward the last target) rather than
+				# snapping: a palm turned by up to ~180 deg otherwise flips back in
+				# one frame when the dribble ends.
+				aim.set("weight", move_toward(float(aim.get("weight")), 0.0, delta / CORRECTION_FADE))
 	_action_time = maxf(0.0, _action_time - delta)
 	var s: float = Vector2(vel.x, vel.z).length()
 	if face_lock:
@@ -1185,7 +1228,7 @@ func _build_arm_ik(sk: Skeleton3D, side: String) -> void:
 	ik.set_root_bone_name(0, bones[0])
 	ik.set_middle_bone_name(0, bones[1])
 	ik.set_end_bone_name(0, bones[2])
-	ik.set_pole_direction(0, POLE_AXIS)
+	ik.set_pole_direction(0, POLE_AXIS_STUDENT if CourtPlayerModel.students else POLE_AXIS)
 	ik.set_target_node(0, ik.get_path_to(target))
 	ik.set_pole_node(0, ik.get_path_to(pole))
 	ik.influence = 0.0

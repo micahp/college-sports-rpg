@@ -112,6 +112,7 @@ func _process_modification_with_delta(_delta: float) -> void:
 			for i in 3:
 				_palm_contact(sk, _d[side], g)
 				_fix_arm(sk, _d[side])
+			_palm_out_of(sk, _d[side], g)
 
 
 ## World -> skeleton space.
@@ -190,6 +191,26 @@ func _palm_contact(sk: Skeleton3D, d: Dictionary, g: Dictionary) -> void:
 	swing = Quaternion.IDENTITY.slerp(swing, wgt)
 	var u2: Transform3D = sk.get_bone_global_pose(ids[0])
 	sk.set_bone_global_pose(ids[0], Transform3D(Basis(swing) * u2.basis, u2.origin))
+
+
+## The contact weight eases the palm onto the ball, but a palm is never left
+## inside it: if it still is after the weighted pass (the ball's first secured
+## frame, weight ~0.2), the whole arm swings about the shoulder just far enough
+## to put the palm on the surface. The ball's radius is |point - face|.
+func _palm_out_of(sk: Skeleton3D, d: Dictionary, g: Dictionary) -> void:
+	var center: Vector3 = _to_sk(sk, g["face"])
+	var radius: float = (_to_sk(sk, g["point"]) - center).length()
+	var palm: Vector3 = _palm(sk, d)[0]
+	var off: Vector3 = palm - center
+	if radius <= 0.0 or off.length() >= radius or off.length() < 1e-5:
+		return
+	var ids: Array = d["ids"]
+	var u: Transform3D = sk.get_bone_global_pose(ids[0])
+	var s: Vector3 = u.origin
+	var want: Vector3 = center + off.normalized() * radius
+	var swing: Quaternion = Quaternion((palm - s).normalized(), (want - s).normalized())
+	sk.set_bone_global_pose(ids[0], Transform3D(Basis(swing) * u.basis, u.origin))
+	_fix_arm(sk, d)
 
 
 ## Elbow flexion in radians about the hinge, from the straight rest arm.

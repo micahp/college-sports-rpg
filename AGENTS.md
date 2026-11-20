@@ -133,8 +133,9 @@ full gameplay.
 `swipe_pose_checks`, `contest_pose_check`, `clip_fidelity`, `smoke`,
 `season_checks`, `season_flow_checks`, and `-s res://tests/torso_posture_checks.gd`.
 Compare against unchanged `dev` with the same fixtures and `--fixed-fps 60`
-(court_runtime_qa is not repeatable without it). Known failures on `dev`:
-`court_runtime_qa` (pose pops), `swipe_pose_checks` (0 of 36: no poke lands,
+(court_runtime_qa is not repeatable without it). Known failures:
+`court_runtime_qa` 2 of 25 with `--fixed-fps 60` ("calib: walk" and "loco: idle"
+pose pops at segment start), `swipe_pose_checks` (0 of 36: no poke lands,
 nothing is exercised), and `clip_fidelity` (the shooter's arms during the jump
 shot: arm IK and hand_aim at the gather, elbow_hinge re-twisting the upper arm
 and forearm, arm_clearance on the landing). A change must not add a failure.
