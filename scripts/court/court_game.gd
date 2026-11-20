@@ -1752,12 +1752,26 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 		d.contest_lift = move_toward(d.contest_lift, 1.0 if near_shooter else 0.0, delta * 3.8)
 		if d.contest_lift > 0.0 and d != reach_d:
 			d.elbow_up = true
+			var lift := smoothstep(0.0, 1.0, d.contest_lift)
+			var shooter: Actor = _user if _charging else _shooter
+			var toward_shooter := d.facing()
+			if shooter != null:
+				var to_shooter := shooter.flat() - d.flat()
+				if to_shooter.length_squared() > 0.01:
+					toward_shooter = to_shooter.normalized()
+			var high_side := 1.0 if d.right().dot(toward_shooter) >= 0.0 else -1.0
 			for side: String in ["L", "R"]:
-				var lateral := 1.0 if side == "R" else -1.0
-				var lift := smoothstep(0.0, 1.0, d.contest_lift)
-				var palm := d.body_point(0.34, lateral * lerpf(0.40, 0.25, lift), lerpf(1.14, 2.18, lift))
-				d.hand(side, palm, 1.0)
-				d.palm_on(side, palm, palm + d.facing(), 1.0)
+				var side_sign := 1.0 if side == "R" else -1.0
+				var reach := d.arm_length(side)
+				var high_hand := side_sign == high_side
+				var forward_reach := reach * (0.32 if high_hand else 0.25)
+				var rise := reach * (0.82 if high_hand else 0.76)
+				var lateral := reach * 0.08 * side_sign
+				var wrist_goal := d.shoulder_position(side) + toward_shooter * forward_reach 					+ Vector3.UP * rise + d.right() * lateral
+				d.hand(side, wrist_goal, lift)
+				# A contest has no contact point. Turn the palms toward the
+				# shooter without a second palm-position solve moving the arm.
+				d.palm_to(side, wrist_goal + toward_shooter, lift)
 			continue
 		if d == reach_d:
 			_pose_swipe(d, bp)

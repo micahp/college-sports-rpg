@@ -815,6 +815,11 @@ func elbow_hint(side: String) -> Vector3:
 		var reach := right() * sgn * 0.55 + facing() * 0.80 + Vector3.DOWN * 0.30
 		var cradle := right() * sgn * 0.50 + Vector3.DOWN * 0.85
 		return reach.lerp(cradle, rebound_fold)
+	if contest_lift > 0.001:
+		# A shot contest keeps the elbow just outside the ribs and in front
+		# of the shoulder. A high, backward pole makes the forearm sweep
+		# behind the body on the way to the overhead hand target.
+		return right() * sgn * 0.58 + facing() * 0.28 + Vector3.DOWN * 0.38
 	if elbow_up:
 		# Hand raised (calling for it, contesting): the elbow points out to the
 		# side and a little back and up, not straight back, which would pull
