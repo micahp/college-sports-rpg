@@ -972,7 +972,7 @@ func _take_shot(shooter: Actor, made: bool, kind: String, layup: bool = false, d
 	# The ball stays in his hand until the clip reaches its release point.
 	_shot_layup = layup
 	_holder = null
-	if delay > 0.0 and not auto_play:
+	if delay > 0.0:
 		_ball_mode = "windup"
 		_shot_wait = delay
 		_set_phase(Phase.SHOT, 0.0)
@@ -1001,8 +1001,6 @@ func _launch_shot() -> void:
 	var rise: float = _flight_to.y - _flight_from.y
 	var angle: float = deg_to_rad(62.0 if layup else lerpf(54.0, 46.0, clampf(reach / 8.0, 0.0, 1.0)))
 	_flight_dur = sqrt(maxf(0.04, 2.0 * (reach * tan(angle) - rise) / SHOT_GRAVITY))
-	if auto_play:
-		_flight_dur = 0.3
 	_flight_vy = (rise + 0.5 * SHOT_GRAVITY * _flight_dur * _flight_dur) / _flight_dur
 	_flight_t = 0.0
 	_set_phase(Phase.SHOT, 0.0)
@@ -1673,9 +1671,21 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 	if _phase == Phase.REBOUND:
 		for a: Actor in _all:
 			a.pressure_stance = false
-			if a == _holder or (_holder == null and _board_jumps.has(a)):
+			var jumping := _board_jumps.has(a)
+			if a == _holder or (_holder == null and (jumping or a.flat().distance_to(Vector3(bp.x, 0, bp.z)) < 1.5)):
+				a.rebound_hands = true
+				var chest := a.shoulder_position("R").lerp(a.shoulder_position("L"), 0.5)
+				var from_chest := bp - chest
+				var target := chest + a.facing() * maxf(0.18, from_chest.dot(a.facing()))
+				target += a.right() * clampf(from_chest.dot(a.right()), -0.20, 0.20)
+				target.y = bp.y
+				var lift := smoothstep(0.0, 0.19, float(_board_jumps.get(a, 0.0)))
+				if a == _holder:
+					lift = 1.0
 				for side: String in ["R", "L"]:
-					a.hand(side, bp + a.right() * (0.10 if side == "R" else -0.10), 1.0)
+					var sign_side := 1.0 if side == "R" else -1.0
+					var ready := chest + a.facing() * 0.32 + a.right() * (sign_side * 0.21) + Vector3.DOWN * 0.16
+					a.hand(side, ready.lerp(target + a.right() * (sign_side * 0.10), lift), 1.0)
 		return
 	# Offense
 	if _holder != null and _ball_mode == "held":

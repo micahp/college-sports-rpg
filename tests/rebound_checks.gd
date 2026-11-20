@@ -36,11 +36,19 @@ func _run_board(kind: String) -> void:
 	var landing := Vector3(court._ball.position.x, 0, court._ball.position.z) + Vector3(court._loose_vel.x, 0, court._loose_vel.z) * 0.66
 	winner.position = landing
 	var early_missed := false
+	var least_elbow_forward := INF
+	var least_hand_forward := INF
 	if kind == "defender":
 		court._user.position = landing + Vector3(0.75, 0, 0)
 		court._on_shoot_down()
 	for frame in 300:
 		await get_tree().physics_frame
+		var jump_t := float(court._board_jumps.get(winner, -1.0))
+		if jump_t > 0.08 and jump_t < 0.32:
+			for side: String in ["R", "L"]:
+				var shoulder := winner.shoulder_position(side)
+				least_elbow_forward = minf(least_elbow_forward, (winner.elbow_position(side) - shoulder).dot(winner.facing()))
+				least_hand_forward = minf(least_hand_forward, (winner.hand_position(side) - shoulder).dot(winner.facing()))
 		if kind == "user" and frame == 25:
 			Input.action_press("shoot")
 		if kind == "user" and frame == 26:
@@ -49,6 +57,8 @@ func _run_board(kind: String) -> void:
 			early_missed = true
 		if court._phase != Court.Phase.REBOUND:
 			break
+	print(kind, " rise minimum forward elbow %.3f m, wrist %.3f m" % [least_elbow_forward, least_hand_forward])
+	_check(is_finite(least_hand_forward) and least_hand_forward > 0.04 and least_elbow_forward > -0.015, "both arms rise in front of the rebounder")
 	_check(court._holder == winner, kind + " secures ball")
 	_check(winner.position.y < 0.001, kind + " lands")
 	_check(court._team_score == pts, "rebound adds no points")
