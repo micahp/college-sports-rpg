@@ -26,6 +26,9 @@ const FLEX_MAX: float = deg_to_rad(148.0)
 ##  "weight": 0..1}. Set by court_actor each frame; empty = off.
 var palm_goal: Dictionary = {}
 var rebound_grip := false
+## The arm IK owns the elbow (a shot contest): keep the elbow where the IK put
+## it and only enforce the hinge, twist and wrist limits. No swivel search.
+var keep_swivel := false
 var clap_forward := Vector3.ZERO
 var debug_print: bool = false
 const PALM_FROM_WRIST: float = 0.08  # same palm point as tests/body_metrics.gd
@@ -314,7 +317,7 @@ func _solve_upper(sk: Skeleton3D, d: Dictionary, u: Transform3D, l: Transform3D,
 	var prev_ac: Vector3 = d.get("prev_ac", Vector3.ZERO)
 	# The rebound IK has already placed the elbow for a descending catch.
 	# Searching a second swivel here rolls it up over the ball.
-	for i in range(1 if rebound_grip else 2 * steps + 1):
+	for i in range(1 if rebound_grip or keep_swivel else 2 * steps + 1):
 		var phi: float = (float((i + 1) / 2) * SWIVEL_STEP) * (1.0 if i % 2 == 1 else -1.0)
 		var e: Vector3 = s + k * x + (u1 * cos(phi) + u2 * sin(phi)) * r
 		var a: Vector3 = (e - s).normalized()

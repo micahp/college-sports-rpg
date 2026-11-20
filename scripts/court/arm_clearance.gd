@@ -12,6 +12,10 @@ const ARMS: Array = [["RightUpperArm", "RightLowerArm", "RightHand", 1.0],
 const HALF_WIDTH: float = 1.0
 const HALF_DEPTH: float = 0.85
 
+## Set by the actor while another layer owns the arms (a shot contest: the
+## arm IK places hand and elbow). Turning the upper arm here moves the hand.
+var skip_arms := false
+
 var _ids: Array = []
 var _hips: int = -1
 var _neck: int = -1
@@ -19,7 +23,7 @@ var _neck: int = -1
 
 func _process_modification_with_delta(_delta: float) -> void:
 	var sk: Skeleton3D = get_skeleton()
-	if sk == null:
+	if sk == null or skip_arms:
 		return
 	if _ids.is_empty():
 		_hips = sk.find_bone("Hips")

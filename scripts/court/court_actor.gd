@@ -315,9 +315,12 @@ func animate(delta: float) -> void:
 		_elbow_hinge.set("rebound_grip", rebound_hands)
 		_elbow_hinge.set("clap_forward", facing() if _clap_t > 0.0 else Vector3.ZERO)
 		_elbow_hinge.set("palm_goal", {} if swipe_chain_active else _palm_goals.duplicate())
+		# Contest: the arm IK is the one owner of the elbow (docs/animation/OWNERSHIP.md).
+		_elbow_hinge.set("keep_swivel", contest_lift > 0.001)
 	if _arm_clearance != null:
 		_arm_clearance.active = not swipe_chain_active
 		_arm_clearance.influence = 0.0 if swipe_chain_active else 1.0
+		_arm_clearance.set("skip_arms", contest_lift > 0.001)
 	if _crouch != null:
 		_crouch.set("amount", _crouch_now)
 	var k: float = minf(1.0, 20.0 * delta)

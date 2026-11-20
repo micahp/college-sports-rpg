@@ -1756,6 +1756,9 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 			var shooter: Actor = _user if _charging else _shooter
 			var toward_shooter := d.facing()
 			if shooter != null:
+				# Face the shooter for the whole contest. Facing the ball in flight
+				# turned the body away while the hands still aimed at the shooter.
+				d.lock_face(shooter.position)
 				var to_shooter := shooter.flat() - d.flat()
 				if to_shooter.length_squared() > 0.01:
 					toward_shooter = to_shooter.normalized()
@@ -1768,7 +1771,12 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 				var rise := reach * (0.82 if high_hand else 0.76)
 				var lateral := reach * 0.08 * side_sign
 				var wrist_goal := d.shoulder_position(side) + toward_shooter * forward_reach 					+ Vector3.UP * rise + d.right() * lateral
-				d.hand(side, wrist_goal, lift)
+				# Raise the target, not the IK weight: start where the stance hand hangs
+				# (shoulder + 0.85 reach down, 0.27 out) and lift it to the goal. Blending
+				# the solver weight instead drew half-solved arms (elbows flat, wrists
+				# bent back) while the hands came up.
+				var hang := d.shoulder_position(side) + Vector3.DOWN * reach * 0.85 					+ d.right() * reach * 0.27 * side_sign + toward_shooter * reach * 0.05
+				d.hand(side, hang.lerp(wrist_goal, lift), clampf(d.contest_lift * 6.0, 0.0, 1.0))
 				# A contest has no contact point. Turn the palms toward the
 				# shooter without a second palm-position solve moving the arm.
 				d.palm_to(side, wrist_goal + toward_shooter, lift)
