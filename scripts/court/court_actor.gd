@@ -40,6 +40,7 @@ var goal_w_l: float = 0.0
 var lean_now: float = 0.0
 var lean_goal: float = 0.0
 var elbow_up: bool = false
+var rebound_fold := 0.0
 var rebound_hands := false
 var guard_elbow: bool = false  # set by the game for a defender holding ball pressure: elbows down, in, bent
 ## Gameplay palm aim (world point the palm should face) per hand, 0 = off.
@@ -695,6 +696,7 @@ func pose_reset() -> void:
 	goal_w_l = 0.0
 	lean_goal = 0.0
 	elbow_up = false
+	rebound_fold = 0.0
 	rebound_hands = false
 	guard_elbow = false
 	face_lock = false
@@ -809,7 +811,9 @@ func lock_face(point: Vector3) -> void:
 func elbow_hint(side: String) -> Vector3:
 	var sgn: float = 1.0 if side == "R" else -1.0
 	if rebound_hands:
-		return right() * sgn * 0.55 + facing() * 0.80 + Vector3.DOWN * 0.30
+		var reach := right() * sgn * 0.55 + facing() * 0.80 + Vector3.DOWN * 0.30
+		var cradle := right() * sgn * 0.50 + Vector3.DOWN * 0.85
+		return reach.lerp(cradle, rebound_fold)
 	if elbow_up:
 		# Hand raised (calling for it, contesting): the elbow points out to the
 		# side and a little back and up, not straight back, which would pull

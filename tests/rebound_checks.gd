@@ -36,6 +36,7 @@ func _run_board(kind: String) -> void:
 	var landing := Vector3(court._ball.position.x, 0, court._ball.position.z) + Vector3(court._loose_vel.x, 0, court._loose_vel.z) * 0.66
 	winner.position = landing
 	var early_missed := false
+	var checked_gather := false
 	var least_elbow_forward := INF
 	var least_hand_forward := INF
 	if kind == "defender":
@@ -43,6 +44,15 @@ func _run_board(kind: String) -> void:
 		court._on_shoot_down()
 	for frame in 300:
 		await get_tree().physics_frame
+		if not checked_gather and court._holder == winner and court._ball_mode == "secured" and court._recovery_t < 0.20:
+			var before: Vector3 = court._ball.position
+			var shift := Vector3(0.09, -0.12, 0.04)
+			winner.position += shift
+			court._update_ball(0.0)
+			_check(court._ball.position.distance_to(before + shift) < 0.002, "secured ball follows landing body")
+			winner.position -= shift
+			court._update_ball(0.0)
+			checked_gather = true
 		var jump_t := float(court._board_jumps.get(winner, -1.0))
 		if jump_t > 0.08 and jump_t < 0.32:
 			for side: String in ["R", "L"]:
@@ -57,6 +67,7 @@ func _run_board(kind: String) -> void:
 			early_missed = true
 		if court._phase != Court.Phase.REBOUND:
 			break
+	_check(checked_gather, "sampled gather during landing")
 	print(kind, " rise minimum forward elbow %.3f m, wrist %.3f m" % [least_elbow_forward, least_hand_forward])
 	_check(is_finite(least_hand_forward) and least_hand_forward > 0.04 and least_elbow_forward > -0.015, "both arms rise in front of the rebounder")
 	_check(court._holder == winner, kind + " secures ball")

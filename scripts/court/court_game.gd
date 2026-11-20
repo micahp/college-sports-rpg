@@ -105,6 +105,7 @@ var _flight_vy: float = 0.0  # upward launch speed of the current shot
 var _shot_wait: float = 0.0
 const BOARD_JUMP_TIME := 0.64
 var _board_jumps: Dictionary = {}
+var _secure_offset := Vector3.ZERO
 var _recovery_t := 0.0
 var _gather_from: Vector3 = Vector3.ZERO
 var _layup_air: bool = false
@@ -1121,9 +1122,7 @@ func _tick_rebound(delta: float) -> void:
 				winner = a
 		if winner != null:
 			_holder = winner
-			_gather_from = _ball.position
-			_recovery_t = 0.0
-			_ball_mode = "secured"
+			_start_secure(winner)
 			if winner == _user:
 				_stats["reb"] += 1
 			_audio.play("catch", -8.0)
@@ -1389,9 +1388,7 @@ func _tick_loose_pickup(delta: float) -> void:
 		_turnover("Stolen!", _last_handler_user, true)
 		_holder = best
 		_last_touch_team = best.team
-		_gather_from = _ball.position
-		_recovery_t = 0.0
-		_ball_mode = "secured"
+		_start_secure(best)
 		best.release_swipe()
 
 
@@ -1681,6 +1678,8 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 				target.y = bp.y
 				var lift := smoothstep(0.0, 0.19, float(_board_jumps.get(a, 0.0)))
 				if a == _holder:
+					a.rebound_fold = smoothstep(0.0, 0.24, _recovery_t)
+					target = bp
 					lift = 1.0
 				for side: String in ["R", "L"]:
 					var sign_side := 1.0 if side == "R" else -1.0
@@ -1722,6 +1721,8 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 		# small changes in spacing cannot repeatedly raise and lower the hips.
 		var ball_gap := d.flat().distance_to(Vector3(bp.x, 0.0, bp.z))
 		if _ball_mode == "secured" and d == _holder:
+			d.rebound_hands = true
+			d.rebound_fold = 1.0
 			d.pressure_stance = false
 			d.contest_lift = 0.0
 			d.hand("R", bp + d.right() * 0.10, 1.0)
@@ -1894,6 +1895,13 @@ func _ring(c: Color, radius: float) -> MeshInstance3D:
 	return mi
 
 
+func _start_secure(actor: Actor) -> void:
+	var offset := _ball.position - actor.position
+	_secure_offset = Vector3(offset.dot(actor.right()), offset.y, offset.dot(actor.facing()))
+	_recovery_t = 0.0
+	_ball_mode = "secured"
+
+
 func _update_ball(delta: float) -> void:
 	match _ball_mode:
 		"held":
@@ -1932,7 +1940,7 @@ func _update_ball(delta: float) -> void:
 		"secured":
 			_recovery_t += delta
 			var pocket := _holder.body_point(0.28, 0.0, _holder.shoulder_position("R").y - _holder.position.y - 0.28)
-			_ball.position = _gather_from.lerp(pocket, smoothstep(0.0, 0.24, _recovery_t))
+			_ball.position = _holder.body_point(_secure_offset.z, _secure_offset.x, _secure_offset.y).lerp(pocket, smoothstep(0.0, 0.24, _recovery_t))
 		"dead":
 			_ball.position.y = maxf(BALL_FLOOR, _ball.position.y - delta * 6.0)
 
