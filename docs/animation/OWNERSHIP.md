@@ -45,3 +45,15 @@ read from the code and still need a trace.
 | Rebound | IK (9) + palm contact (12) | IK pole (9); hinge `rebound_grip` (no swivel) | see `rebound-gather.md` |
 | Dribble | clip arms (1) + IK on the ball hand (9), pole follows the animated elbow | clip | read from code |
 | Catch, pass, screen, stance, calling for the ball | IK (9), then clearance (10) | IK pole, then clearance, then hinge swivel (12) | **still multiple owners**: next to fix |
+
+### Legs and hips, by action
+
+| Action | Legs and hips | Status |
+|---|---|---|
+| Defender jump (shot contest, layup block, pass pick-off) | CMU `JumpShot` clip (1) via `court_game._defender_jump` (start 0.55 s or 0.62 s, speed 1.2) | **measured** (2026-11-20, `tests/leg_trace` + contest_views) |
+
+Do not use the library `Jump` clip (`Jump_Start`) on the court. It expects the
+engine to lift the body. The court never does, so the feet tuck 0.5-0.66 m up
+under hips that stay at standing height and the player looks like he sinks to
+the floor. `tests/leg_trace.tscn` prints hip height, knee flex and foot height
+after every modifier, per frame.

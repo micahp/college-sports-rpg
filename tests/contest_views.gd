@@ -8,7 +8,7 @@ extends Node
 
 const CourtScene: PackedScene = preload("res://scenes/court/court_game.tscn")
 const CourtGame = preload("res://scripts/court/court_game.gd")
-const FRAMES: Array[int] = [4, 8, 12, 16, 20, 26, 36, 48]
+const FRAMES: Array[int] = [4, 8, 12, 16, 20, 26, 30, 36, 42, 48, 54, 60, 66, 72, 80]
 const RELEASE_AT: int = 30
 const SIDE_DISTANCE: float = 2.6
 

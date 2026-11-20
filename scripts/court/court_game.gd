@@ -890,7 +890,7 @@ func _finish_layup() -> void:
 	if not auto_play and _rng.randf() < block_p:
 		_stats["fga"] = int(_stats["fga"]) + 1
 		near.face_point(_user.position)
-		near.action("Jump", 1.5)
+		_defender_jump(near, 0.62)
 		var back: Vector3 = (_user.flat() - HOOP_FLAT).normalized()
 		_ball.position = _user.position + Vector3(0, 2.7, 0)
 		_make_loose(back * 4.0 + Vector3(_rng.randf_range(-1.5, 1.5), 2.0, 0), 1)
@@ -954,6 +954,21 @@ func _shot_type(p: Vector3) -> String:
 	return "three" if dist >= ARC_R else "mid"
 
 
+## A defender's two-foot jump (contest, block, pick-off) uses the legs and hips
+## of the recorded CMU jump shot. The library "Jump" (Jump_Start) expects the
+## engine to lift the body; the court never does, so its legs tucked up under
+## hips that stayed at standing height and the defender looked like he sank to
+## the floor (tests/leg_trace: knees 130 deg, feet 0.49 m up, hips unchanged).
+## JumpShot dips at 0.60 s, leaves the floor at ~0.70 s, peaks at 1.00 s and
+## lands at ~1.35 s. Arms stay with the contest IK (docs/animation/OWNERSHIP.md).
+const DEFENDER_JUMP_START: float = 0.55
+const DEFENDER_JUMP_SPEED: float = 1.2
+
+
+func _defender_jump(d: Actor, start: float = DEFENDER_JUMP_START) -> void:
+	d.action("JumpShot", DEFENDER_JUMP_SPEED, start)
+
+
 func _take_shot(shooter: Actor, made: bool, kind: String, layup: bool = false, delay: float = 0.0) -> void:
 	_shooter = shooter
 	_shot_assisted = shooter == _last_pass_to and _time - _last_pass_by_user_t < 3.5
@@ -973,7 +988,7 @@ func _take_shot(shooter: Actor, made: bool, kind: String, layup: bool = false, d
 	var nd: Actor = _nearest_defender(shooter)
 	if nd != null and nd.flat().distance_to(shooter.flat()) < 1.7:
 		nd.face_point(shooter.position)
-		nd.action("Jump", 1.4)
+		_defender_jump(nd)
 	# The ball stays in his hand until the clip reaches its release point.
 	_shot_layup = layup
 	_holder = null
@@ -1177,7 +1192,7 @@ func _tick_pass(delta: float) -> void:
 		if Vector2(d.position.x - p.x, d.position.z - p.z).length() < 0.6:
 			_pass_checked.append(d)
 			if _rng.randf() < 0.3 * float(_opp.get("aggr", 1.0)):
-				d.action("Jump", 1.5)
+				_defender_jump(d, 0.62)
 				_turnover("Picked off!", _pass_from == _user, true)
 				return
 	if _flight_t >= 1.0:
