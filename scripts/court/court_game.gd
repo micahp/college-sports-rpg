@@ -741,7 +741,7 @@ func _begin_shot() -> void:
 	var tuning: Dictionary = Game.meter_tuning()
 	_meter_speed = float(tuning["speed"]) * 0.95
 	var window_scale: float = {"Easy": 1.25, "Medium": 1.0, "Hard": 0.85, "Ultimate": 0.70}[GameState.court_difficulty]
-	var open_mult: float = CONTEST_WINDOW[_contest_level(_nearest_defender_dist(_user))]
+	var open_mult: float = CONTEST_WINDOW[_contest_level(_nearest_defender_dist(_user))] * float(scenario.get("shot_bonus", 1.0))  # Hot Hand from the season week
 	var kind: String = _shot_type(_user.flat())
 	var type_mult: float = {"rim": 1.35, "mid": 1.0, "three": 0.85}[kind]
 	_zone_w = clampf(float(tuning["zone"]) * 1.5 * open_mult * type_mult, 0.08, 0.42) * window_scale
