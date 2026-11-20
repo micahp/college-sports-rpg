@@ -19,6 +19,12 @@ T-pose is not proof that it looks right.
    contact points. Do not build athletic motion out of corrections. If the
    source clip lacks the motion, say so and find or author a clip. Check the
    mocap catalog (`the-u-mocap-catalog` skill) before searching externally.
+   **No clip? Use reference images.** Find several photographs or video stills
+   of the real action, record each source and license, describe each one joint
+   by joint (shoulder, elbow, wrist, hip, knee, ankle: angle and position), and
+   use those as the target poses for an authored clip and as the acceptance
+   reference beside the render. Commit an image only if its license allows;
+   otherwise keep the link.
 2. **One owner per joint, per action.** The map is
    `docs/animation/OWNERSHIP.md`. If your change alters who writes a bone,
    update the map in the same commit.
@@ -60,6 +66,9 @@ two-player contact (screen, box-out, contest) -> full gameplay.
 - Shot contest: there is no verified recorded contest clip. The closest
   candidates in the CMU index are 13_10, 13_12 and 14_07-09 ("jump up to
   grab, reach for") and 14_20 ("reach up"). None are downloaded or reviewed.
-  Until there is one, the arm IK owns the contest arm (see OWNERSHIP.md).
+  If none works, fall back to reference images (rule 1). References already
+  gathered: Springfield College #11 (Digital Commonwealth, CC BY-SA) and three
+  user-supplied NCAA photos (Arizona #35, Central Oklahoma #20, two others).
+  Until there is a clip, the arm IK owns the contest arm (see OWNERSHIP.md).
 - Catch, pass, screen and stance arms still have several layers moving the
   same elbow (OWNERSHIP.md, last table).
