@@ -44,7 +44,16 @@ T-pose is not proof that it looks right.
    screenshot, not the runner, or each view is taken frames later. Look at
    every frame of the action, including the transitions into and out of it.
    If you cannot render, say visual acceptance is unverified.
-6. **Report it this way:** the observed failure and its frame; the first
+6. **Every action gets a pose spec from its references, checked by a test.**
+   Write down what the photos show as numbers on the drawn pose (for the
+   contest: elbow bend under 20 deg, elbow over the shoulder, hand at least
+   0.45 m above it) and assert them every frame of the action, as
+   `tests/contest_pose_check.tscn` does. "The hands reached their IK targets"
+   is not a spec: the targets can be wrong. The contest arms passed every
+   other check while bent 71-95 deg in a goalpost; only this kind of check
+   (and the user) caught it. Run the check against the old code too and show
+   it fails there.
+7. **Report it this way:** the observed failure and its frame; the first
    incorrect layer; the evidence; the minimum correction; the regression
    risk; the visual defects that remain. A fix is not done because tests pass.
 
@@ -57,7 +66,7 @@ two-player contact (screen, box-out, contest) -> full gameplay.
 ### Regression checks for animation changes
 
 `court_checks`, `rebound_checks`, `swipe_checks`, `court_runtime_qa`,
-`swipe_pose_checks`. Known failures on `dev` as of 2026-11-20:
+`swipe_pose_checks`, `contest_pose_check`. Known failures on `dev` as of 2026-11-20:
 `court_runtime_qa` 10 of 25 segments (pose pops) and `swipe_pose_checks`
 0 of 36 scenarios. A change must not make either worse.
 

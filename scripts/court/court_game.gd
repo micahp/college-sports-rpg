@@ -1782,9 +1782,15 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 				var side_sign := 1.0 if side == "R" else -1.0
 				var reach := d.arm_length(side)
 				var high_hand := side_sign == high_side
-				var forward_reach := reach * (0.32 if high_hand else 0.25)
-				var rise := reach * (0.82 if high_hand else 0.76)
-				var lateral := reach * 0.08 * side_sign
+				# Arms straight up over the shoulders, tipped slightly toward the
+				# shooter (Arizona #35, Springfield #11). 0.82 rise / 0.32 forward
+				# left the hands 36-40 cm over the shoulder with the elbows bent 71-86 deg.
+				# Past arm_length on purpose: the hand clamp lets a contest arm reach
+				# 112% of the bone chain (court_actor._clamp_hand_target); the IK
+				# straightens the arm toward it and stops at full length.
+				var forward_reach := reach * (0.16 if high_hand else 0.12)
+				var rise := reach * 1.19
+				var lateral := reach * 0.06 * side_sign
 				var wrist_goal := d.shoulder_position(side) + toward_shooter * forward_reach 					+ Vector3.UP * rise + d.right() * lateral
 				# Raise the target, not the IK weight: start where the stance hand hangs
 				# (shoulder + 0.85 reach down, 0.27 out) and lift it to the goal. Blending

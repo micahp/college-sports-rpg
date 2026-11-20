@@ -800,6 +800,12 @@ func _clamp_hand_target(side: String, world: Vector3) -> Vector3:
 	var root: Vector3 = shoulder_position(side)
 	var offset: Vector3 = world - root
 	var reach: float = arm_length(side)
+	# arm_length is 94% of the bone chain, which keeps every arm bent at least
+	# ~40 deg. A shot contest is arms straight up: aim past the chain so the arm
+	# stays straight even while the jump lifts the shoulder ahead of the goal
+	# (the goal is built from last frame's drawn shoulder).
+	if contest_lift > 0.001:
+		reach *= lerpf(1.0, 1.12 / 0.94, clampf(contest_lift, 0.0, 1.0))
 	if reach <= 0.0 or offset.length() <= reach:
 		return world
 	return root + offset.normalized() * reach
@@ -819,10 +825,11 @@ func elbow_hint(side: String) -> Vector3:
 		var cradle := right() * sgn * 0.50 + Vector3.DOWN * 0.85
 		return reach.lerp(cradle, rebound_fold)
 	if contest_lift > 0.001:
-		# A shot contest keeps the elbow just outside the ribs and in front
-		# of the shoulder. A high, backward pole makes the forearm sweep
-		# behind the body on the way to the overhead hand target.
-		return right() * sgn * 0.58 + facing() * 0.28 + Vector3.DOWN * 0.38
+		# A shot contest is arms straight up. The arm is nearly extended, so the
+		# pole only picks which way the slight elbow bend points: forward and a
+		# little out, as in the reference photos. The old pole (out and DOWN)
+		# pulled the elbows out to the side at shoulder height (flex 71-86 deg).
+		return right() * sgn * 0.30 + facing() * 0.40 + Vector3.UP * 0.25
 	if elbow_up:
 		# Hand raised (calling for it, contesting): the elbow points out to the
 		# side and a little back and up, not straight back, which would pull

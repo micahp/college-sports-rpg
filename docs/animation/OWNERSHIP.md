@@ -33,6 +33,10 @@ read from the code and still need a trace.
   upper arm; 12's palm contact moves it again.
 - **Spine:** 6 then 7 (7 is written to survive 6; the comment in `reach_lean.gd` says why).
 - **Hips and feet:** 2, then 3, 4 and 5.
+- **Arm length cap:** `court_actor._clamp_hand_target` keeps every hand goal
+  within `arm_length`, which is 94% of the bone chain. That alone keeps every
+  arm bent at least ~40 deg. Only the contest is allowed past it (112%, so
+  the IK straightens the arm). Catches, passes and rebounds still have the cap.
 - **Facing vs aim:** `court_game.gd` sets facing (`lock_face`) and hand goals
   in separate code. They must use the same target.
 
@@ -40,7 +44,7 @@ read from the code and still need a trace.
 
 | Action | Hand | Elbow | Status |
 |---|---|---|---|
-| Shot contest | IK (9) | IK pole (9); hinge only enforces limits (`keep_swivel`); clearance off; faces the shooter | **measured** (2026-11-20, chain_trace + contest_views) |
+| Shot contest | IK (9), target straight overhead past full reach | IK pole (9), forward and slightly out; hinge only enforces limits (`keep_swivel`); clearance off; faces the shooter | **measured and gated** (2026-11-20, `contest_pose_check`: elbow bend 9-10 deg frames 16-80) |
 | Swipe | baked clip (1) | baked clip (1); IK, clearance, hinge, lean all off | read from code |
 | Rebound | IK (9) + palm contact (12) | IK pole (9); hinge `rebound_grip` (no swivel) | see `rebound-gather.md` |
 | Dribble | clip arms (1) + IK on the ball hand (9), pole follows the animated elbow | clip | read from code |
