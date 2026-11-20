@@ -9,6 +9,7 @@ const CourtGame = preload("res://scripts/court/court_game.gd")
 const PoseTap = preload("res://scripts/court/pose_tap.gd")
 
 var taps: Array = []  # [label, tap]
+var palm_local: Dictionary = {}  # side -> the palm normal in the hand bone's frame (rest pose: palm down)
 
 
 func _rel(d: Node3D, tap, side: String) -> String:
@@ -19,7 +20,11 @@ func _rel(d: Node3D, tap, side: String) -> String:
 	var r: Vector3 = e - s
 	var hr: Vector3 = h - s
 	var flex: float = 180.0 - rad_to_deg((s - e).normalized().angle_to((h - e).normalized()))
-	return "%s elbow out=%+.2f fwd=%+.2f up=%+.2f | hand out=%+.2f fwd=%+.2f up=%+.2f | flex=%3.0f" % [side, r.dot(d.right()) * sg, r.dot(d.facing()), r.y, hr.dot(d.right()) * sg, hr.dot(d.facing()), hr.y, flex]
+	var line := "%s elbow out=%+.2f fwd=%+.2f up=%+.2f | hand out=%+.2f fwd=%+.2f up=%+.2f | flex=%3.0f" % [side, r.dot(d.right()) * sg, r.dot(d.facing()), r.y, hr.dot(d.right()) * sg, hr.dot(d.facing()), hr.y, flex]
+	if palm_local.has(side):
+		var p: Vector3 = (tap.call("hand_basis", side) as Basis) * (palm_local[side] as Vector3)
+		line += " | palm out=%+.2f fwd=%+.2f up=%+.2f" % [p.dot(d.right()) * sg, p.dot(d.facing()), p.y]
+	return line
 
 
 func _ready() -> void:
@@ -44,6 +49,9 @@ func _ready() -> void:
 	d.position = user.flat() + toward * 1.0
 	d.track = d.position
 	var sk: Skeleton3D = CourtPlayerModel.find_skeleton(d.get("_model"))
+	for side: String in ["R", "L"]:
+		var hb: int = sk.find_bone("RightHand" if side == "R" else "LeftHand")
+		palm_local[side] = sk.get_bone_global_rest(hb).basis.orthonormalized().inverse() * Vector3.DOWN
 	if with_taps:
 		var mods: Array = []
 		for c in sk.get_children():

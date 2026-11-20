@@ -37,6 +37,14 @@ read from the code and still need a trace.
   within `arm_length`, which is 94% of the bone chain. That alone keeps every
   arm bent at least ~40 deg. Only the contest is allowed past it (112%, so
   the IK straightens the arm). Catches, passes and rebounds still have the cap.
+- **Palm twist:** `hand_aim` (11) turns the palm, then `elbow_hinge` (12)
+  re-splits the hand's twist between forearm and wrist and caps the forearm
+  at 88 deg. With hand_aim's single shortest rotation and that cap, a raised
+  contest palm was turned back out to the side by up to 37 deg or tipped to
+  the sky. Contest only: hand_aim `twist_first` (twist about the forearm, then
+  a small wrist bend) and the hinge moves excess twist into the shoulder
+  (`keep_swivel`). The dribble hand and other actions still use the old path:
+  turning it on for the dribble added pose pops in `court_runtime_qa`.
 - **Facing vs aim:** `court_game.gd` sets facing (`lock_face`) and hand goals
   in separate code. They must use the same target.
 
@@ -44,7 +52,7 @@ read from the code and still need a trace.
 
 | Action | Hand | Elbow | Status |
 |---|---|---|---|
-| Shot contest | IK (9), target straight overhead past full reach | IK pole (9), forward and slightly out; hinge only enforces limits (`keep_swivel`); clearance off; faces the shooter | **measured and gated** (2026-11-20, `contest_pose_check`: elbow bend 9-10 deg frames 16-80) |
+| Shot contest | IK (9), target straight overhead past full reach; palm: hand_aim (11) twist-first toward the ball at the release point, and the hinge (12) puts twist the forearm cannot take into the shoulder | IK pole (9), forward and slightly out; hinge only enforces limits (`keep_swivel`); clearance off; faces the shooter | **measured and gated** (2026-11-20, `contest_pose_check`: elbow bend 9-10 deg frames 16-80) |
 | Swipe | baked clip (1) | baked clip (1); IK, clearance, hinge, lean all off | read from code |
 | Rebound | IK (9) + palm contact (12) | IK pole (9); hinge `rebound_grip` (no swivel) | see `rebound-gather.md` |
 | Dribble | clip arms (1) + IK on the ball hand (9), pole follows the animated elbow | clip | read from code |

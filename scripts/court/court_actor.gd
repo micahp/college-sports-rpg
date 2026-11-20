@@ -317,6 +317,10 @@ func animate(delta: float) -> void:
 		_elbow_hinge.set("palm_goal", {} if swipe_chain_active else _palm_goals.duplicate())
 		# Contest: the arm IK is the one owner of the elbow (docs/animation/OWNERSHIP.md).
 		_elbow_hinge.set("keep_swivel", contest_lift > 0.001)
+	# Contest palms twist about the forearm first (hand_aim.gd).
+	for aim: SkeletonModifier3D in [_hand_aim, _hand_aim_l]:
+		if aim != null:
+			aim.set("twist_first", contest_lift > 0.001)
 	if _arm_clearance != null:
 		_arm_clearance.active = not swipe_chain_active
 		_arm_clearance.influence = 0.0 if swipe_chain_active else 1.0

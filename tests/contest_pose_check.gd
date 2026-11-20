@@ -8,6 +8,9 @@ extends Node
 ##   elbow bend under 20 deg (straight arm)
 ##   elbow at least 0.18 m above the shoulder, at most 0.06 m out to the side
 ##   hand at least 0.45 m above the shoulder, at most 0.20 m in front of it
+##   palm faces the ball at the shooter's release point (CONTEST_PALM_AT_Y over his
+##   feet): within 30 deg, and never turned out to the side by more than 0.30
+## Pass `verbose` to print every frame.
 const CourtScene: PackedScene = preload("res://scenes/court/court_game.tscn")
 const CourtGame = preload("res://scripts/court/court_game.gd")
 const FROM: int = 16
@@ -17,6 +20,8 @@ const MIN_ELBOW_UP: float = 0.18
 const MAX_ELBOW_OUT: float = 0.06
 const MIN_HAND_UP: float = 0.45
 const MAX_HAND_FWD: float = 0.20
+const MAX_PALM_OFF: float = 30.0
+const MAX_PALM_OUT: float = 0.30
 
 
 func _ready() -> void:
@@ -47,6 +52,13 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	court._begin_shot()
 	var tap = d.get("_pose_tap")
+	var verbose: bool = OS.get_cmdline_user_args().has("verbose")
+	var sk: Skeleton3D = CourtPlayerModel.find_skeleton(d.get("_model"))
+	var palm_local: Dictionary = {}
+	for side: String in ["R", "L"]:
+		var bone: int = sk.find_bone("RightHand" if side == "R" else "LeftHand")
+		palm_local[side] = sk.get_bone_global_rest(bone).basis.orthonormalized().inverse() * Vector3.DOWN
+	var worst_palm := 0.0
 	var fails: Array[String] = []
 	var worst_flex := 0.0
 	for frame in range(1, TO + 1):
@@ -64,7 +76,17 @@ func _ready() -> void:
 			var flex: float = 180.0 - rad_to_deg((s - e).normalized().angle_to((h - e).normalized()))
 			worst_flex = maxf(worst_flex, flex)
 			var e_out: float = (e - s).dot(d.right()) * sg
+			var palm: Vector3 = (tap.call("hand_basis", side) as Basis) * (palm_local[side] as Vector3)
+			var to_shooter: Vector3 = (user.global_position * Vector3(1, 0, 1) + Vector3.UP * CourtGame.CONTEST_PALM_AT_Y) - h
+			var palm_off: float = rad_to_deg(palm.angle_to(to_shooter))
+			worst_palm = maxf(worst_palm, palm_off)
+			if verbose:
+				print("F%02d %s flex=%3.0f palm_off=%3.0f palm=(out %+.2f fwd %+.2f up %+.2f)" % [frame, side, flex, palm_off, palm.dot(d.right()) * sg, palm.dot(d.facing()), palm.y])
 			var problems: Array[String] = []
+			if palm_off > MAX_PALM_OFF:
+				problems.append("palm %.0f deg off the ball" % palm_off)
+			if absf(palm.dot(d.right())) > MAX_PALM_OUT:
+				problems.append("palm turned %.2f to the side" % (palm.dot(d.right()) * sg))
 			if flex > MAX_FLEX:
 				problems.append("elbow bent %.0f deg" % flex)
 			if e.y - s.y < MIN_ELBOW_UP:
@@ -79,5 +101,5 @@ func _ready() -> void:
 				fails.append("F%02d %s: %s" % [frame, side, ", ".join(problems)])
 	for f in fails:
 		print("  FAIL ", f)
-	print("CONTEST POSE: %d failing arm-frames over frames %d-%d, worst elbow bend %.0f deg -> %s" % [fails.size(), FROM, TO, worst_flex, "ok" if fails.is_empty() else "FAILED"])
+	print("CONTEST POSE: %d failing arm-frames over frames %d-%d, worst elbow bend %.0f deg, worst palm %.0f deg off -> %s" % [fails.size(), FROM, TO, worst_flex, worst_palm, "ok" if fails.is_empty() else "FAILED"])
 	get_tree().quit(0 if fails.is_empty() else 1)

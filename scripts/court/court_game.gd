@@ -962,6 +962,8 @@ func _shot_type(p: Vector3) -> String:
 ## JumpShot dips at 0.60 s, leaves the floor at ~0.70 s, peaks at 1.00 s and
 ## lands at ~1.35 s. Arms stay with the contest IK (docs/animation/OWNERSHIP.md).
 const DEFENDER_JUMP_START: float = 0.55
+## Height of the ball at a jump shot's release (the contest palms face it).
+const CONTEST_PALM_AT_Y: float = 2.4
 const DEFENDER_JUMP_SPEED: float = 1.2
 
 
@@ -1798,9 +1800,13 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 				# bent back) while the hands came up.
 				var hang := d.shoulder_position(side) + Vector3.DOWN * reach * 0.85 					+ d.right() * reach * 0.27 * side_sign + toward_shooter * reach * 0.05
 				d.hand(side, hang.lerp(wrist_goal, lift), clampf(d.contest_lift * 6.0, 0.0, 1.0))
-				# A contest has no contact point. Turn the palms toward the
-				# shooter without a second palm-position solve moving the arm.
-				d.palm_to(side, wrist_goal + toward_shooter, lift)
+				# A contest has no contact point. Turn the palms toward the ball at
+				# the shooter's release point (CONTEST_PALM_AT_Y over his feet)
+				# without a second palm-position solve moving the arm.
+				var palm_at: Vector3 = wrist_goal + toward_shooter
+				if shooter != null:
+					palm_at = shooter.flat() + Vector3.UP * CONTEST_PALM_AT_Y
+				d.palm_to(side, palm_at, lift)
 			continue
 		if d == reach_d:
 			_pose_swipe(d, bp)

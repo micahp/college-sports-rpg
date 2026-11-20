@@ -221,36 +221,61 @@ func _fix_arm(sk: Skeleton3D, d: Dictionary) -> void:
 	var ub: Basis = sol["ub"]
 	a = sol["a"]
 	f = sol["f"]
-	var h: Vector3 = (ub * hinge_l).normalized()
-	# 2. Forearm: straight-and-neutral, bent about the hinge to point along f.
-	var lb: Basis = ub * (d["lrel0"] as Basis)
 	var fdir_l: Vector3 = d["fdir_l"]
-	var raw: float = (lb * fdir_l).signed_angle_to(f, h)
-	var theta: float = clampf(raw, 0.0, FLEX_MAX)
-	lb = Basis(h, theta) * lb
-	var now_dir: Vector3 = (lb * fdir_l).normalized()
-	if is_equal_approx(theta, raw) and now_dir.angle_to(f) > 0.001:
-		lb = Basis(Quaternion(now_dir, f)) * lb  # small residual (rest arm not dead straight)
-	# (when the bend was clamped the wrist moves with it: an elbow can't fold further)
-	var neutral: Basis = lb
-	# 3. Hand: wanted orientation is what the pose has now. Its twist about the
-	#    forearm (relative to a flat, untwisted hand) goes into the forearm.
 	var hrel0: Basis = d["hrel0"]
+	# 3 (wanted). Hand: wanted orientation is what the pose has now.
 	var hb_want: Basis = w.basis.orthonormalized()
 	if clap_forward != Vector3.ZERO and d.has("hand_axes"):
 		var inverse := sk.global_transform.basis.inverse()
 		var along := (inverse * (clap_forward + Vector3.UP * 0.35)).normalized()
 		var edge := (inverse * Vector3.UP).slide(along).normalized()
 		hb_want = Basis(along, edge, along.cross(edge)) * (d["hand_axes"] as Basis).inverse()
-	var flat: Basis = neutral * hrel0
-	# Twist about the forearm as it now lies (not the pose's direction: if the
-	# bend was clamped they differ, and twisting about the old one swings the
-	# forearm back past straight).
-	var fa: Vector3 = (neutral * fdir_l).normalized()
-	var dq: Quaternion = (hb_want * flat.inverse()).get_rotation_quaternion()
-	var proj: float = Vector3(dq.x, dq.y, dq.z).dot(fa)
-	var twist: float = wrapf(2.0 * atan2(proj, dq.w), -PI, PI)
-	twist = clampf(twist, -TWIST_MAX, TWIST_MAX)
+	var lb: Basis
+	var neutral: Basis
+	var fa: Vector3
+	var twist: float = 0.0
+	for pass_i in 2:
+		var h: Vector3 = (ub * hinge_l).normalized()
+		# 2. Forearm: straight-and-neutral, bent about the hinge to point along f.
+		lb = ub * (d["lrel0"] as Basis)
+		var raw: float = (lb * fdir_l).signed_angle_to(f, h)
+		var theta: float = clampf(raw, 0.0, FLEX_MAX)
+		lb = Basis(h, theta) * lb
+		var now_dir: Vector3 = (lb * fdir_l).normalized()
+		if is_equal_approx(theta, raw) and now_dir.angle_to(f) > 0.001:
+			lb = Basis(Quaternion(now_dir, f)) * lb  # small residual (rest arm not dead straight)
+		# (when the bend was clamped the wrist moves with it: an elbow can't fold further)
+		neutral = lb
+		# 3. The hand's twist about the forearm (relative to a flat, untwisted
+		#    hand) goes into the forearm. Twist about the forearm as it now lies
+		#    (not the pose's direction: if the bend was clamped they differ, and
+		#    twisting about the old one swings the forearm back past straight).
+		var flat: Basis = neutral * hrel0
+		fa = (neutral * fdir_l).normalized()
+		var dq: Quaternion = (hb_want * flat.inverse()).get_rotation_quaternion()
+		var proj: float = Vector3(dq.x, dq.y, dq.z).dot(fa)
+		var twist_want: float = wrapf(2.0 * atan2(proj, dq.w), -PI, PI)
+		twist = clampf(twist_want, -TWIST_MAX, TWIST_MAX)
+		# A nearly straight arm turns the palm with the shoulder as well as the
+		# forearm (both turn about the same line). Twist the forearm can't take
+		# goes into the upper arm, inside the shoulder's range, and the forearm
+		# is rebuilt on it. Without this a contest palm aimed at the shooter was
+		# turned back out to the side by up to 37 deg (tests/chain_trace).
+		# The total is measured from the untwisted upper arm (tau 0), not from
+		# whatever twist the IK left: the IK can hand over a raised arm with the
+		# palm facing backward, and 180 deg from there flips either way.
+		var excess: float = twist_want - twist
+		if pass_i == 1 or not keep_swivel or absf(excess) < 0.001 or theta > STRAIGHT_DEADBAND * 2.0 or not sol.has("tau"):
+			break
+		var tau_now: float = sol["tau"]
+		var total: float = wrapf(tau_now + twist_want * signf(fa.dot(a)), -PI, PI)
+		# Shoulder takes half (at most its range); the forearm takes the rest.
+		var tau_new: float = clampf(total * 0.5, -SHOULDER_TWIST_MAX, SHOULDER_TWIST_MAX)
+		if absf(total - tau_new) > TWIST_MAX:
+			tau_new = clampf(total - signf(total) * TWIST_MAX, -SHOULDER_TWIST_MAX, SHOULDER_TWIST_MAX)
+		if absf(tau_new - tau_now) < 0.001:
+			break
+		ub = Basis(a, tau_new - tau_now) * ub
 	lb = Basis(fa, twist) * neutral
 	# Hand: same wanted orientation, minus any twist the forearm couldn't take,
 	# and bent off the forearm by at most WRIST_BEND_MAX.
@@ -361,7 +386,7 @@ func _solve_upper(sk: Skeleton3D, d: Dictionary, u: Transform3D, l: Transform3D,
 		if cost < best_cost:
 			best_cost = cost
 			var tau_c: float = clampf(tau, -SHOULDER_TWIST_MAX, SHOULDER_TWIST_MAX)
-			best = {"ub": Basis(a, tau_c) * u_swing, "a": a, "f": f, "a_c": a_c}
+			best = {"ub": Basis(a, tau_c) * u_swing, "a": a, "f": f, "a_c": a_c, "tau": tau_c}
 		if r < 0.0001:
 			break  # straight arm: every swivel is the same
 	d["prev_ac"] = best["a_c"]
