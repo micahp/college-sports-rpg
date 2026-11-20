@@ -1660,6 +1660,13 @@ func _chasers(group: Array, count: int) -> Array:
 # Poses: what every body is doing with its arms this frame
 # =============================================================================
 
+func _grip_ball(actor: Actor, side: String, center: Vector3, weight: float) -> void:
+	# Wrap the palms around the far half of the ball as it comes into the chest.
+	var outward := actor.right() if side == "R" else -actor.right()
+	var radial := (outward + actor.facing() * 0.55 + Vector3.UP * 0.35).normalized()
+	actor.palm_on(side, center + radial * BALL_FLOOR, center, weight)
+
+
 func _pose_all(delta: float = 1.0 / 60.0) -> void:
 	for a: Actor in _all:
 		a.pose_reset()
@@ -1685,6 +1692,8 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 					var sign_side := 1.0 if side == "R" else -1.0
 					var ready := chest + a.facing() * 0.32 + a.right() * (sign_side * 0.21) + Vector3.DOWN * 0.16
 					a.hand(side, ready.lerp(target + a.right() * (sign_side * 0.10), lift), 1.0)
+					if a == _holder:
+						_grip_ball(a, side, bp, smoothstep(0.0, 0.10, _recovery_t))
 		return
 	# Offense
 	if _holder != null and _ball_mode == "held":
@@ -1727,6 +1736,8 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 			d.contest_lift = 0.0
 			d.hand("R", bp + d.right() * 0.10, 1.0)
 			d.hand("L", bp - d.right() * 0.10, 1.0)
+			for side: String in ["R", "L"]:
+				_grip_ball(d, side, bp, 1.0)
 			continue
 		d.pressure_stance = ball_gap < (3.2 if d.pressure_stance else 2.6)
 		d.lock_face(bp if _holder != d.man else (d.man as Actor).position)

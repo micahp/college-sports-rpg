@@ -37,6 +37,9 @@ func _run_board(kind: String) -> void:
 	winner.position = landing
 	var early_missed := false
 	var checked_gather := false
+	var worst_palm_angle := 0.0
+	var worst_gap := 0.0
+	var min_elbow := 180.0
 	var least_elbow_forward := INF
 	var least_hand_forward := INF
 	if kind == "defender":
@@ -53,6 +56,18 @@ func _run_board(kind: String) -> void:
 			winner.position -= shift
 			court._update_ball(0.0)
 			checked_gather = true
+		if court._holder == winner and court._ball_mode == "secured" and court._recovery_t > 0.20:
+			for side: String in ["L", "R"]:
+				var wrist := winner.hand_position(side)
+				var elbow := winner.elbow_position(side)
+				min_elbow = minf(min_elbow, rad_to_deg((winner.shoulder_position(side)-elbow).angle_to(wrist-elbow)))
+				var bone := winner._skeleton.find_bone(Actor.ARM_BONES[side][2])
+				var local_normal := winner._skeleton.get_bone_global_rest(bone).basis.inverse() * Vector3.DOWN
+				var normal: Vector3 = winner._pose_tap.hand_basis(side) * local_normal
+				var palm := wrist + winner.palm_offset(side)
+				var toward_ball: Vector3 = court._ball.position - palm
+				worst_palm_angle = maxf(worst_palm_angle, rad_to_deg(normal.angle_to(toward_ball)))
+				worst_gap = maxf(worst_gap, absf(toward_ball.length() - Court.BALL_FLOOR))
 		var jump_t := float(court._board_jumps.get(winner, -1.0))
 		if jump_t > 0.08 and jump_t < 0.32:
 			for side: String in ["R", "L"]:
@@ -67,6 +82,8 @@ func _run_board(kind: String) -> void:
 			early_missed = true
 		if court._phase != Court.Phase.REBOUND:
 			break
+	print(kind, " palm angle/gap/min elbow ", Vector3(worst_palm_angle, worst_gap, min_elbow))
+	_check(min_elbow < 180.0 and worst_palm_angle < 30.0 and worst_gap < 0.015, "both drawn palms face and contact the secured ball")
 	_check(checked_gather, "sampled gather during landing")
 	print(kind, " rise minimum forward elbow %.3f m, wrist %.3f m" % [least_elbow_forward, least_hand_forward])
 	_check(is_finite(least_hand_forward) and least_hand_forward > 0.04 and least_elbow_forward > -0.015, "both arms rise in front of the rebounder")
