@@ -21,12 +21,23 @@ const SKEL: String = "%GeneralSkeleton:"
 ## skeleton is used (zero-length CMU bones are skipped). No joint: rotation only.
 const SEGMENTS: Array = [
 	["Hips", ["Spine", "Chest"]], ["Spine", ["Chest"]], ["Chest", ["UpperChest"]],
-	["UpperChest", ["Neck", "Head"]], ["Neck", ["Head"]], ["Head", []],
+	["UpperChest", ["Neck"]], ["Neck", ["Head"]], ["Head", []],
 	["LeftShoulder", ["LeftUpperArm"]], ["LeftUpperArm", ["LeftLowerArm"]], ["LeftLowerArm", ["LeftHand"]], ["LeftHand", []],
 	["RightShoulder", ["RightUpperArm"]], ["RightUpperArm", ["RightLowerArm"]], ["RightLowerArm", ["RightHand"]], ["RightHand", []],
 	["LeftUpperLeg", ["LeftLowerLeg"]], ["LeftLowerLeg", ["LeftFoot"]], ["LeftFoot", []],
 	["RightUpperLeg", ["RightLowerLeg"]], ["RightLowerLeg", ["RightFoot"]], ["RightFoot", []],
 ]
+
+
+## The student's top trunk segment (UpperChest -> Neck, 36 cm) has no CMU
+## counterpart: CMU's Neck sits on its UpperChest (zero length). Aiming it at
+## the next CMU joint (Head) gave the upper torso the head's tilt, up to 9 deg
+## of extra trunk roll in JumpShot; copying the CMU upper spine instead leaned
+## the trunk up to 14 deg too far forward, because the two spines split their
+## length differently. It is aimed so the student's neck lies on the source's
+## pelvis-to-neck line (tests/jumpshot_fidelity): the lower segments keep the
+## CMU spine's curve and the trunk as a whole points where the performer's did.
+const TRUNK_TOP: String = "UpperChest"
 
 
 ## Rebuilds `target` (the game's clip, track paths kept) from the CMU clip
@@ -75,6 +86,8 @@ static func apply(target: Animation, cmu_sk: Skeleton3D, cmu_anim: Animation, sk
 				var now: Vector3 = turn * (s_rest[sj].origin - s_rest[si].origin).normalized()
 				q = Quaternion(now, aim) * q
 				break
+			if bone == TRUNK_TOP:
+				q = _trunk_top(sk, s_rest, want, turn, cmu_sk, cg, face)
 			want[bone] = q
 		for seg: Array in SEGMENTS:
 			var bone: String = seg[0]
@@ -101,6 +114,44 @@ static func apply(target: Animation, cmu_sk: Skeleton3D, cmu_anim: Animation, sk
 	var ht: int = _track(target, Animation.TYPE_POSITION_3D, "Hips")
 	for key: Array in hips_keys:
 		target.position_track_insert_key(ht, key[0], key[1])
+
+
+## TRUNK_TOP's rotation: its CMU rotation since rest, swung so the student's
+## Neck lands on the line from the student's pelvis (hip-joint midpoint) along
+## the source's pelvis-to-neck direction, at the student's rest trunk length.
+static func _trunk_top(sk: Skeleton3D, s_rest: Array, want: Dictionary, turn: Quaternion, cmu_sk: Skeleton3D, cg: Array, face: Quaternion) -> Quaternion:
+	var top: int = sk.find_bone(TRUNK_TOP)
+	var neck: int = sk.find_bone("Neck")
+	var q: Quaternion = turn * s_rest[top].basis.get_rotation_quaternion()
+	var c_pelvis: Vector3 = (cg[cmu_sk.find_bone("LeftUpperLeg")].origin + cg[cmu_sk.find_bone("RightUpperLeg")].origin) * 0.5
+	var c_dir: Vector3 = (cg[cmu_sk.find_bone("Neck")].origin - c_pelvis)
+	if c_dir.length() < 1e-4:
+		return q
+	c_dir = face * c_dir.normalized()
+	var rest_pelvis: Vector3 = (s_rest[sk.find_bone("LeftUpperLeg")].origin + s_rest[sk.find_bone("RightUpperLeg")].origin) * 0.5
+	var length: float = rest_pelvis.distance_to(s_rest[neck].origin)
+	var pelvis: Vector3 = (_posed(sk, s_rest, want, "LeftUpperLeg") + _posed(sk, s_rest, want, "RightUpperLeg")) * 0.5
+	var top_at: Vector3 = _posed(sk, s_rest, want, TRUNK_TOP)
+	var aim: Vector3 = (pelvis + c_dir * length - top_at).normalized()
+	var now: Vector3 = (q * s_rest[top].basis.get_rotation_quaternion().inverse() * (s_rest[neck].origin - s_rest[top].origin)).normalized()
+	return Quaternion(now, aim) * q
+
+
+## Where `bone` is (skeleton space) with the global rotations in `want` on its
+## ancestors (rest rotation where `want` has none), from the root's rest place.
+static func _posed(sk: Skeleton3D, s_rest: Array, want: Dictionary, bone: String) -> Vector3:
+	var chain: Array = []
+	var i: int = sk.find_bone(bone)
+	while i >= 0:
+		chain.push_front(i)
+		i = sk.get_bone_parent(i)
+	var pos: Vector3 = s_rest[chain[0]].origin
+	for k in range(1, chain.size()):
+		var par: int = chain[k - 1]
+		var rot: Quaternion = want.get(sk.get_bone_name(par), s_rest[par].basis.get_rotation_quaternion())
+		var offset: Vector3 = s_rest[chain[k]].origin - s_rest[par].origin
+		pos += rot * (s_rest[par].basis.get_rotation_quaternion().inverse() * offset)
+	return pos
 
 
 ## An empty track of `type` for `bone` in `anim` (an existing one is cleared).

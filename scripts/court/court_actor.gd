@@ -85,6 +85,14 @@ const Crouch = preload("res://scripts/court/crouch.gd")
 const StudentFeet = preload("res://scripts/court/student_feet.gd")
 const ARM_TRACKS: Array[String] = ["LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand",
 	"RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand"]
+## Action clips whose trunk matches their recording on the drawn player without
+## torso_posture (tests/jumpshot_fidelity: JumpShot within 1 deg of the CMU
+## trunk pitch and roll at every moment; with torso_posture the gather lean was
+## cut from 19 to 6 deg). Only clips measured this way belong here.
+const TRUNK_VERIFIED: Array[StringName] = [&"JumpShot"]
+## Blend times of the full-body action one-shot (JumpShot, Layup, ...).
+const SHOT_FADE_IN: float = 0.12
+const SHOT_FADE_OUT: float = 0.2
 const UPPER_ACTIONS: Array[String] = ["Reach", "Pass", "Clap", "SwipeCMU", "SwipeCMU_R", "SwipeCMU_L"]
 const GRAVITY: float = 9.81
 const STATURE: float = 1.81  # the court model's standing height (top of the head)
@@ -435,7 +443,13 @@ func animate(delta: float) -> void:
 	# Keep the trunk correction active over locomotion too; the bound is applied
 	# in both pitch and side-bend, so it does not pull the shoulders across the chest.
 	if _torso_posture != null:
-		_torso_posture.influence = move_toward(_torso_posture.influence, 1.0, delta * 6.0)
+		# While a clip whose trunk was verified against its recording plays, the
+		# clip owns the trunk (TRUNK_VERIFIED). torso_posture stays on elsewhere.
+		var trunk_owned: bool = _action_time > 0.0 and _act_node != null and _act_node.animation in TRUNK_VERIFIED
+		# Fade with the clip's own blend in and out (the "shot" one-shot), so the
+		# trunk hands over continuously instead of keeping part of the correction.
+		_torso_posture.influence = move_toward(_torso_posture.influence, 0.0 if trunk_owned else 1.0,
+			delta / (SHOT_FADE_IN if trunk_owned else SHOT_FADE_OUT))
 	_stride_arms.forward = facing()
 	_stride_arms.influence = 0.0 if swipe_chain_active else move_toward(_stride_arms.influence, float(forward_guard), delta * 8.0)
 	var rate: float = 1.0
@@ -1063,8 +1077,8 @@ func _build_tree() -> void:
 	_act_node = AnimationNodeAnimation.new()
 	_act_node.animation = "Jump"
 	var shot: AnimationNodeOneShot = AnimationNodeOneShot.new()
-	shot.fadein_time = 0.12
-	shot.fadeout_time = 0.2
+	shot.fadein_time = SHOT_FADE_IN
+	shot.fadeout_time = SHOT_FADE_OUT
 	root.add_node("speed", AnimationNodeTimeScale.new())
 	root.add_node("act", _act_node)
 	root.add_node("act_speed", AnimationNodeTimeScale.new())
