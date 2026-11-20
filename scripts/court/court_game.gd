@@ -79,7 +79,7 @@ const SPOTS: Array[Vector3] = [
 	Vector3(0, 0, -4.7), Vector3(3.4, 0, -5.5), Vector3(5.9, 0, -8.1), Vector3(6.75, 0, -12.6),
 ]
 
-enum Phase { INTRO, SETUP, LIVE, SHOT, DEAD, OPP, FINAL }
+enum Phase { INTRO, SETUP, LIVE, SHOT, DEAD, OPP, FINAL, REBOUND }
 
 var scenario: Dictionary = {}
 
@@ -103,6 +103,10 @@ var _flight_from: Vector3
 var _flight_to: Vector3
 var _flight_vy: float = 0.0  # upward launch speed of the current shot
 var _shot_wait: float = 0.0
+const BOARD_JUMP_TIME := 0.64
+var _board_jumps: Dictionary = {}
+var _secure_offset := Vector3.ZERO
+var _recovery_t := 0.0
 var _gather_from: Vector3 = Vector3.ZERO
 var _layup_air: bool = false
 var _layup_drive_t: float = 0.0
@@ -183,7 +187,7 @@ var _dir_prev: Vector3 = Vector3.ZERO
 var _dir_sample_t: float = 0.0
 var _shake_cd: float = 0.0
 
-var _stats: Dictionary = {"pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ast": 0, "to": 0}
+var _stats: Dictionary = {"pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ast": 0, "reb": 0, "to": 0}
 
 var _camera: Camera3D
 var _cam_focus: Vector3 = Vector3.ZERO
@@ -268,8 +272,18 @@ func _physics_process(delta: float) -> void:
 		Phase.LIVE:
 			_tick_live(delta)
 		Phase.SHOT:
-			_idle_actors(delta)
+			if _ball_mode == "shot" and _user != _shooter:
+				_move_user(delta)
+				for a: Actor in _all:
+					if a != _user:
+						a.move_with(Vector3.ZERO, delta)
+				_separate()
+				_clamp_all()
+			else:
+				_idle_actors(delta)
 			_tick_shot(delta)
+		Phase.REBOUND:
+			_tick_rebound(delta)
 		Phase.DEAD, Phase.OPP:
 			_idle_actors(delta)
 			if _phase_time <= 0.0:
@@ -562,6 +576,9 @@ func _sprinting() -> bool:
 
 
 func _on_shoot_down() -> void:
+	if _phase == Phase.REBOUND and _holder == null:
+		_board_jump(_user)
+		return
 	if _phase == Phase.LIVE and _holder == _user and _ball_mode == "held" and not _charging and not _layup and not auto_play:
 		if _in_layup_range():
 			_begin_layup()
@@ -723,10 +740,11 @@ func _begin_shot() -> void:
 	_reach.clear()
 	var tuning: Dictionary = Game.meter_tuning()
 	_meter_speed = float(tuning["speed"]) * 0.95
+	var window_scale: float = {"Easy": 1.25, "Medium": 1.0, "Hard": 0.85, "Ultimate": 0.70}[GameState.court_difficulty]
 	var open_mult: float = CONTEST_WINDOW[_contest_level(_nearest_defender_dist(_user))]
 	var kind: String = _shot_type(_user.flat())
 	var type_mult: float = {"rim": 1.35, "mid": 1.0, "three": 0.85}[kind]
-	_zone_w = clampf(float(tuning["zone"]) * 1.5 * open_mult * type_mult, 0.08, 0.42)
+	_zone_w = clampf(float(tuning["zone"]) * 1.5 * open_mult * type_mult, 0.08, 0.42) * window_scale
 	_meter.visible = true
 	# The clip's release point (top of the jump, 1.0 s in) is lined up with
 	# the middle of the meter, so a well-timed release is the real release.
@@ -959,7 +977,7 @@ func _take_shot(shooter: Actor, made: bool, kind: String, layup: bool = false, d
 	# The ball stays in his hand until the clip reaches its release point.
 	_shot_layup = layup
 	_holder = null
-	if delay > 0.0 and not auto_play:
+	if delay > 0.0:
 		_ball_mode = "windup"
 		_shot_wait = delay
 		_set_phase(Phase.SHOT, 0.0)
@@ -988,8 +1006,6 @@ func _launch_shot() -> void:
 	var rise: float = _flight_to.y - _flight_from.y
 	var angle: float = deg_to_rad(62.0 if layup else lerpf(54.0, 46.0, clampf(reach / 8.0, 0.0, 1.0)))
 	_flight_dur = sqrt(maxf(0.04, 2.0 * (reach * tan(angle) - rise) / SHOT_GRAVITY))
-	if auto_play:
-		_flight_dur = 0.3
 	_flight_vy = (rise + 0.5 * SHOT_GRAVITY * _flight_dur * _flight_dur) / _flight_dur
 	_flight_t = 0.0
 	_set_phase(Phase.SHOT, 0.0)
@@ -1037,15 +1053,97 @@ func _tick_shot(delta: float) -> void:
 		if by_user:
 			_user.action("Clap", 1.6)
 		return
-	if _rng.randf() < 0.27 and _clock > 0.0:
-		var grabber: Actor = _mates[_rng.randi() % _mates.size()]
-		_give_ball(grabber)
-		_catch_grace = 0.6
-		_shot_clock = maxf(_shot_clock, 10.0)
-		_show_banner("Offensive board!", "Reset. Shot clock 10.", 0.9)
-		_set_phase(Phase.LIVE, 0.0)
+	if _clock <= 0.0:
+		_end_possession("Buzzer", "")
 		return
-	_end_possession("No good", "Rebound, %s" % str(_opp.get("name", "defense")))
+	_begin_rebound()
+
+
+func _begin_rebound() -> void:
+	_holder = null
+	_end_pick()
+	_reach.clear()
+	_board_jumps.clear()
+	_ball.position = _flight_to
+	var direction := Vector3(_flight_to.x - HOOP.x, 0, absf(_flight_to.z - HOOP.z) + 0.18).normalized()
+	_loose_vel = direction * _rng.randf_range(1.9, 3.1) + Vector3.UP * 1.65
+	_ball_mode = "rebound"
+	_shoot_button.text = "BOARD"
+	_set_phase(Phase.REBOUND, 0.0)
+
+
+func _board_jump(a: Actor) -> void:
+	if not _board_jumps.has(a):
+		_board_jumps[a] = 0.0
+
+
+func _tick_rebound(delta: float) -> void:
+	_clock = maxf(0.0, _clock - delta * CLOCK_FACTOR)
+	_refresh_scoreboard()
+	if _holder == null:
+		_loose_vel.y -= SHOT_GRAVITY * delta
+		_ball.position += _loose_vel * delta
+		if _ball.position.y <= BALL_FLOOR:
+			_ball.position.y = BALL_FLOOR
+			_loose_vel.y = absf(_loose_vel.y) * 0.55
+			_loose_vel.x *= 0.74
+			_loose_vel.z *= 0.74
+	var ball_flat := Vector3(_ball.position.x, 0.0, _ball.position.z)
+	var target := ball_flat + Vector3(_loose_vel.x, 0, _loose_vel.z) * 0.18
+	var pursuers := _chasers(_offense, 2) + _chasers(_defense, 2)
+	for a: Actor in _all:
+		if _holder != null or _board_jumps.has(a):
+			a.move_with(Vector3.ZERO, delta)
+		elif a == _user and not auto_play:
+			_move_user(delta)
+		elif a in pursuers or a == _user:
+			a.step_toward(target, MATE_SPEED, delta)
+			if a.flat().distance_to(target) < 0.85 and _ball.position.y < 2.95 and _ball.position.y > 1.5 and _loose_vel.y < 0:
+				_board_jump(a)
+		else:
+			a.move_with(Vector3.ZERO, delta)
+		if _holder == null:
+			a.turn_toward(ball_flat, delta)
+	_separate()
+	_clamp_all()
+	for a: Actor in _board_jumps.keys():
+		var progress := minf(1.0, (float(_board_jumps[a]) + delta) / BOARD_JUMP_TIME)
+		a.position.y = 0.54 * 4.0 * progress * (1.0 - progress)
+		_board_jumps[a] = progress * BOARD_JUMP_TIME
+		if progress >= 1.0:
+			_board_jumps.erase(a)
+	if _holder == null:
+		var winner: Actor = null
+		var nearest := INF
+		for a: Actor in _all:
+			var shoulder := a.shoulder_position("R").lerp(a.shoulder_position("L"), 0.5)
+			var distance := shoulder.distance_to(_ball.position)
+			var ground_pickup := _ball.position.y < 0.85 and a.flat().distance_to(ball_flat) < 0.52
+			if ground_pickup:
+				distance = a.flat().distance_to(ball_flat)
+			if distance < nearest and (ground_pickup or (_board_jumps.has(a) and distance <= a.arm_length("R") + BALL_FLOOR)):
+				nearest = distance
+				winner = a
+		if winner != null:
+			_holder = winner
+			_start_secure(winner)
+			if winner == _user:
+				_stats["reb"] += 1
+			_audio.play("catch", -8.0)
+	if _holder != null and _board_jumps.is_empty() and _recovery_t >= 0.24:
+		_shoot_button.text = "SHOOT"
+		if _clock <= 0:
+			_end_possession("Buzzer", "")
+		elif _holder.team == 0:
+			_give_ball(_holder)
+			_shot_clock = 10.0
+			_catch_grace = 0.6
+			_last_pass_to = null
+			_set_phase(Phase.LIVE, 0.0)
+			_show_toast("Offensive rebound")
+		else:
+			_end_possession("Defensive rebound", str(_opp.get("name", "Opponents")) + " ball")
+			_ball_mode = "secured"
 
 
 # =============================================================================
@@ -1184,7 +1282,7 @@ func _start_reach(d: Actor) -> void:
 	var side: String = "R" if (_ball.position - d.position).dot(d.right()) > 0.0 else "L"
 	_reach = {"d": d, "t": 0.0, "side": side, "resolved": false, "roll": _rng.randf(),
 		"b_pred": _holder.predict_ball(SWIPE_HIT_T, BALL_FLOOR) if _holder != null else _ball.position}
-	d.action("Reach", 1.5)
+	d.action("SwipeCMU_R" if side == "R" else "SwipeCMU_L", 1.0)
 
 
 ## Can `d`'s palm get to the ball, and the chance a swipe that does knocks it
@@ -1291,8 +1389,11 @@ func _tick_loose_pickup(delta: float) -> void:
 		_catch_grace = 0.7
 		_show_toast("Recovered!")
 	else:
-		best.action("Clap", 1.8)
 		_turnover("Stolen!", _last_handler_user, true)
+		_holder = best
+		_last_touch_team = best.team
+		_start_secure(best)
+		best.release_swipe()
 
 
 # =============================================================================
@@ -1364,7 +1465,8 @@ func _assign_spacing() -> void:
 # =============================================================================
 
 func _move_defense(delta: float) -> void:
-	var spd: float = float(_opp.get("speed", 1.0))
+	var coverage_scale: float = {"Easy": 0.85, "Medium": 1.0, "Hard": 1.10, "Ultimate": 1.20}[GameState.court_difficulty]
+	var spd: float = float(_opp.get("speed", 1.0)) * coverage_scale
 	var ball_flat: Vector3 = Vector3(_ball.position.x, 0, _ball.position.z)
 	var holder: Actor = _holder
 	var screener: Actor = _screener()
@@ -1562,11 +1664,41 @@ func _chasers(group: Array, count: int) -> Array:
 # Poses: what every body is doing with its arms this frame
 # =============================================================================
 
+func _grip_ball(actor: Actor, side: String, center: Vector3, weight: float) -> void:
+	# Wrap the palms around the far half of the ball as it comes into the chest.
+	var outward := actor.right() if side == "R" else -actor.right()
+	var radial := (outward + actor.facing() * 0.55 + Vector3.UP * 0.35).normalized()
+	actor.palm_on(side, center + radial * BALL_FLOOR, center, weight)
+
+
 func _pose_all(delta: float = 1.0 / 60.0) -> void:
 	for a: Actor in _all:
 		a.pose_reset()
 		a.has_ball = a == _holder and _ball_mode == "held"
 	var bp: Vector3 = _ball.position
+	if _phase == Phase.REBOUND:
+		for a: Actor in _all:
+			a.pressure_stance = false
+			var jumping := _board_jumps.has(a)
+			if a == _holder or (_holder == null and (jumping or a.flat().distance_to(Vector3(bp.x, 0, bp.z)) < 1.5)):
+				a.rebound_hands = true
+				var chest := a.shoulder_position("R").lerp(a.shoulder_position("L"), 0.5)
+				var from_chest := bp - chest
+				var target := chest + a.facing() * maxf(0.18, from_chest.dot(a.facing()))
+				target += a.right() * clampf(from_chest.dot(a.right()), -0.20, 0.20)
+				target.y = bp.y
+				var lift := smoothstep(0.0, 0.19, float(_board_jumps.get(a, 0.0)))
+				if a == _holder:
+					a.rebound_fold = smoothstep(0.0, 0.24, _recovery_t)
+					target = bp
+					lift = 1.0
+				for side: String in ["R", "L"]:
+					var sign_side := 1.0 if side == "R" else -1.0
+					var ready := chest + a.facing() * 0.32 + a.right() * (sign_side * 0.21) + Vector3.DOWN * 0.16
+					a.hand(side, ready.lerp(target + a.right() * (sign_side * 0.10), lift), 1.0)
+					if a == _holder:
+						_grip_ball(a, side, bp, smoothstep(0.0, 0.065, _recovery_t))
+		return
 	# Offense
 	if _holder != null and _ball_mode == "held":
 		var h: Actor = _holder
@@ -1601,6 +1733,16 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 		# Enter the low stance at guarding distance. Use a wider exit radius so
 		# small changes in spacing cannot repeatedly raise and lower the hips.
 		var ball_gap := d.flat().distance_to(Vector3(bp.x, 0.0, bp.z))
+		if _ball_mode == "secured" and d == _holder:
+			d.rebound_hands = true
+			d.rebound_fold = 1.0
+			d.pressure_stance = false
+			d.contest_lift = 0.0
+			d.hand("R", bp + d.right() * 0.10, 1.0)
+			d.hand("L", bp - d.right() * 0.10, 1.0)
+			for side: String in ["R", "L"]:
+				_grip_ball(d, side, bp, 1.0)
+			continue
 		d.pressure_stance = ball_gap < (3.2 if d.pressure_stance else 2.6)
 		d.lock_face(bp if _holder != d.man else (d.man as Actor).position)
 		var near_shooter: bool = (_charging or _phase == Phase.SHOT) and _shooter != null \
@@ -1623,23 +1765,9 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 		# Ordinary coverage keeps the arms from the current movement clip.
 
 
-## A swipe at the dribble: the hand comes from the defender's side, open palm
-## leading, sweeps across the ball and on through. The palm meets the side of
-## the ball facing the defender at the moment the swipe resolves (t = 0.2), the
-## trunk bends toward the ball and the hips sink for a low one.
-##   t 0.00-0.06  load: hand out to his side, beside the ball
-##   t 0.06-0.19  strike: palm onto the ball's near side
-##   t 0.19-0.23  contact (the swipe resolves at 0.2)
-##   t 0.23-0.36  follow-through across, then the hand comes back
-const SWIPE_ARC_RAD: float = 0.8   # the arm swings this far about the shoulder into the ball, and as far again through it (~46 deg)
-const SWIPE_UP: float = 0.35       # the sweep rises a little: lifting the ball off its bounce
-const SWIPE_FOLLOW: float = 0.5    # the follow-through is this share of the arc into the ball
-const SWIPE_TWIST: float = 0.5     # trunk rotation at the strike, radians (~29 deg)
-const SWIPE_WIND_T: float = 0.10   # hand drawn back to the wind-up
+## The baked full-body clip owns the entire swipe chain. Game timing and contact
+## resolution stay independent from the visual hand trajectory.
 const SWIPE_HIT_T: float = 0.26     # palm meets the ball (the swipe resolves here)
-const SWIPE_END_T: float = 0.42    # end of the follow-through
-## How far short of the ball a swipe that won't knock it loose stops.
-const SWIPE_SHORT_M: float = 0.12
 ## The jab step: for the first part of the swipe he steps until his body is
 ## this far from the ball (across the floor), then the normal guard resumes.
 const SWIPE_STEP_T: float = 0.30
@@ -1647,95 +1775,18 @@ const SWIPE_STEP_TO_M: float = 0.55
 
 
 func _pose_swipe(d: Actor, _bp: Vector3) -> void:
-	var t: float = float(_reach["t"])
-	var side: String = str(_reach["side"])
-	var sgn: float = 1.0 if side == "R" else -1.0
-	# Aim at where the ball will be when the palm gets there. Forecast afresh
-	# every frame for the time left, so the aim sharpens as the hand arrives (a
-	# single forecast made at the start was off by 0.2 m typically, 1.7 m at
-	# worst, once the handler changed direction). After contact it is fixed
-	# where it was struck.
-	var b: Vector3 = _reach["b_pred"]
-	if _reach.has("ball_at"):
-		b = _reach["ball_at"]
-	elif _holder != null and _ball_mode == "held":
-		b = _holder.predict_ball(maxf(SWIPE_HIT_T - t, 0.0), BALL_FLOOR)
-		_reach["b_pred"] = b
-	# The palm travels through the ball across his body and a little up, palm
-	# leading: the arm swings about the shoulder like a pendulum, fingers along
-	# the arm, wrist near neutral. (A palm facing the ball with the forearm
-	# pointing at it would need a wrist bent ninety degrees: that was the flick.)
-	var v: Vector3 = (-d.right() * sgn + Vector3.UP * SWIPE_UP).normalized()
-	var connects: bool = _swipe_connects(d)
-	var reach_to: float = BALL_FLOOR + 0.02 + (0.0 if connects else SWIPE_SHORT_M)
-	var sh: Vector3 = d.shoulder_position(side)  # as drawn: moves with the lean, twist and step
-	if not _reach.has("rel_start"):
-		_reach["rel_start"] = (d.hand_position(side) + d.palm_offset(side)) - sh  # from where the hand is now
-	# The swing is an arc about the SHOULDER: the palm stays at one radius from
-	# it (as far as the arm reaches to the ball) and sweeps through an angle, so
-	# the movement is the shoulder joint turning and the arm riding it, never a
-	# point the arm can't reach. All of it is recomputed from the shoulder as it
-	# is drawn now, so the contact stays on the ball while the trunk leans and turns.
-	var c_vec: Vector3 = (b - v * reach_to) - sh              # shoulder to palm at contact
-	var rho: float = clampf(c_vec.length(), 0.35, d.arm_length(side) + 0.07)
-	var c_dir: Vector3 = c_vec.normalized()
-	# The arc's axis is fixed when the swipe starts (from the way the palm is to
-	# travel), then only squared up to the current shoulder-to-ball line. Worked
-	# out fresh each frame it flips when the swing lines up with that line.
-	if not _reach.has("axis"):
-		var v_perp: Vector3 = v - c_dir * c_dir.dot(v)
-		v_perp = v_perp.normalized() if v_perp.length() > 0.2 else Vector3.UP.cross(c_dir).normalized()
-		_reach["axis"] = c_dir.cross(v_perp).normalized()
-	var axis0: Vector3 = _reach["axis"]
-	var n_s: Vector3 = (axis0 - c_dir * c_dir.dot(axis0)).normalized()  # axis of the arc
-	var theta: float                                          # angle about the axis, 0 at the ball
-	var rel: Vector3
-	if t < SWIPE_WIND_T:
-		# Draw back by turning the hand's direction about the shoulder and easing
-		# the radius, never by lerping the two points (a straight line between
-		# nearly opposite points runs through the shoulder and the direction flips).
-		var from_rel: Vector3 = _reach["rel_start"]
-		var k: float = smoothstep(0.0, SWIPE_WIND_T, t)
-		var wind_dir: Vector3 = c_dir.rotated(n_s, -SWIPE_ARC_RAD)
-		rel = from_rel.normalized().slerp(wind_dir, k) * lerpf(from_rel.length(), rho, k)
-		theta = -SWIPE_ARC_RAD
-	else:
-		if t < SWIPE_HIT_T:
-			var u: float = (t - SWIPE_WIND_T) / (SWIPE_HIT_T - SWIPE_WIND_T)
-			theta = -SWIPE_ARC_RAD * (1.0 - u * u)  # accelerating: fastest at the ball
-		else:
-			var u2: float = clampf((t - SWIPE_HIT_T) / (SWIPE_END_T - SWIPE_HIT_T), 0.0, 1.0)
-			var through: float = 1.0 - (1.0 - u2) * (1.0 - u2)  # slowing after the ball
-			# on through (a shorter arc: a longer one sweeps the hand across his
-			# own chest) / or back the way it came when it stopped short
-			theta = SWIPE_ARC_RAD * SWIPE_FOLLOW * through if connects else -SWIPE_ARC_RAD * through
-		rel = c_dir.rotated(n_s, theta) * rho
-	var palm: Vector3 = sh + rel
-	var dir_now: Vector3 = rel.normalized()
-	var tangent: Vector3 = n_s.cross(dir_now)                 # the way the palm is moving: the palm leads this way
-	# The IK places the wrist: aim it so the palm (not the wrist) lands on the
-	# point. Fingers run along the arm (radially out), the wrist stays near neutral.
-	var wrist: Vector3 = palm - dir_now * 0.08 - tangent * 0.02
-	d.hand(side, wrist, 1.0)  # rough placement; the palm is solved last, on the final body
-	# Palm contact fades in as the hand leaves the stance and out on recovery,
-	# so it never snaps; the palm faces where it is going.
-	var pw: float = smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.42, 0.5, t))
-	d.palm_on(side, palm, palm + tangent * 0.5, pw)
-	# The trunk turns ahead of the arm: the shoulder is carried through the swing.
-	var tw: float = smoothstep(0.0, SWIPE_HIT_T, t) * (1.0 - smoothstep(0.34, 0.5, t))
-	d.lean_twist_goal = sgn * SWIPE_TWIST * tw
-	var other: String = "L" if side == "R" else "R"
-	# Off hand up and out in front of its shoulder, so it moves with the lean
-	# (a target fixed above the floor ends up behind a leaning shoulder).
-	var osh: Vector3 = d.shoulder_position(other)
-	d.hand(other, osh + d.facing() * 0.32 - d.right() * sgn * 0.22 + Vector3(0, 0.02, 0), 0.8)
-	if _holder != null:
-		d.palm_to(other, _holder.body_point(0.0, 0.0, 1.1), 0.7)
-	# Trunk and hips: lean into it, sink for a low ball.
-	var reach_flat: float = Vector2(b.x - sh.x, b.z - sh.z).length()
-	d.lean_at = b
-	d.lean_amount_goal = clampf((reach_flat - 0.35) / 0.45, 0.25, 1.0) if t < 0.4 else 0.0
-	d.crouch_goal = clampf((1.05 - b.y) / 0.7, 0.4, 1.0) if t < 0.4 else -1.0
+	d.mocap_swipe_active = true
+	# The selected right/left clip already includes torso, both shoulders, both
+	# elbows, wrists, and recovery. No wrist target, pole solve, or palm modifier
+	# may rewrite that chain during the action.
+	d.hand("R", Vector3.ZERO, 0.0)
+	d.hand("L", Vector3.ZERO, 0.0)
+	d.palm_on("R", Vector3.ZERO, Vector3.ZERO, 0.0)
+	d.palm_on("L", Vector3.ZERO, Vector3.ZERO, 0.0)
+	d.lean_at = Vector3.ZERO
+	d.lean_amount_goal = 0.0
+	d.lean_twist_goal = 0.0
+	d.crouch_goal = -1.0
 
 
 # =============================================================================
@@ -1859,6 +1910,13 @@ func _ring(c: Color, radius: float) -> MeshInstance3D:
 	return mi
 
 
+func _start_secure(actor: Actor) -> void:
+	var offset := _ball.position - actor.position
+	_secure_offset = Vector3(offset.dot(actor.right()), offset.y, offset.dot(actor.facing()))
+	_recovery_t = 0.0
+	_ball_mode = "secured"
+
+
 func _update_ball(delta: float) -> void:
 	match _ball_mode:
 		"held":
@@ -1894,6 +1952,10 @@ func _update_ball(delta: float) -> void:
 				_loose_vel.y = absf(_loose_vel.y) * 0.55
 				_loose_vel.x *= 0.82
 				_loose_vel.z *= 0.82
+		"secured":
+			_recovery_t += delta
+			var pocket := _holder.body_point(0.28, 0.0, _holder.shoulder_position("R").y - _holder.position.y - 0.28)
+			_ball.position = _holder.body_point(_secure_offset.z, _secure_offset.x, _secure_offset.y).lerp(pocket, smoothstep(0.0, 0.24, _recovery_t))
 		"dead":
 			_ball.position.y = maxf(BALL_FLOOR, _ball.position.y - delta * 6.0)
 
@@ -1923,6 +1985,9 @@ func _build_camera() -> void:
 
 func _desired_focus() -> Vector3:
 	var u: Vector3 = _user.flat()
+	if _phase == Phase.REBOUND:
+		var board := Vector3(_ball.position.x, 0, _ball.position.z)
+		return board.lerp(u, 0.16)
 	var f: Vector3 = u.lerp(HOOP_FLAT, 0.32)
 	f.x *= 0.65
 	return f

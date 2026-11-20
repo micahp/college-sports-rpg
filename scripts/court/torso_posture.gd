@@ -8,7 +8,6 @@ extends SkeletonModifier3D
 
 const FREE: float = 6.0
 const KEEP: float = 0.27
-const MAX_PITCH: float = 60.0
 
 var _hips: int = -1
 var _spine: int = -1
@@ -34,19 +33,24 @@ func _process_modification_with_delta(_delta: float) -> void:
 	var line: Vector3 = sk.get_bone_global_pose(_neck).origin - from
 	if line.length() < 0.001:
 		return
-	var pitch: float = rad_to_deg(atan2(line.z, line.y))  # forward is +z in the skeleton
-	last_raw = pitch
-	var out: float = pitch
-	if pitch > FREE:
-		out = FREE + (pitch - FREE) * KEEP
-	elif pitch < -FREE:
-		out = -FREE + (pitch + FREE) * KEEP
+	# Limit the full lean vector, not only forward/back pitch. Defensive clips
+	# also roll the trunk sideways; leaving that axis untouched makes the shirt
+	# collapse and swell as the pelvis turns under the shoulders.
+	var line_dir: Vector3 = line.normalized()
+	var raw: float = rad_to_deg(line_dir.angle_to(Vector3.UP))
+	last_raw = raw
+	var out: float = raw
+	if raw > FREE:
+		out = FREE + (raw - FREE) * KEEP
 	last_out = out
-	var turn: float = deg_to_rad(out - pitch)
+	var turn: float = deg_to_rad(raw - out)
 	if absf(turn) < 0.0005:
 		return
 	var pose: Transform3D = sk.get_bone_global_pose(_spine)
-	var new_basis: Basis = Basis(Vector3.RIGHT, turn) * pose.basis
+	var axis: Vector3 = line_dir.cross(Vector3.UP).normalized()
+	if axis.length_squared() < 0.001:
+		return
+	var new_basis: Basis = Basis(axis, turn) * pose.basis
 	var parent: int = sk.get_bone_parent(_spine)
 	var parent_basis: Basis = sk.get_bone_global_pose(parent).basis if parent >= 0 else Basis.IDENTITY
 	sk.set_bone_pose_rotation(_spine, (parent_basis.inverse() * new_basis).get_rotation_quaternion())

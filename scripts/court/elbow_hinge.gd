@@ -25,6 +25,7 @@ const FLEX_MAX: float = deg_to_rad(148.0)
 ## {"point": world palm-centre goal, "face": world point the palm faces,
 ##  "weight": 0..1}. Set by court_actor each frame; empty = off.
 var palm_goal: Dictionary = {}
+var rebound_grip := false
 var clap_forward := Vector3.ZERO
 var debug_print: bool = false
 const PALM_FROM_WRIST: float = 0.08  # same palm point as tests/body_metrics.gd
@@ -255,8 +256,9 @@ func _fix_arm(sk: Skeleton3D, d: Dictionary) -> void:
 	var want_axis: Vector3 = (hb_want * hand_axis_l).normalized()
 	var swing: Quaternion = Quaternion((flat_tw * hand_axis_l).normalized(), want_axis)
 	var ang: float = swing.get_angle()
-	if ang > WRIST_BEND_MAX:
-		swing = Quaternion.IDENTITY.slerp(swing, WRIST_BEND_MAX / ang)
+	var bend_limit := deg_to_rad(25.0) if rebound_grip else WRIST_BEND_MAX
+	if ang > bend_limit:
+		swing = Quaternion.IDENTITY.slerp(swing, bend_limit / ang)
 	var hb: Basis = Basis(swing) * flat_tw
 	# Write back as whole global poses, parent first, keeping each bone's own
 	# scale (the rig's bones carry build scale) and its joint position: only
@@ -310,7 +312,9 @@ func _solve_upper(sk: Skeleton3D, d: Dictionary, u: Transform3D, l: Transform3D,
 	# continuously, so a candidate that jumps from it costs. Without this the
 	# solver flips between near-equal elbows from one frame to the next.
 	var prev_ac: Vector3 = d.get("prev_ac", Vector3.ZERO)
-	for i in range(0, 2 * steps + 1):
+	# The rebound IK has already placed the elbow for a descending catch.
+	# Searching a second swivel here rolls it up over the ball.
+	for i in range(1 if rebound_grip else 2 * steps + 1):
 		var phi: float = (float((i + 1) / 2) * SWIVEL_STEP) * (1.0 if i % 2 == 1 else -1.0)
 		var e: Vector3 = s + k * x + (u1 * cos(phi) + u2 * sin(phi)) * r
 		var a: Vector3 = (e - s).normalized()

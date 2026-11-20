@@ -32,7 +32,8 @@ func _ready() -> void:
 	await _check_wasd()
 	await _check_pick()
 	_check_blowby()
-	await _check_shot_arc()
+	await _check_shot_arc(false)
+	await _check_shot_arc(true)
 	await _check_layup()
 
 	print("COURT CHECKS PASSED" if _failures == 0 else "COURT CHECKS FAILED (%d)" % _failures)
@@ -158,12 +159,13 @@ func _check_blowby() -> void:
 
 
 ## A three-pointer in real life: about 1.0-1.4 s in the air, peaking 4-5 m up.
-func _check_shot_arc() -> void:
+func _check_shot_arc(autoplay: bool) -> void:
 	var user: Node3D = _court._user
 	if _court._holder != user or _court._ball_mode != "held":
 		_court._give_ball(user)
 	user.position = CourtGame.HOOP_FLAT + Vector3(0, 0, 6.9)
 	_court._ball.position = user.position + Vector3(0, 2.4, 0)
+	CourtGame.auto_play = autoplay
 	_court._take_shot(user, true, "three")
 	var top: float = 0.0
 	var frames: int = 0
@@ -171,6 +173,7 @@ func _check_shot_arc() -> void:
 		await get_tree().physics_frame
 		top = maxf(top, _court._ball.position.y)
 		frames += 1
+	CourtGame.auto_play = false
 	_check(_court._flight_dur > 1.0 and _court._flight_dur < 1.4, "a three is in the air %.2f s (real: 1.0-1.4)" % _court._flight_dur)
 	_check(top > 4.0 and top < 5.0, "a three peaks at %.1f m (real: 4-5)" % top)
 	await _wait_live()
