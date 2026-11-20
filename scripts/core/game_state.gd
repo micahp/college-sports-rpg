@@ -27,6 +27,11 @@ const STAT_LABELS: Dictionary = {
 
 var player_name: String = "Freshman"
 var identity_id: String = ""
+const DIFFICULTIES := ["Easy", "Medium", "Hard", "Ultimate"]
+var court_difficulty: String = "Medium":
+	set(value):
+		court_difficulty = value if value in DIFFICULTIES else "Medium"
+
 var look_id: String = ""
 var stats: Dictionary = {}
 var choice_history: Array[Dictionary] = []
@@ -47,6 +52,7 @@ func reset() -> void:
 	player_name = "Freshman"
 	identity_id = ""
 	look_id = ""
+	court_difficulty = "Medium"
 	stats = {
 		"energy": 80,
 		"academics": 50,
@@ -188,6 +194,7 @@ func to_save_dict() -> Dictionary:
 		"player_name": player_name,
 		"identity": identity_id,
 		"look": look_id,
+		"court_difficulty": court_difficulty,
 		"stats": stats.duplicate(),
 		"choice_history": choice_history.duplicate(true),
 		"flags": flags.duplicate(),
@@ -200,6 +207,7 @@ func from_save_dict(data: Dictionary) -> void:
 	player_name = str(data.get("player_name", "Freshman"))
 	identity_id = str(data.get("identity", ""))
 	look_id = str(data.get("look", ""))
+	court_difficulty = str(data.get("court_difficulty", "Medium"))
 	var saved_stats: Dictionary = data.get("stats", {})
 	for key in STAT_KEYS:
 		stats[key] = clampi(int(saved_stats.get(key, stats.get(key, 0))), STAT_MIN, STAT_MAX)

@@ -69,6 +69,33 @@ func _ready() -> void:
 				_failures += 1
 			prev_rate = rate
 
+	# An exposed high dribble with a winning roll. Resolve through the game
+	# and follow the loose ball into the defender's hands and the next possession.
+	_stage(holder, d, 0.4, 0.9)
+	_court._give_ball(holder)
+	_court._start_reach(d)
+	_court._reach["roll"] = 0.0
+	var turnovers_before := int(_court._stats["to"])
+	_court._resolve_reach(d)
+	if _court._ball_mode != "loose" or _court._holder != null:
+		_failures += 1
+	else:
+		# Direct this already-loose ball down the defender's recovery lane.
+		_court._loose_vel = Vector3(2.8, 1.2, 0)
+		for tick in 10:
+			_court._update_ball(1.0 / 60.0)
+			_court._tick_loose_pickup(1.0 / 60.0)
+			if _court._ball_mode != "loose":
+				break
+		if _court._ball_mode != "secured" or _court._holder != d or int(_court._stats["to"]) != turnovers_before + 1:
+			_failures += 1
+		else:
+			for tick in 12:
+				await get_tree().physics_frame
+			var gap := d.hand_position("R").distance_to(_court._ball.position)
+			print("Defensive recovery: hand to ball centre %.3f m" % gap)
+			if _court._holder != d or gap > 0.25:
+				_failures += 1
 	print("SWIPE CHECKS PASSED" if _failures == 0 else "SWIPE CHECKS FAILED (%d rows)" % _failures)
 	get_tree().quit(0 if _failures == 0 else 1)
 

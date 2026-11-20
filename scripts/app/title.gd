@@ -13,6 +13,7 @@ var _identity_id: String = ""
 var _look_id: String = ""
 var _identity_buttons: Dictionary = {}
 var _look_buttons: Dictionary = {}
+var _difficulty := "Medium"
 var _start_button: Button
 
 
@@ -40,7 +41,18 @@ func _ready() -> void:
 		if OS.has_feature("web"):
 			sprites = str(JavaScriptBridge.eval("window.location.search", true)).contains("sprites")
 		(load("res://scripts/court/court_game.gd") as GDScript).set("use_sprites", sprites)
-		get_tree().change_scene_to_file.call_deferred("res://scenes/court/court_game.tscn")
+		_build_background()
+		var center := CenterContainer.new()
+		center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(center)
+		var options := VBoxContainer.new()
+		center.add_child(options)
+		options.add_child(_difficulty_row())
+		var play := UIKit.button("Play court", true, 58)
+		options.add_child(play)
+		play.pressed.connect(func() -> void:
+			GameState.court_difficulty = _difficulty
+			get_tree().change_scene_to_file("res://scenes/court/court_game.tscn"))
 		return
 	_build_background()
 	_main = _build_main()
@@ -180,6 +192,7 @@ func _build_create() -> Control:
 	_name_edit.add_theme_font_size_override("font_size", 20)
 	_name_edit.virtual_keyboard_enabled = true
 	name_row.add_child(_name_edit)
+	name_row.add_child(_difficulty_row())
 
 	col.add_child(UIKit.label("How did you get here?", 19, UIKit.MUTED))
 	var ids: HBoxContainer = HBoxContainer.new()
@@ -300,6 +313,18 @@ func _highlight(b: Button, on: bool) -> void:
 	b.add_theme_stylebox_override("hover", style)
 
 
+func _difficulty_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_child(UIKit.label("Court difficulty", 19, UIKit.MUTED))
+	var picker := OptionButton.new()
+	for mode: String in GameState.DIFFICULTIES:
+		picker.add_item(mode)
+	picker.select(GameState.DIFFICULTIES.find(_difficulty))
+	picker.item_selected.connect(func(index: int) -> void: _difficulty = picker.get_item_text(index))
+	row.add_child(picker)
+	return row
+
+
 func _start() -> void:
 	_start_button.disabled = true
-	Game.new_game(_name_edit.text, _identity_id, _look_id)
+	Game.new_game(_name_edit.text, _identity_id, _look_id, _difficulty)

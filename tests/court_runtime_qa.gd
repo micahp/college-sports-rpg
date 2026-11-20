@@ -10,7 +10,7 @@ extends Node3D
 
 const Actor = preload("res://scripts/court/court_actor.gd")
 const JOINTS: Array[String] = ["Hips", "Head", "LeftHand", "RightHand", "LeftFoot", "RightFoot"]
-const TOES: Array[String] = ["LeftToes", "RightToes"]
+const SHOE_CONTROLS: Array[String] = ["Foot.L", "Foot.R"]
 const FLOOR: float = 0.012  # where Idle's toes rest
 const SLIDE_FAIL: float = 0.25  # planted foot moving at over 25% of ground speed
 const SLIDE_WARN: float = 0.12
@@ -58,6 +58,7 @@ var _prev_joint: Dictionary = {}
 var _out: String = ""
 var _ankle_floor: float = 0.09
 var _final_toe: Dictionary = {}
+var _final_joint: Dictionary = {}
 
 
 func _ready() -> void:
@@ -173,31 +174,35 @@ func _physics_process(delta: float) -> void:
 
 ## Final bone poses, with every modifier applied (what is actually drawn).
 func final_pose(sk: Skeleton3D) -> void:
-	for toe: String in TOES:
+	for joint: String in JOINTS:
+		_final_joint[joint] = sk.global_transform.basis * sk.get_bone_global_pose(sk.find_bone(joint)).origin
+	for toe: String in SHOE_CONTROLS:
 		_final_toe[toe] = sk.global_transform * sk.get_bone_global_pose(sk.find_bone(toe)).origin
 
 
 ## Called after the pose is final for this rendered frame.
 func measure(delta: float) -> void:
-	if _cur.is_empty() or delta <= 0.0 or _step >= PLAN.size():
+	if _cur.is_empty() or delta <= 0.0 or _step >= PLAN.size() or _final_toe.size() < 2:
 		return
 	_cam.position = _actor.position + Vector3(3.6, 1.5, 3.4)
 	_cam.look_at(_actor.position + Vector3(0, 0.95, 0))
 	_cur["time"] = float(_cur["time"]) + delta
-	var to_world: Transform3D = _sk.global_transform
 	var toes: Array[Vector3] = []
-	for toe: String in TOES:
-		var w: Vector3 = _final_toe.get(toe, to_world * _sk.get_bone_global_pose(_sk.find_bone(toe)).origin)
+	for toe: String in SHOE_CONTROLS:
+		var w: Vector3 = _final_toe[toe]
 		_cur["sink"] = minf(float(_cur["sink"]), w.y - FLOOR)
 		toes.append(w)
 	# Measured slide: in single support (one toe on the floor, the other
 	# clearly off it) the grounded toe should not travel.
 	var low: int = 0 if toes[0].y < toes[1].y else 1
-	if toes[low].y < FLOOR + 0.02 and toes[1 - low].y > toes[low].y + 0.04 and _prev_toe.has(low) and int(_prev_toe.get("who", -1)) == low:
+	var planted := toes[low].y < FLOOR + 0.02 and toes[1 - low].y > toes[low].y + 0.04
+	if OS.get_cmdline_user_args().has("contact_trace") and "stop" in str(_cur["label"]) and float(_cur["time"]) < 0.6:
+		print("stop t=%.2f gait=%s speed=%.2f shoe_y=(%.3f,%.3f) planted=%s" % [_cur["time"], _actor.get("_gait"), _actor.vel.length(), toes[0].y, toes[1].y, planted])
+	if planted and _prev_toe.has(low) and int(_prev_toe.get("who", -1)) == low:
 		_cur["m_slide"] = float(_cur.get("m_slide", 0.0)) + Vector2(toes[low].x - (_prev_toe[low] as Vector3).x, toes[low].z - (_prev_toe[low] as Vector3).z).length()
 		_cur["m_time"] = float(_cur.get("m_time", 0.0)) + delta
 	_prev_toe[low] = toes[low]
-	_prev_toe["who"] = low
+	_prev_toe["who"] = low if planted else -1
 	var lift_node: Variant = _actor.get("_feet")
 	if lift_node != null:
 		_cur["lift"] = maxf(float(_cur.get("lift", 0.0)), float((lift_node as Node).get("last_lift")))
@@ -215,7 +220,7 @@ func measure(delta: float) -> void:
 	_cur["slide"] = float(_cur["slide"]) + (body_v - carried).length() * delta
 	_cur["planted_t"] = float(_cur["planted_t"]) + delta
 	for j: String in JOINTS:
-		var m: Vector3 = _sk.get_bone_global_pose(_sk.find_bone(j)).origin
+		var m: Vector3 = _final_joint[j]
 		if _prev_joint.has(j):
 			var speed: float = m.distance_to(_prev_joint[j]) / delta
 			if speed > float(_cur["pop"]):

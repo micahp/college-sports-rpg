@@ -103,8 +103,8 @@ func _process(_delta: float) -> void:
 		_court._layer.hide()
 		_label.hide()
 		_court._ball.hide()
-		var focus := d.position + Vector3.UP * 1.2
-		_cam.position = focus + (side * 0.72 + d.facing() * 0.7).normalized() * 2.6
+		var focus := d.position + Vector3.UP * 0.95
+		_cam.position = focus + (side * 0.72 + d.facing() * 0.7).normalized() * 3.6
 		_cam.look_at(focus, Vector3.UP)
 		if _n == 1:
 			await RenderingServer.frame_post_draw

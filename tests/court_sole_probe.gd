@@ -10,6 +10,9 @@ const PLAN: Array = [
 	["walk", "loco", Vector2(0, -1.6), 2.0],
 	["jog", "loco", Vector2(0, -3.4), 2.0],
 	["sprint", "loco", Vector2(0, -5.0), 2.0],
+	["stop", "loco", Vector2.ZERO, 1.0],
+	["drive", "dribble", Vector2(0, -5.0), 2.0],
+	["gather", "dribble", Vector2.ZERO, 1.0],
 	["dribble", "dribble", Vector2(0, -3.0), 2.0],
 	["defense", "defense", Vector2(0, 0), 1.2],
 	["slide", "defense", Vector2(2.5, 0), 2.0],
@@ -26,6 +29,7 @@ var _max_low: float = -INF
 var _out: String = ""
 var _shot_n: int = 0
 var _meshes: Array = []
+var _failed := false
 var _under_n: int = 0
 var _lowbone: String = ""
 var _lowpos: Vector3 = Vector3.ZERO
@@ -187,7 +191,7 @@ func _process(_delta: float) -> void:
 		return
 	_cam.position = _actor.position + Vector3(2.2, 0.35, 1.6)
 	_cam.look_at(_actor.position + Vector3(0, 0.2, 0))
-	if _left < PLAN[_step][3] - 0.5:  # skip the cross-fade
+	if is_finite(_final_low) and Engine.get_process_frames() > 2:
 		var low: float = _final_low
 		if low < -0.01:
 			print("   [%s @ %s] under: %s t=%.2f low=%+.3f L toe y=%.3f R toe y=%.3f" % [_lowbone, _lowpos - _actor.position, PLAN[_step][0], PLAN[_step][3]-_left, low, (_sk.global_transform*_sk.get_bone_global_pose(_sk.find_bone("Foot.L")).origin).y, (_sk.global_transform*_sk.get_bone_global_pose(_sk.find_bone("Foot.R")).origin).y])
@@ -201,12 +205,15 @@ func _process(_delta: float) -> void:
 		_shot_n += 1
 	if _left <= 0.0:
 		print("%-8s lowest vertex: min %+.3f m  (highest 'lowest' %+.3f m)" % [PLAN[_step][0], _min, _max_low])
+		if not is_finite(_min) or _min < -0.005:
+			_failed = true
+			push_error("Missing floor sample or mesh penetration over 5 mm during %s" % PLAN[_step][0])
 		_step += 1
 		_under_n = 0
 		_min = INF
 		_max_low = -INF
 		_shot_n = 0
 		if _step >= PLAN.size():
-			get_tree().quit(0)
+			get_tree().quit(1 if _failed else 0)
 			return
 		_left = PLAN[_step][3]

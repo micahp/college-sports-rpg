@@ -19,7 +19,7 @@ func _ready() -> void:
 	add_child(sun)
 	var fm := MeshInstance3D.new()
 	fm.mesh = PlaneMesh.new()
-	(fm.mesh as PlaneMesh).size = Vector2(30, 30)
+	(fm.mesh as PlaneMesh).size = Vector2(100, 100)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.79, 0.6, 0.36)
 	fm.material_override = mat
@@ -31,19 +31,20 @@ func _ready() -> void:
 	a.setup("", {"Shirt": Color(0.8, 0.15, 0.2), "Pants": Color(1, 1, 1), "Skin": Color(0.48, 0.34, 0.24), "Socks": Color(0.95, 0.95, 0.95)}, 0, 0.0)
 	a.set("team", 1)
 	var views := {"front": Vector3(0, 0.0, -0.6), "side": Vector3(0.6, 0.0, 0.0)}
+	var running := "run" in OS.get_cmdline_user_args()
 	var shots := 0
 	for i in 300:
 		a.call("pose_reset")
 		a.set("team", 1)
 		a.call("lock_face", a.position + Vector3(0, 0, -8.0))
-		a.call("move_with", Vector3(0, 0, 0), 1.0 / 60.0, 16.0)
+		a.call("move_with", Vector3.FORWARD * 6.0 if running else Vector3.ZERO, 1.0 / 60.0, 16.0)
 		a.call("animate", 1.0 / 60.0)
 		var p: Vector3 = a.position
 		await get_tree().process_frame
-		if i >= 150 and (i - 150) % 30 == 0 and shots < 3:
+		if i >= 150 and (i - 150) % (5 if running else 30) == 0 and shots < (8 if running else 3):
 			for v: String in views:
-				cam.position = p + views[v] + Vector3(0, 0.15, 0)
-				cam.look_at(p + Vector3(0, 0.08, 0))
+				cam.position = p + views[v] * (2.5 if running else 1.0) + Vector3(0, 0.20, 0)
+				cam.look_at(p + Vector3(0, 0.25 if running else 0.08, 0))
 				for k in 2:
 					await get_tree().process_frame
 				await RenderingServer.frame_post_draw

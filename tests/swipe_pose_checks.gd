@@ -161,7 +161,7 @@ func _physics_process(delta: float) -> void:
 	var u: Actor = _court._user
 	if _court._ball_mode == "loose" and _court._loose_t > 0.6:
 		_court._give_ball(u)
-	if _court._ball_mode == "dead" or _court._holder != u:
+	if _court._ball_mode == "dead" or (_court._ball_mode == "held" and _court._holder != u):
 		_court._give_ball(u)
 	_drive_input(delta)
 	_t += delta

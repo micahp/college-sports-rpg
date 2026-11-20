@@ -1,0 +1,65 @@
+extends Node
+## Positions are staged at rim contact. Live pursuit, reach, input and landing
+## run in the actual court physics loop.
+const Court = preload("res://scripts/court/court_game.gd")
+const Scene = preload("res://scenes/court/court_game.tscn")
+const Actor = preload("res://scripts/court/court_actor.gd")
+var court: Node3D
+var failures := 0
+
+func _ready() -> void:
+	GameState.reset()
+	GameState.look_id = "look_a"
+	court = Scene.instantiate()
+	court.scenario = Court.demo_scenario()
+	add_child(court)
+	while court._phase != Court.Phase.LIVE:
+		await get_tree().physics_frame
+	for kind: String in ["user", "defender", "teammate"]:
+		await _run_board(kind)
+	print("Rebound checks: %d failure(s)" % failures)
+	get_tree().quit(1 if failures else 0)
+
+func _run_board(kind: String) -> void:
+	var winner: Actor = court._user if kind == "user" else (court._defense[0] if kind == "defender" else court._mates[0])
+	var user_rebounds: int = court._stats["reb"]
+	var pts: int = court._team_score
+	court._rng.seed = 2001
+	for i in court._all.size():
+		var a: Actor = court._all[i]
+		a.position = Vector3(i - 4.5, 0, 3)
+		a.stop()
+	court._flight_to = Court.HOOP + Vector3(0.30, 0.08, 0)
+	court._clock = 100.0
+	court._shot_clock = 2.0
+	court._begin_rebound()
+	var landing := Vector3(court._ball.position.x, 0, court._ball.position.z) + Vector3(court._loose_vel.x, 0, court._loose_vel.z) * 0.66
+	winner.position = landing
+	var early_missed := false
+	if kind == "defender":
+		court._user.position = landing + Vector3(0.75, 0, 0)
+		court._on_shoot_down()
+	for frame in 300:
+		await get_tree().physics_frame
+		if kind == "user" and frame == 25:
+			Input.action_press("shoot")
+		if kind == "user" and frame == 26:
+			Input.action_release("shoot")
+		if kind == "defender" and frame > 35 and court._holder != court._user:
+			early_missed = true
+		if court._phase != Court.Phase.REBOUND:
+			break
+	_check(court._holder == winner, kind + " secures ball")
+	_check(winner.position.y < 0.001, kind + " lands")
+	_check(court._team_score == pts, "rebound adds no points")
+	_check(int(court._stats["reb"]) == user_rebounds + int(kind == "user"), "user board credited once")
+	if kind == "defender":
+		_check(early_missed and court._phase == Court.Phase.DEAD and court._ball_mode == "secured", "early user jump loses contested board")
+	else:
+		_check(court._phase == Court.Phase.LIVE and court._ball_mode == "held" and is_equal_approx(court._shot_clock, 10.0), "offense resumes on ten seconds")
+	print(kind, " holder matches ", court._holder == winner, " phase ", court._phase, " clock ", court._shot_clock)
+
+func _check(ok: bool, message: String) -> void:
+	if not ok:
+		failures += 1
+		push_error(message)

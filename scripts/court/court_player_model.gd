@@ -255,7 +255,7 @@ static func library() -> AnimationLibrary:
 		_library.remove_animation("SwipeCMU")
 		_library.add_animation("SwipeCMU", adapted)
 		_library.add_animation("SwipeCMU_R", _library.get_animation("SwipeCMU").duplicate())
-		var left_swipe: Animation = _mirror_swipe(_adapt_swipe_mocap(source))
+		var left_swipe: Animation = _mirror_swipe(adapted)
 		_reset_swipe_free_arm_to_idle(left_swipe, "Right")
 		_library.add_animation("SwipeCMU_L", left_swipe)
 	for scene: Node in sources.values():
@@ -457,7 +457,9 @@ static func _retarget_mocap(sources: Dictionary) -> void:
 ## court's neutral back/off-hand pose. The animation has no hand-space target.
 static func _adapt_swipe_mocap(source: Animation) -> Animation:
 	const DURATION: float = 1.40
-	const SOURCE_START: float = 0.60
+	const SOURCE_START: float = 0.80
+	const SOURCE_CONTACT: float = 1.04
+	const CONTACT: float = 0.26
 	const RECOVER_START: float = 1.20
 	var result := Animation.new()
 	result.length = DURATION
@@ -467,7 +469,8 @@ static func _adapt_swipe_mocap(source: Animation) -> Animation:
 		if source.track_get_type(track) != Animation.TYPE_ROTATION_3D:
 			continue
 		var bone: String = str(source.track_get_path(track).get_concatenated_subnames())
-		if bone in ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head",
+		if bone in ["LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg", "LeftFoot", "RightFoot",
+			"Hips", "Spine", "Chest", "UpperChest", "Neck", "Head",
 			"RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand",
 			"LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand"]:
 			source_tracks[bone] = track
@@ -500,9 +503,11 @@ static func _adapt_swipe_mocap(source: Animation) -> Animation:
 	for bone: String in source_tracks:
 		result_tracks[bone] = Retarget._track(result, Animation.TYPE_ROTATION_3D, bone)
 	var frames: int = maxi(2, roundi(DURATION * Retarget.FPS) + 1)
+	var sample_times := PackedFloat32Array()
 	for frame in frames:
 		var time: float = minf(DURATION, float(frame) / Retarget.FPS)
-		var source_time: float = lerpf(SOURCE_START, source.length, time / DURATION)
+		var source_time := SOURCE_START + time * (SOURCE_CONTACT - SOURCE_START) / CONTACT if time <= CONTACT else lerpf(SOURCE_CONTACT, source.length, (time - CONTACT) / (DURATION - CONTACT))
+		sample_times.append(source_time)
 		var recovery: float = smoothstep(RECOVER_START, DURATION, time)
 		var hips_track: int = int(source_tracks["Hips"])
 		var hips_base: Quaternion = baseline_locals.get("Hips", Quaternion.IDENTITY)
@@ -513,7 +518,7 @@ static func _adapt_swipe_mocap(source: Animation) -> Animation:
 		var body_turn: float = clampf(hips_delta.get_euler().y, -1.0, 1.0)
 		for bone: String in source_tracks:
 			var src_track: int = int(source_tracks[bone])
-			var free_arm_bone: bool = bone.begins_with(free_prefix)
+			var free_arm_bone: bool = bone.begins_with(free_prefix) and bone in guard_arms
 			# The source's off hand folds across the shirt. Keep that arm in its
 			# own idle joint pose; it still follows the turning torso as a connected
 			# limb, but the mocap cannot pull it across the chest or waist.
@@ -525,6 +530,12 @@ static func _adapt_swipe_mocap(source: Animation) -> Animation:
 				var body_gain: float = 0.08 if bone == "Hips" else (0.12 if bone == "Spine" else (0.16 if bone == "Chest" else 0.22))
 				var q: Quaternion = (baseline * Quaternion(Vector3.UP, body_turn * body_gain)).slerp(baseline, recovery)
 				result.rotation_track_insert_key(int(result_tracks[bone]), time, q)
+				continue
+			if bone.ends_with("Leg") or bone.ends_with("Foot"):
+				# Carry the recorded step relative to the defender's stance.
+				var initial := source.rotation_track_interpolate(src_track, SOURCE_START)
+				var step := initial.inverse() * source.rotation_track_interpolate(src_track, source_time)
+				result.rotation_track_insert_key(int(result_tracks[bone]), time, (baseline * step).slerp(baseline, recovery))
 				continue
 			if free_arm_bone:
 				var q: Quaternion = baseline
@@ -544,8 +555,35 @@ static func _adapt_swipe_mocap(source: Animation) -> Animation:
 	var overlay_bones: Array[String] = []
 	for bone: String in source_tracks:
 		overlay_bones.append(bone)
+	var recorded_tracks := Retarget._tracks_by_bone(source)
+	var left_shoulder := sk.find_bone("LeftUpperArm")
+	var right_shoulder := sk.find_bone("RightUpperArm")
+	var contact_pose := Retarget._pose_globals(sk, source, recorded_tracks, SOURCE_CONTACT)
+	var captured_reach: Vector3 = contact_pose[sk.find_bone("RightHand")].origin - contact_pose[right_shoulder].origin
+	var outward: Vector3 = idle_pose[right_shoulder].origin - idle_pose[left_shoulder].origin
+	outward.y = 0.0
+	outward = outward.normalized()
+	# Orient the captured stroke into the ball lane once. The entire arm
+	# then follows this fixed frame; the hand never chases a target.
+	var lane := (Vector3.UP.cross(outward) + outward * 0.48 + Vector3.DOWN * 1.50).normalized()
+	var stroke_frame := Quaternion(captured_reach.normalized(), lane)
 	for frame in frames:
 		var time: float = minf(DURATION, float(frame) / Retarget.FPS)
+		# Express the two recorded segments in the animated parent frames.
+		var sample_time := sample_times[frame]
+		var recorded := Retarget._pose_globals(sk, source, recorded_tracks, sample_time)
+		var posed := _pose_with_overlay(sk, idle, result, time, overlay_bones)
+		var parent_rot: Quaternion = posed[sk.get_bone_parent(right_shoulder)].basis.get_rotation_quaternion()
+		for pair: Array in [["RightUpperArm", "RightLowerArm"], ["RightLowerArm", "RightHand"]]:
+			var joint := sk.find_bone(pair[0])
+			var child := sk.find_bone(pair[1])
+			var neutral: Quaternion = baseline_locals[pair[0]]
+			var axis := sk.get_bone_rest(child).origin.normalized()
+			var direction: Vector3 = stroke_frame * (recorded[child].origin - recorded[joint].origin).normalized()
+			var swing := Quaternion((neutral * axis).normalized(), (parent_rot.inverse() * direction).normalized())
+			var local := (swing * neutral).normalized()
+			parent_rot = parent_rot * local
+			result.track_set_key_value(int(result_tracks[pair[0]]), frame, local.slerp(neutral, smoothstep(RECOVER_START, DURATION, time)))
 		for bone: String in ["Neck", "Head"]:
 			var index: int = sk.find_bone(bone)
 			var parent: int = sk.get_bone_parent(index)

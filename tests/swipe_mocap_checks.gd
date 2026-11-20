@@ -22,7 +22,7 @@ func _run() -> void:
 		_check(_has_bone(right, "RightShoulder") and _has_bone(right, "RightUpperArm") and _has_bone(right, "RightLowerArm"), "right swipe drives shoulder, upper arm and elbow")
 		_check(_has_bone(left, "LeftShoulder") and _has_bone(left, "LeftUpperArm") and _has_bone(left, "LeftLowerArm"), "mirrored swipe drives the left arm chain")
 		_check(_has_bone(right, "Hips") and _has_bone(right, "Chest") and _has_bone(right, "UpperChest"), "swipe carries its body turn through hips and chest with the arm chain")
-		_check(not _has_bone(right, "LeftUpperLeg") and not _has_bone(right, "RightUpperLeg"), "swipe leaves locomotion legs alone")
+		_check(_max_delta(right, "LeftUpperLeg") > 0.01 and _max_delta(right, "RightUpperLeg") > 0.01, "swipe carries the recorded step on both legs")
 		_check(_has_bone(right, "LeftUpperArm") and _has_bone(left, "RightUpperArm"), "free arm counterbalances inside the same full-body action")
 		_check(_is_constant(right, "LeftShoulder") and _is_constant(right, "LeftUpperArm") and _is_constant(right, "LeftLowerArm") and _is_constant(right, "LeftHand"), "off arm holds the idle joint pose instead of folding across the torso")
 		_check(_is_constant(left, "RightShoulder") and _is_constant(left, "RightUpperArm") and _is_constant(left, "RightLowerArm") and _is_constant(left, "RightHand"), "mirrored off arm holds the idle joint pose")
@@ -40,7 +40,7 @@ func _run() -> void:
 		_check(_max_delta_from_guard(left, "LeftShoulder") > 0.05 and _max_delta_from_guard(left, "LeftShoulder") < 1.0, "left shoulder contributes to the connected reach within joint range")
 		_check(_max_delta_from_guard(right, "RightUpperArm") > 0.15 and _max_delta_from_guard(right, "RightUpperArm") < 1.7, "right upper arm follows the shoulder-led reach within joint range")
 		_check(_max_delta_from_guard(left, "LeftUpperArm") > 0.15 and _max_delta_from_guard(left, "LeftUpperArm") < 1.7, "left upper arm follows the shoulder-led reach within joint range")
-		_check(_mirrored_hand_path(right, left), "each side's hand travels away from the torso on its own side")
+		_check(_mirrored_hand_path(right, left), "both hands reach down and forward outside their own shoulder at contact")
 	print("Swipe mocap checks: %d failure(s)" % _failures)
 	quit(1 if _failures > 0 else 0)
 
@@ -169,25 +169,19 @@ func _mirrored_hand_path(right: Animation, left: Animation) -> bool:
 	var idle_globals: Array = CourtPlayerModel._pose_with_overlay(sk, idle, guard, 0.20, arms)
 	var right_chain: Array[String] = ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head", "RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand"]
 	var left_chain: Array[String] = ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head", "LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand"]
-	var r: float = _max_outward_hand_travel(sk, right, idle_globals, "Right", right_chain)
-	var l: float = _max_outward_hand_travel(sk, left, idle_globals, "Left", left_chain)
+	var ok := true
+	for side: String in ["Right", "Left"]:
+		var clip := right if side == "Right" else left
+		var chain := right_chain if side == "Right" else left_chain
+		var pose := CourtPlayerModel._pose_with_overlay(sk, idle, clip, 0.26, chain)
+		var hand := sk.find_bone(side + "Hand")
+		var shoulder := sk.find_bone(side + "UpperArm")
+		var chest := sk.find_bone("Chest")
+		var outward := signf((idle_globals[shoulder].origin - idle_globals[chest].origin).x)
+		var from_shoulder: Vector3 = pose[hand].origin - pose[shoulder].origin
+		ok = ok and from_shoulder.x * outward > 0.0 and from_shoulder.y < 0.0 and from_shoulder.z > 0.0
 	student.free()
-	return r > 0.1 and l > 0.1
-
-
-func _max_outward_hand_travel(sk: Skeleton3D, anim: Animation, baseline: Array, side: String, bones: Array[String]) -> float:
-	var hand: int = sk.find_bone(side + "Hand")
-	var chest: int = sk.find_bone("Chest")
-	var baseline_outward: float = ((baseline[hand] as Transform3D).origin - (baseline[chest] as Transform3D).origin).x
-	var outward_sign: float = signf(baseline_outward)
-	var peak: float = 0.0
-	for frame in 29:
-		var pose: Array = CourtPlayerModel._pose_with_overlay(sk, CourtPlayerModel.library().get_animation("Idle"), anim,
-			anim.length * float(frame) / 28.0, bones)
-		var hand_from_chest: Vector3 = (pose[hand] as Transform3D).origin - (pose[chest] as Transform3D).origin
-		var base_hand_from_chest: Vector3 = (baseline[hand] as Transform3D).origin - (baseline[chest] as Transform3D).origin
-		peak = maxf(peak, (hand_from_chest.x - base_hand_from_chest.x) * outward_sign)
-	return peak
+	return ok
 
 
 func _check(ok: bool, message: String) -> void:

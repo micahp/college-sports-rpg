@@ -59,12 +59,13 @@ func _ready() -> void:
 # Lifecycle
 # =============================================================================
 
-func new_game(player_name: String, identity_id: String, look_id: String) -> void:
+func new_game(player_name: String, identity_id: String, look_id: String, difficulty: String = "Medium") -> void:
 	GameState.reset()
 	TimeSystem.reset()
 	GameState.player_name = player_name.strip_edges() if player_name.strip_edges() != "" else "Freshman"
 	GameState.identity_id = identity_id
 	GameState.look_id = look_id
+	GameState.court_difficulty = difficulty
 	for identity: Dictionary in ContentDB.get_identities():
 		if identity.get("id", "") == identity_id:
 			GameState.apply_effects(identity.get("effects", {}))

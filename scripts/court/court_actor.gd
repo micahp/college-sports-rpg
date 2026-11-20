@@ -142,6 +142,8 @@ var _skeleton: Skeleton3D
 var _stride_arms := preload("res://scripts/court/defender_stride_arms.gd").new()
 var _torso_posture: SkeletonModifier3D
 var _gait: String = ""
+var _braking := false
+var _student_feet: StudentFeet
 var _feet: SkeletonModifier3D
 var _crouch: SkeletonModifier3D
 var _crouch_now: float = 0.0
@@ -178,7 +180,8 @@ func setup(_model_key: String, colors: Dictionary, hair: int = 0, bulk: float = 
 		sk.add_child(feet)
 		_feet = feet
 		if sk.find_bone("Foot.L") >= 0:
-			sk.add_child(StudentFeet.new())
+			_student_feet = StudentFeet.new()
+			sk.add_child(_student_feet)
 			var body: SkeletonModifier3D = FootFloor.new()
 			body.set("body_mode", true)
 			body.set("_hips", -1)
@@ -237,6 +240,7 @@ func step_toward(target: Vector3, max_speed: float, delta: float, accel: float =
 func move_with(desired: Vector3, delta: float, accel: float = 16.0) -> void:
 	if stagger > 0.0:
 		desired *= 0.3
+	_braking = desired.is_zero_approx()
 	vel = vel.move_toward(desired, accel * delta)
 	position += vel * delta
 
@@ -414,6 +418,9 @@ func animate(delta: float) -> void:
 			if gait == "DribbleRun":
 				at = _drib_t  # the dribble keeps its own beat; the legs join it
 			_tree.set("parameters/seek_%s/seek_request" % gait, at)
+	if _student_feet != null:
+		var forward_stride := _gait in ["Walk", "JogM", "Jog", "Run", "DribbleRun"] and _action_time <= 0.0 and not swipe_chain_active
+		_student_feet.stride_amount = move_toward(_student_feet.stride_amount, float(forward_stride), delta * 5.0)
 	var forward_guard := idle_hands and _gait in ["Walk", "JogM", "Run", "Jog"]
 	# Keep the trunk correction active over locomotion too; the bound is applied
 	# in both pitch and side-bend, so it does not pull the shoulders across the chest.
@@ -650,6 +657,10 @@ static func _dribble_table() -> Dictionary:
 func _pick_gait(s: float) -> String:
 	if s < (0.25 if _gait == "Idle" else 0.15):
 		return "Idle"
+	if _braking and _gait in ["Idle", "Walk", "JogM", "Run", "Jog", "DribbleRun"]:
+		# Finish the moving stride, then blend to the standing pose through
+		# the last braking step. Cycling through slower clips resets the feet.
+		return "Idle" if s < 1.8 else _gait
 	if pressure_stance and face_lock and team == 1:
 		# Defending: he faces his man, so pick by which way he is moving.
 		var lat: float = vel.dot(right())
@@ -878,6 +889,16 @@ func action(anim_name: String, speed: float = 1.0, start: float = 0.0) -> void:
 	_action_time = (length - start) / speed
 
 
+## A recovered loose ball takes both hands, even when the recovering
+## defender initiated the poke and still has a swipe follow-through.
+func release_swipe() -> void:
+	if _tree != null and _swipe_time > 0.0:
+		_tree.set("parameters/swipe/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FADE_OUT)
+	_swipe_time = 0.0
+	_swipe_duration = 0.0
+	mocap_swipe_active = false
+
+
 ## Give the swipe's first animation keys the rotations currently visible on this
 ## actor, then blend into the authored joint chain. The transition is pose-to-
 ## pose; no IK target or pole is allowed to steer the swipe itself.
@@ -896,12 +917,15 @@ func _capture_swipe_entry_pose(anim_name: String) -> StringName:
 		if index < 0:
 			continue
 		var start_q: Quaternion = _skeleton.get_bone_pose_rotation(index)
-		var entry_q: Quaternion = clip.rotation_track_interpolate(track, entry_end)
-		for key in range(clip.track_get_key_count(track) - 1, -1, -1):
-			if clip.track_get_key_time(track, key) <= entry_end:
-				clip.track_remove_key(track, key)
-		clip.rotation_track_insert_key(track, 0.0, start_q)
-		clip.rotation_track_insert_key(track, entry_end, entry_q)
+		var first_q: Quaternion = clip.rotation_track_interpolate(track, 0.0)
+		var correction := start_q * first_q.inverse()
+		for key in clip.track_get_key_count(track):
+			var t := clip.track_get_key_time(track, key)
+			if t >= entry_end:
+				break
+			var recorded: Quaternion = clip.track_get_key_value(track, key)
+			var offset := correction.slerp(Quaternion.IDENTITY, smoothstep(0.0, entry_end, t))
+			clip.track_set_key_value(track, key, (offset * recorded).normalized())
 	var runtime_library := AnimationLibrary.new()
 	runtime_library.add_animation("Swipe", clip)
 	if _anim.has_animation_library("SwipeRuntime"):
@@ -1050,7 +1074,7 @@ func _build_tree() -> void:
 	_swipe_oneshot.fadein_time = 0.0
 	_swipe_oneshot.fadeout_time = SWIPE_BLEND_OUT
 	_swipe_oneshot.filter_enabled = true
-	for bone: String in ARM_TRACKS + ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head"]:
+	for bone: String in ARM_TRACKS + ["LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg", "LeftFoot", "RightFoot", "Hips", "Spine", "Chest", "UpperChest", "Neck", "Head"]:
 		_swipe_oneshot.set_filter_path(NodePath("%GeneralSkeleton:" + bone), true)
 	_swipe_node = AnimationNodeAnimation.new()
 	_swipe_node.animation = "SwipeCMU_R"

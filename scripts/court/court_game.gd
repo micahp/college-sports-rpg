@@ -79,7 +79,7 @@ const SPOTS: Array[Vector3] = [
 	Vector3(0, 0, -4.7), Vector3(3.4, 0, -5.5), Vector3(5.9, 0, -8.1), Vector3(6.75, 0, -12.6),
 ]
 
-enum Phase { INTRO, SETUP, LIVE, SHOT, DEAD, OPP, FINAL }
+enum Phase { INTRO, SETUP, LIVE, SHOT, DEAD, OPP, FINAL, REBOUND }
 
 var scenario: Dictionary = {}
 
@@ -103,6 +103,9 @@ var _flight_from: Vector3
 var _flight_to: Vector3
 var _flight_vy: float = 0.0  # upward launch speed of the current shot
 var _shot_wait: float = 0.0
+const BOARD_JUMP_TIME := 0.64
+var _board_jumps: Dictionary = {}
+var _recovery_t := 0.0
 var _gather_from: Vector3 = Vector3.ZERO
 var _layup_air: bool = false
 var _layup_drive_t: float = 0.0
@@ -182,7 +185,7 @@ var _dir_prev: Vector3 = Vector3.ZERO
 var _dir_sample_t: float = 0.0
 var _shake_cd: float = 0.0
 
-var _stats: Dictionary = {"pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ast": 0, "to": 0}
+var _stats: Dictionary = {"pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ast": 0, "reb": 0, "to": 0}
 
 var _camera: Camera3D
 var _cam_focus: Vector3 = Vector3.ZERO
@@ -267,8 +270,18 @@ func _physics_process(delta: float) -> void:
 		Phase.LIVE:
 			_tick_live(delta)
 		Phase.SHOT:
-			_idle_actors(delta)
+			if _ball_mode == "shot" and _user != _shooter:
+				_move_user(delta)
+				for a: Actor in _all:
+					if a != _user:
+						a.move_with(Vector3.ZERO, delta)
+				_separate()
+				_clamp_all()
+			else:
+				_idle_actors(delta)
 			_tick_shot(delta)
+		Phase.REBOUND:
+			_tick_rebound(delta)
 		Phase.DEAD, Phase.OPP:
 			_idle_actors(delta)
 			if _phase_time <= 0.0:
@@ -560,6 +573,9 @@ func _sprinting() -> bool:
 
 
 func _on_shoot_down() -> void:
+	if _phase == Phase.REBOUND and _holder == null:
+		_board_jump(_user)
+		return
 	if _phase == Phase.LIVE and _holder == _user and _ball_mode == "held" and not _charging and not _layup and not auto_play:
 		if _in_layup_range():
 			_begin_layup()
@@ -721,10 +737,11 @@ func _begin_shot() -> void:
 	_reach.clear()
 	var tuning: Dictionary = Game.meter_tuning()
 	_meter_speed = float(tuning["speed"]) * 0.95
+	var window_scale: float = {"Easy": 1.25, "Medium": 1.0, "Hard": 0.85, "Ultimate": 0.70}[GameState.court_difficulty]
 	var open_mult: float = CONTEST_WINDOW[_contest_level(_nearest_defender_dist(_user))]
 	var kind: String = _shot_type(_user.flat())
 	var type_mult: float = {"rim": 1.35, "mid": 1.0, "three": 0.85}[kind]
-	_zone_w = clampf(float(tuning["zone"]) * 1.5 * open_mult * type_mult, 0.08, 0.42)
+	_zone_w = clampf(float(tuning["zone"]) * 1.5 * open_mult * type_mult, 0.08, 0.42) * window_scale
 	_meter.visible = true
 	# The clip's release point (top of the jump, 1.0 s in) is lined up with
 	# the middle of the meter, so a well-timed release is the real release.
@@ -1033,15 +1050,99 @@ func _tick_shot(delta: float) -> void:
 		if by_user:
 			_user.action("Clap", 1.6)
 		return
-	if _rng.randf() < 0.27 and _clock > 0.0:
-		var grabber: Actor = _mates[_rng.randi() % _mates.size()]
-		_give_ball(grabber)
-		_catch_grace = 0.6
-		_shot_clock = maxf(_shot_clock, 10.0)
-		_show_banner("Offensive board!", "Reset. Shot clock 10.", 0.9)
-		_set_phase(Phase.LIVE, 0.0)
+	if _clock <= 0.0:
+		_end_possession("Buzzer", "")
 		return
-	_end_possession("No good", "Rebound, %s" % str(_opp.get("name", "defense")))
+	_begin_rebound()
+
+
+func _begin_rebound() -> void:
+	_holder = null
+	_end_pick()
+	_reach.clear()
+	_board_jumps.clear()
+	_ball.position = _flight_to
+	var direction := Vector3(_flight_to.x - HOOP.x, 0, absf(_flight_to.z - HOOP.z) + 0.18).normalized()
+	_loose_vel = direction * _rng.randf_range(1.9, 3.1) + Vector3.UP * 1.65
+	_ball_mode = "rebound"
+	_shoot_button.text = "BOARD"
+	_set_phase(Phase.REBOUND, 0.0)
+
+
+func _board_jump(a: Actor) -> void:
+	if not _board_jumps.has(a):
+		_board_jumps[a] = 0.0
+
+
+func _tick_rebound(delta: float) -> void:
+	_clock = maxf(0.0, _clock - delta * CLOCK_FACTOR)
+	_refresh_scoreboard()
+	if _holder == null:
+		_loose_vel.y -= SHOT_GRAVITY * delta
+		_ball.position += _loose_vel * delta
+		if _ball.position.y <= BALL_FLOOR:
+			_ball.position.y = BALL_FLOOR
+			_loose_vel.y = absf(_loose_vel.y) * 0.55
+			_loose_vel.x *= 0.74
+			_loose_vel.z *= 0.74
+	var ball_flat := Vector3(_ball.position.x, 0.0, _ball.position.z)
+	var target := ball_flat + Vector3(_loose_vel.x, 0, _loose_vel.z) * 0.18
+	var pursuers := _chasers(_offense, 2) + _chasers(_defense, 2)
+	for a: Actor in _all:
+		if _holder != null or _board_jumps.has(a):
+			a.move_with(Vector3.ZERO, delta)
+		elif a == _user and not auto_play:
+			_move_user(delta)
+		elif a in pursuers or a == _user:
+			a.step_toward(target, MATE_SPEED, delta)
+			if a.flat().distance_to(target) < 0.85 and _ball.position.y < 2.95 and _ball.position.y > 1.5 and _loose_vel.y < 0:
+				_board_jump(a)
+		else:
+			a.move_with(Vector3.ZERO, delta)
+		if _holder == null:
+			a.turn_toward(ball_flat, delta)
+	_separate()
+	_clamp_all()
+	for a: Actor in _board_jumps.keys():
+		var progress := minf(1.0, (float(_board_jumps[a]) + delta) / BOARD_JUMP_TIME)
+		a.position.y = 0.54 * 4.0 * progress * (1.0 - progress)
+		_board_jumps[a] = progress * BOARD_JUMP_TIME
+		if progress >= 1.0:
+			_board_jumps.erase(a)
+	if _holder == null:
+		var winner: Actor = null
+		var nearest := INF
+		for a: Actor in _all:
+			var shoulder := a.shoulder_position("R").lerp(a.shoulder_position("L"), 0.5)
+			var distance := shoulder.distance_to(_ball.position)
+			var ground_pickup := _ball.position.y < 0.85 and a.flat().distance_to(ball_flat) < 0.52
+			if ground_pickup:
+				distance = a.flat().distance_to(ball_flat)
+			if distance < nearest and (ground_pickup or (_board_jumps.has(a) and distance <= a.arm_length("R") + BALL_FLOOR)):
+				nearest = distance
+				winner = a
+		if winner != null:
+			_holder = winner
+			_gather_from = _ball.position
+			_recovery_t = 0.0
+			_ball_mode = "secured"
+			if winner == _user:
+				_stats["reb"] += 1
+			_audio.play("catch", -8.0)
+	if _holder != null and _board_jumps.is_empty() and _recovery_t >= 0.24:
+		_shoot_button.text = "SHOOT"
+		if _clock <= 0:
+			_end_possession("Buzzer", "")
+		elif _holder.team == 0:
+			_give_ball(_holder)
+			_shot_clock = 10.0
+			_catch_grace = 0.6
+			_last_pass_to = null
+			_set_phase(Phase.LIVE, 0.0)
+			_show_toast("Offensive rebound")
+		else:
+			_end_possession("Defensive rebound", str(_opp.get("name", "Opponents")) + " ball")
+			_ball_mode = "secured"
 
 
 # =============================================================================
@@ -1287,8 +1388,13 @@ func _tick_loose_pickup(delta: float) -> void:
 		_catch_grace = 0.7
 		_show_toast("Recovered!")
 	else:
-		best.action("Clap", 1.8)
 		_turnover("Stolen!", _last_handler_user, true)
+		_holder = best
+		_last_touch_team = best.team
+		_gather_from = _ball.position
+		_recovery_t = 0.0
+		_ball_mode = "secured"
+		best.release_swipe()
 
 
 # =============================================================================
@@ -1360,7 +1466,8 @@ func _assign_spacing() -> void:
 # =============================================================================
 
 func _move_defense(delta: float) -> void:
-	var spd: float = float(_opp.get("speed", 1.0))
+	var coverage_scale: float = {"Easy": 0.85, "Medium": 1.0, "Hard": 1.10, "Ultimate": 1.20}[GameState.court_difficulty]
+	var spd: float = float(_opp.get("speed", 1.0)) * coverage_scale
 	var ball_flat: Vector3 = Vector3(_ball.position.x, 0, _ball.position.z)
 	var holder: Actor = _holder
 	var screener: Actor = _screener()
@@ -1563,6 +1670,13 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 		a.pose_reset()
 		a.has_ball = a == _holder and _ball_mode == "held"
 	var bp: Vector3 = _ball.position
+	if _phase == Phase.REBOUND:
+		for a: Actor in _all:
+			a.pressure_stance = false
+			if a == _holder or (_holder == null and _board_jumps.has(a)):
+				for side: String in ["R", "L"]:
+					a.hand(side, bp + a.right() * (0.10 if side == "R" else -0.10), 1.0)
+		return
 	# Offense
 	if _holder != null and _ball_mode == "held":
 		var h: Actor = _holder
@@ -1597,6 +1711,12 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 		# Enter the low stance at guarding distance. Use a wider exit radius so
 		# small changes in spacing cannot repeatedly raise and lower the hips.
 		var ball_gap := d.flat().distance_to(Vector3(bp.x, 0.0, bp.z))
+		if _ball_mode == "secured" and d == _holder:
+			d.pressure_stance = false
+			d.contest_lift = 0.0
+			d.hand("R", bp + d.right() * 0.10, 1.0)
+			d.hand("L", bp - d.right() * 0.10, 1.0)
+			continue
 		d.pressure_stance = ball_gap < (3.2 if d.pressure_stance else 2.6)
 		d.lock_face(bp if _holder != d.man else (d.man as Actor).position)
 		var near_shooter: bool = (_charging or _phase == Phase.SHOT) and _shooter != null \
@@ -1799,6 +1919,10 @@ func _update_ball(delta: float) -> void:
 				_loose_vel.y = absf(_loose_vel.y) * 0.55
 				_loose_vel.x *= 0.82
 				_loose_vel.z *= 0.82
+		"secured":
+			_recovery_t += delta
+			var pocket := _holder.body_point(0.28, 0.0, _holder.shoulder_position("R").y - _holder.position.y - 0.28)
+			_ball.position = _gather_from.lerp(pocket, smoothstep(0.0, 0.24, _recovery_t))
 		"dead":
 			_ball.position.y = maxf(BALL_FLOOR, _ball.position.y - delta * 6.0)
 
@@ -1828,6 +1952,9 @@ func _build_camera() -> void:
 
 func _desired_focus() -> Vector3:
 	var u: Vector3 = _user.flat()
+	if _phase == Phase.REBOUND:
+		var board := Vector3(_ball.position.x, 0, _ball.position.z)
+		return board.lerp(u, 0.16)
 	var f: Vector3 = u.lerp(HOOP_FLAT, 0.32)
 	f.x *= 0.65
 	return f
