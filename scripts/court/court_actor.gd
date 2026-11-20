@@ -91,6 +91,7 @@ const STATURE: float = 1.81  # the court model's standing height (top of the hea
 const LEG_TORSO: float = 1.58
 const JOINT_HEIGHT: float = 1.61  # ankle-to-head joint, for the dribble scale
 const BOUNCE: float = 0.78  # share of its speed the ball keeps off the floor
+const SWIPE_BLEND_OUT: float = 0.22
 const GAITS: Array[String] = ["Idle", "Walk", "JogM", "Run", "Jog", "DribbleRun", "SlideL", "SlideR", "Backpedal"]
 const ARM_BONES: Dictionary = {"R": ["RightUpperArm", "RightLowerArm", "RightHand"],
 	"L": ["LeftUpperArm", "LeftLowerArm", "LeftHand"]}
@@ -103,6 +104,11 @@ var _anim: AnimationPlayer
 var _tree: AnimationTree
 var _act_node: AnimationNodeAnimation
 var _uact_node: AnimationNodeAnimation
+var _swipe_node: AnimationNodeAnimation
+var _swipe_oneshot: AnimationNodeOneShot
+var _swipe_time: float = 0.0
+var _swipe_elapsed: float = 0.0
+var _swipe_duration: float = 0.0
 var _carry: float = 0.0
 var _drib_t: float = 0.0  # seconds into the dribble clip the arms are at
 var _drib_rate: float = 1.0
@@ -186,7 +192,8 @@ func setup(_model_key: String, colors: Dictionary, hair: int = 0, bulk: float = 
 		sk.add_child(_stride_arms)
 		for side: String in ["R", "L"]:
 			_build_arm_ik(sk, side)  # used only to put dribbling hands where the performer's were
-		sk.add_child(ArmClearance.new())  # after the IK, so it has the last word on the elbows
+		_arm_clearance = ArmClearance.new()  # after the IK, so it has the last word on the elbows
+		sk.add_child(_arm_clearance)
 		_hand_aim = HandAim.new()
 		sk.add_child(_hand_aim)
 		_hand_aim_l = HandAim.new()
@@ -240,6 +247,13 @@ func stop() -> void:
 
 ## Called once per frame by the game after movement and pose goals.
 func animate(delta: float) -> void:
+	_swipe_time = maxf(0.0, _swipe_time - delta)
+	var swipe_chain_active: bool = mocap_swipe_active or _swipe_time > 0.0
+	var swipe_pose_weight: float = 0.0
+	if _swipe_duration > 0.0 and _swipe_elapsed < _swipe_duration + SWIPE_BLEND_OUT:
+		_swipe_elapsed = minf(_swipe_duration + SWIPE_BLEND_OUT, _swipe_elapsed + delta)
+		var fade_out: float = 1.0 - smoothstep(_swipe_duration, _swipe_duration + SWIPE_BLEND_OUT, _swipe_elapsed)
+		swipe_pose_weight = fade_out
 	stagger = maxf(0.0, stagger - delta)
 	beaten = maxf(0.0, beaten - delta)
 	reach_cd = maxf(0.0, reach_cd - delta)
@@ -285,13 +299,18 @@ func animate(delta: float) -> void:
 	_lean_twist = move_toward(_lean_twist, lean_twist_goal, delta * 9.0)
 	if _reach_lean != null:
 		_reach_lean.set("target", lean_at)
-		_reach_lean.set("disabled", mocap_swipe_active)
-		_reach_lean.set("amount", 0.0 if mocap_swipe_active else _lean_amount)
-		_reach_lean.set("twist", 0.0 if mocap_swipe_active else _lean_twist)
+		_reach_lean.set("disabled", swipe_chain_active)
+		_reach_lean.influence = 0.0 if swipe_chain_active else 1.0
+		_reach_lean.set("amount", 0.0 if swipe_chain_active else _lean_amount)
+		_reach_lean.set("twist", 0.0 if swipe_chain_active else _lean_twist)
 	if _elbow_hinge != null:
-		_elbow_hinge.active = not idle_hands or not _palm_goals.is_empty()
+		_elbow_hinge.active = not swipe_chain_active and (not idle_hands or not _palm_goals.is_empty())
+		_elbow_hinge.influence = 0.0 if swipe_chain_active else 1.0
 		_elbow_hinge.set("clap_forward", facing() if _clap_t > 0.0 else Vector3.ZERO)
-		_elbow_hinge.set("palm_goal", _palm_goals.duplicate())
+		_elbow_hinge.set("palm_goal", {} if swipe_chain_active else _palm_goals.duplicate())
+	if _arm_clearance != null:
+		_arm_clearance.active = not swipe_chain_active
+		_arm_clearance.influence = 0.0 if swipe_chain_active else 1.0
 	if _crouch != null:
 		_crouch.set("amount", _crouch_now)
 	var k: float = minf(1.0, 20.0 * delta)
@@ -328,6 +347,12 @@ func animate(delta: float) -> void:
 	for side: String in ["R", "L"]:
 		var arm: Dictionary = _ik.get(side, {})
 		if arm.is_empty():
+			continue
+		if swipe_chain_active:
+			(arm["ik"] as SkeletonModifier3D).influence = 0.0
+			var swipe_aim: SkeletonModifier3D = _hand_aim if side == "R" else _hand_aim_l
+			if swipe_aim != null:
+				swipe_aim.set("weight", 0.0)
 			continue
 		var w: float = w_r if side == "R" else w_l
 		var target: Vector3 = hand_r if side == "R" else hand_l
@@ -395,7 +420,7 @@ func animate(delta: float) -> void:
 	if _torso_posture != null:
 		_torso_posture.influence = move_toward(_torso_posture.influence, 1.0, delta * 6.0)
 	_stride_arms.forward = facing()
-	_stride_arms.influence = move_toward(_stride_arms.influence, float(forward_guard), delta * 8.0)
+	_stride_arms.influence = 0.0 if swipe_chain_active else move_toward(_stride_arms.influence, float(forward_guard), delta * 8.0)
 	var rate: float = 1.0
 	if CourtPlayerModel.CLIP_SPEED.has(_gait):
 		rate = clampf(s / float(CourtPlayerModel.CLIP_SPEED[_gait]), 0.8 if _gait == "DribbleRun" else 0.5, 1.9)
@@ -464,6 +489,7 @@ func predict_ball(ahead: float, floor_y: float) -> Vector3:
 var _dphase_prev: float = 0.0
 var _hand_aim: SkeletonModifier3D
 var _hand_aim_l: SkeletonModifier3D
+var _arm_clearance: SkeletonModifier3D
 var _clap_t: float = 0.0
 const CLAP_TIME: float = 1.2
 static var _dcurves: Dictionary = {}
@@ -820,9 +846,25 @@ func action(anim_name: String, speed: float = 1.0, start: float = 0.0) -> void:
 	if anim_name == "Clap":
 		_clap_t = CLAP_TIME
 	if anim_name in UPPER_ACTIONS:
-		_uact_node.animation = anim_name
-		_tree.set("parameters/uact_speed/scale", speed)
-		_tree.set("parameters/upper/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+		if anim_name in ["SwipeCMU_R", "SwipeCMU_L"]:
+			_swipe_node.animation = _capture_swipe_entry_pose(anim_name)
+			_swipe_oneshot.fadein_time = 0.0
+			_tree.set("parameters/swipe_speed/scale", speed)
+			_tree.set("parameters/swipe/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+			_swipe_duration = _anim.get_animation(anim_name).length / maxf(speed, 0.01)
+			_swipe_elapsed = 0.0
+			_swipe_time = _swipe_duration + SWIPE_BLEND_OUT
+			for side: String in ["R", "L"]:
+				var arm: Dictionary = _ik.get(side, {})
+				if not arm.is_empty():
+					(arm["ik"] as SkeletonModifier3D).influence = 0.0
+				var aim: SkeletonModifier3D = _hand_aim if side == "R" else _hand_aim_l
+				if aim != null:
+					aim.set("weight", 0.0)
+		else:
+			_uact_node.animation = anim_name
+			_tree.set("parameters/uact_speed/scale", speed)
+			_tree.set("parameters/upper/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 		return
 	var length: float = _anim.get_animation(anim_name).length
 	start = clampf(start, 0.0, length - 0.1)
@@ -834,6 +876,38 @@ func action(anim_name: String, speed: float = 1.0, start: float = 0.0) -> void:
 	_tree.set("parameters/act_speed/scale", speed)
 	_tree.set("parameters/shot/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 	_action_time = (length - start) / speed
+
+
+## Give the swipe's first animation keys the rotations currently visible on this
+## actor, then blend into the authored joint chain. The transition is pose-to-
+## pose; no IK target or pole is allowed to steer the swipe itself.
+func _capture_swipe_entry_pose(anim_name: String) -> StringName:
+	const ENTRY_BLEND: float = 0.18
+	if _skeleton == null or _anim == null:
+		return StringName(anim_name)
+	_skeleton.force_update_all_bone_transforms()
+	var clip: Animation = _anim.get_animation(anim_name).duplicate()
+	var entry_end: float = minf(ENTRY_BLEND, clip.length)
+	for track in clip.get_track_count():
+		if clip.track_get_type(track) != Animation.TYPE_ROTATION_3D:
+			continue
+		var bone: String = str(clip.track_get_path(track).get_concatenated_subnames())
+		var index: int = _skeleton.find_bone(bone)
+		if index < 0:
+			continue
+		var start_q: Quaternion = _skeleton.get_bone_pose_rotation(index)
+		var entry_q: Quaternion = clip.rotation_track_interpolate(track, entry_end)
+		for key in range(clip.track_get_key_count(track) - 1, -1, -1):
+			if clip.track_get_key_time(track, key) <= entry_end:
+				clip.track_remove_key(track, key)
+		clip.rotation_track_insert_key(track, 0.0, start_q)
+		clip.rotation_track_insert_key(track, entry_end, entry_q)
+	var runtime_library := AnimationLibrary.new()
+	runtime_library.add_animation("Swipe", clip)
+	if _anim.has_animation_library("SwipeRuntime"):
+		_anim.remove_animation_library("SwipeRuntime")
+	_anim.add_animation_library("SwipeRuntime", runtime_library)
+	return StringName("SwipeRuntime/Swipe")
 
 
 func busy() -> bool:
@@ -957,18 +1031,32 @@ func _build_tree() -> void:
 	root.add_node("d_speed", AnimationNodeTimeScale.new())
 	root.connect_node("d_seek", 0, "d_arms")
 	root.connect_node("d_speed", 0, "d_seek")
-	# Reaches and passes play on the upper body only; the legs keep moving.
+	# Generic reach/pass/clap actions stay on the arms so they cannot bend the
+	# idle back. Swipe has a separate full upper-body lane below.
 	var upper: AnimationNodeOneShot = AnimationNodeOneShot.new()
 	upper.fadein_time = 0.1
 	upper.fadeout_time = 0.2
 	upper.filter_enabled = true
-	for bone: String in ARM_TRACKS + ["Spine", "Chest", "UpperChest", "Neck", "Head"]:
+	for bone: String in ARM_TRACKS:
 		upper.set_filter_path(NodePath("%GeneralSkeleton:" + bone), true)
 	_uact_node = AnimationNodeAnimation.new()
 	_uact_node.animation = "Reach"
 	root.add_node("upper", upper)
 	root.add_node("uact", _uact_node)
 	root.add_node("uact_speed", AnimationNodeTimeScale.new())
+	# Swipe owns the pelvis-to-hand chain as one action. The ordinary one-shot
+	# stays arm-only, so a pass or reach cannot bend the idle back.
+	_swipe_oneshot = AnimationNodeOneShot.new()
+	_swipe_oneshot.fadein_time = 0.0
+	_swipe_oneshot.fadeout_time = SWIPE_BLEND_OUT
+	_swipe_oneshot.filter_enabled = true
+	for bone: String in ARM_TRACKS + ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head"]:
+		_swipe_oneshot.set_filter_path(NodePath("%GeneralSkeleton:" + bone), true)
+	_swipe_node = AnimationNodeAnimation.new()
+	_swipe_node.animation = "SwipeCMU_R"
+	root.add_node("swipe", _swipe_oneshot)
+	root.add_node("swipe_action", _swipe_node)
+	root.add_node("swipe_speed", AnimationNodeTimeScale.new())
 	root.connect_node("speed", 0, "gait")
 	# Anchor the shoulders and arms before defensive IK. Otherwise the swing
 	# from each locomotion clip changes the pose under the same hand target.
@@ -997,8 +1085,11 @@ func _build_tree() -> void:
 	root.connect_node("uact_speed", 0, "uact")
 	root.connect_node("upper", 0, "carry")
 	root.connect_node("upper", 1, "uact_speed")
+	root.connect_node("swipe_speed", 0, "swipe_action")
+	root.connect_node("swipe", 0, "upper")
+	root.connect_node("swipe", 1, "swipe_speed")
 	root.connect_node("act_speed", 0, "act")
-	root.connect_node("shot", 0, "upper")
+	root.connect_node("shot", 0, "swipe")
 	root.connect_node("shot", 1, "act_speed")
 	root.connect_node("output", 0, "shot")
 	_tree = AnimationTree.new()

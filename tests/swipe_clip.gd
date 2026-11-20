@@ -69,7 +69,13 @@ func _physics_process(delta: float) -> void:
 			return
 		d.reach_cd = 0.0
 		d.stagger = 0.0
-		_court._start_reach(d)  # the game's own swipe start (rolls its outcome)
+		var forced_side: String = "R" if "force_right" in OS.get_cmdline_user_args() else ("L" if "force_left" in OS.get_cmdline_user_args() else "")
+		if forced_side != "":
+			_court._reach = {"d": d, "t": 0.0, "side": forced_side, "resolved": false, "roll": 0.0,
+				"b_pred": _court._holder.predict_ball(CourtGame.SWIPE_HIT_T, CourtGame.BALL_FLOOR) if _court._holder != null else _court._ball.position}
+			d.action("SwipeCMU_" + forced_side, 1.0)
+		else:
+			_court._start_reach(d)  # the game's own swipe start (rolls its outcome)
 		_outcome = ""
 	if not _court._reach.is_empty() and bool(_court._reach.get("resolved", false)) and _outcome == "":
 		_outcome = "poked loose" if _court._ball_mode == "loose" else ("foul" if d.reach_cd >= 3.0 else "missed")

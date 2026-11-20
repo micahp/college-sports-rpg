@@ -250,9 +250,14 @@ static func library() -> AnimationLibrary:
 	if students and mocap_retarget:
 		_retarget_mocap(sources)
 	if students and mocap_retarget and _library.has_animation("SwipeCMU"):
-		_adapt_swipe_mocap(_library.get_animation("SwipeCMU"))
+		var source: Animation = _library.get_animation("SwipeCMU")
+		var adapted: Animation = _adapt_swipe_mocap(source)
+		_library.remove_animation("SwipeCMU")
+		_library.add_animation("SwipeCMU", adapted)
 		_library.add_animation("SwipeCMU_R", _library.get_animation("SwipeCMU").duplicate())
-		_library.add_animation("SwipeCMU_L", _mirror_swipe(_library.get_animation("SwipeCMU")))
+		var left_swipe: Animation = _mirror_swipe(_adapt_swipe_mocap(source))
+		_reset_swipe_free_arm_to_idle(left_swipe, "Right")
+		_library.add_animation("SwipeCMU_L", left_swipe)
 	for scene: Node in sources.values():
 		scene.free()
 	_ground_clips()
@@ -446,62 +451,184 @@ static func _retarget_mocap(sources: Dictionary) -> void:
 	student.free()
 
 
-## Keep the reach's shoulder and arm action from CMU 56_04, while reducing
-## that take's strong side bend and wrist curl for the court character.
-static func _adapt_swipe_mocap(anim: Animation) -> void:
+## Adapt the retargeted CMU 56_04 reach as linked joints. The torso and free arm
+## start from the student's actual Idle pose; only the active arm uses the
+## source chain. This prevents a source bend or guard pose from becoming the
+## court's neutral back/off-hand pose. The animation has no hand-space target.
+static func _adapt_swipe_mocap(source: Animation) -> Animation:
+	const DURATION: float = 1.40
+	const SOURCE_START: float = 0.60
+	const RECOVER_START: float = 1.20
+	var result := Animation.new()
+	result.length = DURATION
+	result.loop_mode = Animation.LOOP_NONE
+	var source_tracks: Dictionary = {}
+	for track in source.get_track_count():
+		if source.track_get_type(track) != Animation.TYPE_ROTATION_3D:
+			continue
+		var bone: String = str(source.track_get_path(track).get_concatenated_subnames())
+		if bone in ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head",
+			"RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand",
+			"LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand"]:
+			source_tracks[bone] = track
+	if source.length < 0.1 or source_tracks.is_empty() or not source_tracks.has("Hips"):
+		push_error("SwipeCMU source does not contain a usable full-body reach segment")
+		return result
+	var guard: Animation = _library.get_animation("SlideR")
 	var idle: Animation = _library.get_animation("Idle")
-	var time_scale: float = 1.4 / anim.length
-	for t in range(anim.get_track_count() - 1, -1, -1):
-		var path: String = str(anim.track_get_path(t))
-		var bone: String = str(anim.track_get_path(t).get_concatenated_subnames())
-		# The take's torso folds sideways and its free arm crosses the chest.
-		# Keep the complete reaching-side chain (including the shoulder), while
-		# letting the game's stable locomotion/posture pose own the trunk and the
-		# opposite arm. This prevents two systems from twisting the shirt at once.
-		if bone not in ["RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand"]:
-			anim.remove_track(t)
+	var free_prefix: String = "Left"
+	var result_tracks: Dictionary = {}
+	var student: Node = (load(STUDENT) as PackedScene).instantiate()
+	var sk: Skeleton3D = find_skeleton(student)
+	var guard_arms: Array[String] = ["RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand",
+		"LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand"]
+	var idle_pose: Array = _pose_with_overlay(sk, idle, null, 0.0, [])
+	var guard_pose: Array = _pose_with_overlay(sk, idle, guard, 0.20, guard_arms)
+	var baseline_pose: Array = idle_pose
+	var baseline_locals: Dictionary = {}
+	for bone: String in source_tracks:
+		var bone_index: int = sk.find_bone(bone)
+		if bone_index < 0:
 			continue
-		if anim.track_get_type(t) != Animation.TYPE_ROTATION_3D:
-			continue
-		var idle_track: int = idle.find_track(anim.track_get_path(t), Animation.TYPE_ROTATION_3D)
-		if idle_track < 0 or idle.track_get_key_count(idle_track) == 0:
-			# The imported student Idle has no Spine animation track. Leaving the
-			# source rotation here would apply its full bend instead of a delta.
-			anim.remove_track(t)
-			continue
-		var neutral: Quaternion = idle.rotation_track_interpolate(idle_track, 0.0)
-		var keep: float = 0.4 if bone == "RightShoulder" else (0.55 if bone == "RightUpperArm" else (0.50 if bone == "RightLowerArm" else 0.15))
-		var times: PackedFloat32Array = []
-		var values: Array[Quaternion] = []
-		for k in anim.track_get_key_count(t):
-			times.append(anim.track_get_key_time(t, k) * time_scale)
-			var posed: Quaternion = anim.track_get_key_value(t, k)
-			values.append(neutral.slerp(posed, keep))
-		for k in range(anim.track_get_key_count(t) - 1, -1, -1):
-			anim.track_remove_key(t, k)
-		for k in times.size():
-			anim.rotation_track_insert_key(t, times[k], values[k])
-	anim.length = 1.4
+		var parent_index: int = sk.get_bone_parent(bone_index)
+		# The swiping arm starts from the defensive guard. The opposite arm
+		# starts from Idle: SlideR itself folds that hand across the shirt.
+		var pose: Array = guard_pose if bone.begins_with("Right") else idle_pose
+		var global_q: Quaternion = (pose[bone_index] as Transform3D).basis.get_rotation_quaternion()
+		var parent_q: Quaternion = (pose[parent_index] as Transform3D).basis.get_rotation_quaternion() if parent_index >= 0 else Quaternion.IDENTITY
+		baseline_locals[bone] = (parent_q.inverse() * global_q).normalized()
+	for bone: String in source_tracks:
+		result_tracks[bone] = Retarget._track(result, Animation.TYPE_ROTATION_3D, bone)
+	var frames: int = maxi(2, roundi(DURATION * Retarget.FPS) + 1)
+	for frame in frames:
+		var time: float = minf(DURATION, float(frame) / Retarget.FPS)
+		var source_time: float = lerpf(SOURCE_START, source.length, time / DURATION)
+		var recovery: float = smoothstep(RECOVER_START, DURATION, time)
+		var hips_track: int = int(source_tracks["Hips"])
+		var hips_base: Quaternion = baseline_locals.get("Hips", Quaternion.IDENTITY)
+		var hips_delta: Quaternion = hips_base.inverse() * source.rotation_track_interpolate(hips_track, source_time)
+		# Use the CMU pelvis turn as the timing curve, then distribute a small,
+		# capped axial response up the torso chain. Do not copy its pitch or roll:
+		# those rotations are what were breaking the shirt and the idle back pose.
+		var body_turn: float = clampf(hips_delta.get_euler().y, -1.0, 1.0)
+		for bone: String in source_tracks:
+			var src_track: int = int(source_tracks[bone])
+			var free_arm_bone: bool = bone.begins_with(free_prefix)
+			# The source's off hand folds across the shirt. Keep that arm in its
+			# own idle joint pose; it still follows the turning torso as a connected
+			# limb, but the mocap cannot pull it across the chest or waist.
+			var baseline: Quaternion = baseline_locals.get(bone, source.rotation_track_interpolate(src_track, 0.0))
+			if bone in ["Hips", "Spine", "Chest", "UpperChest"]:
+				# Keep the spine straight by construction: only local vertical-axis
+				# turns enter this chain, with less motion at the pelvis and gradual
+				# contribution through the chest and shoulder base.
+				var body_gain: float = 0.08 if bone == "Hips" else (0.12 if bone == "Spine" else (0.16 if bone == "Chest" else 0.22))
+				var q: Quaternion = (baseline * Quaternion(Vector3.UP, body_turn * body_gain)).slerp(baseline, recovery)
+				result.rotation_track_insert_key(int(result_tracks[bone]), time, q)
+				continue
+			if free_arm_bone:
+				var q: Quaternion = baseline
+				result.rotation_track_insert_key(int(result_tracks[bone]), time, q)
+				continue
+			elif bone == "Neck" or bone == "Head":
+				result.rotation_track_insert_key(int(result_tracks[bone]), time, baseline)
+				continue
+			var source_q: Quaternion = source.rotation_track_interpolate(src_track, source_time)
+			# Preserve the CMU joint chain as captured. Blending shoulder motion
+			# down while retaining more elbow/wrist motion was the mechanical,
+			# whip-like failure: all active arm joints now share one source curve.
+			var q: Quaternion = source_q.slerp(baseline, recovery)
+			result.rotation_track_insert_key(int(result_tracks[bone]), time, q)
+	# Keep the head facing its guard direction as the source torso rotates. The
+	# source neck/head keys are not trusted to counter-rotate this target rig.
+	var overlay_bones: Array[String] = []
+	for bone: String in source_tracks:
+		overlay_bones.append(bone)
+	for frame in frames:
+		var time: float = minf(DURATION, float(frame) / Retarget.FPS)
+		for bone: String in ["Neck", "Head"]:
+			var index: int = sk.find_bone(bone)
+			var parent: int = sk.get_bone_parent(index)
+			var pose: Array = _pose_with_overlay(sk, idle, result, time, overlay_bones)
+			var parent_q: Quaternion = (pose[parent] as Transform3D).basis.get_rotation_quaternion() if parent >= 0 else Quaternion.IDENTITY
+			var global_q: Quaternion = (baseline_pose[index] as Transform3D).basis.get_rotation_quaternion()
+			result.track_set_key_value(int(result_tracks[bone]), frame, (parent_q.inverse() * global_q).normalized())
+	student.free()
+	return result
 
 
-## CMU 56_04 reaches with its right arm. Reflect the clip across the body's
-## centerline and swap arm tracks so the game can use the same beat on either
-## side of the dribbler.
+## Mirror the retargeted source reach across the character's sagittal plane.
 static func _mirror_swipe(source: Animation) -> Animation:
 	var anim: Animation = source.duplicate()
-	for t in anim.get_track_count():
-		var path: String = str(anim.track_get_path(t))
+	for track in anim.get_track_count():
+		var path: String = str(anim.track_get_path(track))
 		if path.contains("Left"):
 			path = path.replace("Left", "__SWIPE_SIDE__").replace("Right", "Left").replace("__SWIPE_SIDE__", "Right")
 		elif path.contains("Right"):
 			path = path.replace("Right", "Left")
-		anim.track_set_path(t, NodePath(path))
-		if anim.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+		anim.track_set_path(track, NodePath(path))
+		if anim.track_get_type(track) != Animation.TYPE_ROTATION_3D:
 			continue
-		for k in anim.track_get_key_count(t):
-			var q: Quaternion = anim.track_get_key_value(t, k)
-			anim.track_set_key_value(t, k, Quaternion(q.x, -q.y, -q.z, q.w))
+		for key in anim.track_get_key_count(track):
+			var q: Quaternion = anim.track_get_key_value(track, key)
+			anim.track_set_key_value(track, key, Quaternion(q.x, -q.y, -q.z, q.w))
 	return anim
+
+
+## Mirroring the active-side mocap also mirrors its neutral off arm. Re-anchor
+## that arm on the target student's actual idle pose, which need not be a
+## mathematically perfect mirror of the other side.
+static func _reset_swipe_free_arm_to_idle(anim: Animation, side: String) -> void:
+	var student: Node = (load(STUDENT) as PackedScene).instantiate()
+	var sk: Skeleton3D = find_skeleton(student)
+	var idle: Animation = _library.get_animation("Idle")
+	var pose: Array = _pose_with_overlay(sk, idle, null, 0.0, [])
+	var tracks: Dictionary = Retarget._tracks_by_bone(anim)
+	for suffix: String in ["Shoulder", "UpperArm", "LowerArm", "Hand"]:
+		var bone: String = side + suffix
+		var index: int = sk.find_bone(bone)
+		if index < 0 or not tracks.has(bone) or not tracks[bone].has(Animation.TYPE_ROTATION_3D):
+			continue
+		var parent: int = sk.get_bone_parent(index)
+		var global_q: Quaternion = (pose[index] as Transform3D).basis.get_rotation_quaternion()
+		var parent_q: Quaternion = (pose[parent] as Transform3D).basis.get_rotation_quaternion() if parent >= 0 else Quaternion.IDENTITY
+		var local_q: Quaternion = (parent_q.inverse() * global_q).normalized()
+		var track: int = int((tracks[bone] as Dictionary)[Animation.TYPE_ROTATION_3D])
+		for key in anim.track_get_key_count(track):
+			anim.track_set_key_value(track, key, local_q)
+	student.free()
+
+## Evaluate a base animation and overlay selected local rotation tracks on the
+## same student skeleton. This preserves the actual parent frame when checking
+## the retargeted chain and when constructing its mirrored version.
+static func _pose_with_overlay(sk: Skeleton3D, base: Animation, overlay: Animation,
+		time: float, overlay_bones: Array) -> Array:
+	var base_tracks: Dictionary = Retarget._tracks_by_bone(base)
+	var overlay_tracks: Dictionary = Retarget._tracks_by_bone(overlay) if overlay != null else {}
+	var out: Array = []
+	for i in sk.get_bone_count():
+		var name: String = str(sk.get_bone_name(i))
+		var rest: Transform3D = sk.get_bone_rest(i)
+		var pos: Vector3 = rest.origin
+		var rot: Quaternion = rest.basis.get_rotation_quaternion()
+		var scl: Vector3 = rest.basis.get_scale()
+		var base_bone: Dictionary = base_tracks.get(name, {})
+		if base_bone.has(Animation.TYPE_POSITION_3D):
+			pos = base.position_track_interpolate(base_bone[Animation.TYPE_POSITION_3D], time)
+		if base_bone.has(Animation.TYPE_ROTATION_3D):
+			rot = base.rotation_track_interpolate(base_bone[Animation.TYPE_ROTATION_3D], time)
+		if base_bone.has(Animation.TYPE_SCALE_3D):
+			scl = base.scale_track_interpolate(base_bone[Animation.TYPE_SCALE_3D], time)
+		if name in overlay_bones and overlay_tracks.has(name):
+			var overlay_bone: Dictionary = overlay_tracks[name]
+			if overlay_bone.has(Animation.TYPE_POSITION_3D):
+				pos = overlay.position_track_interpolate(overlay_bone[Animation.TYPE_POSITION_3D], time)
+			if overlay_bone.has(Animation.TYPE_ROTATION_3D):
+				rot = overlay.rotation_track_interpolate(overlay_bone[Animation.TYPE_ROTATION_3D], time)
+		var local := Transform3D(Basis(rot).scaled(scl), pos)
+		var parent: int = sk.get_bone_parent(i)
+		out.append((out[parent] as Transform3D) * local if parent >= 0 else local)
+	return out
 
 
 static func _get_skin_shader() -> Shader:

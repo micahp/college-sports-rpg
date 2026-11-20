@@ -1180,7 +1180,7 @@ func _start_reach(d: Actor) -> void:
 	var side: String = "R" if (_ball.position - d.position).dot(d.right()) > 0.0 else "L"
 	_reach = {"d": d, "t": 0.0, "side": side, "resolved": false, "roll": _rng.randf(),
 		"b_pred": _holder.predict_ball(SWIPE_HIT_T, BALL_FLOOR) if _holder != null else _ball.position}
-	d.action("SwipeCMU_R" if side == "R" else "SwipeCMU_L", 1.5)
+	d.action("SwipeCMU_R" if side == "R" else "SwipeCMU_L", 1.0)
 
 
 ## Can `d`'s palm get to the ball, and the chance a swipe that does knocks it
@@ -1619,12 +1619,9 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 		# Ordinary coverage keeps the arms from the current movement clip.
 
 
-## The CMU full-arm reach supplies the swipe. IK applies only a small correction
-## near contact; it does not invent the shoulder, elbow, or wrist trajectory.
-const SWIPE_UP: float = 0.35       # slight upward bias for the contact correction
+## The baked full-body clip owns the entire swipe chain. Game timing and contact
+## resolution stay independent from the visual hand trajectory.
 const SWIPE_HIT_T: float = 0.26     # palm meets the ball (the swipe resolves here)
-## How far short of the ball a swipe that won't knock it loose stops.
-const SWIPE_SHORT_M: float = 0.12
 ## The jab step: for the first part of the swipe he steps until his body is
 ## this far from the ball (across the floor), then the normal guard resumes.
 const SWIPE_STEP_T: float = 0.30
@@ -1633,28 +1630,13 @@ const SWIPE_STEP_TO_M: float = 0.55
 
 func _pose_swipe(d: Actor, _bp: Vector3) -> void:
 	d.mocap_swipe_active = true
-	var t: float = float(_reach["t"])
-	var side: String = str(_reach["side"])
-	var sgn: float = 1.0 if side == "R" else -1.0
-	# CMU 56_04 supplies the shoulder, elbow and wrist motion. IK only makes a
-	# small correction near contact, so the arm does not get dragged through the
-	# whole swipe by a moving hand target.
-	var b: Vector3 = _reach["b_pred"]
-	if _reach.has("ball_at"):
-		b = _reach["ball_at"]
-	elif _holder != null and _ball_mode == "held":
-		b = _holder.predict_ball(maxf(SWIPE_HIT_T - t, 0.0), BALL_FLOOR)
-		_reach["b_pred"] = b
-	var v: Vector3 = (-d.right() * sgn + Vector3.UP * SWIPE_UP).normalized()
-	var connects: bool = _swipe_connects(d)
-	var reach_to: float = BALL_FLOOR + 0.02 + (0.0 if connects else SWIPE_SHORT_M)
-	var target: Vector3 = b - v * reach_to - d.facing() * 0.08
-	var correction: float = 0.08 * smoothstep(0.16, SWIPE_HIT_T, t) * (1.0 - smoothstep(SWIPE_HIT_T + 0.03, SWIPE_HIT_T + 0.12, t))
-	d.hand(side, target, correction)
-	d.palm_on(side, target, b, correction)
-	var other: String = "L" if side == "R" else "R"
-	d.hand(other, Vector3.ZERO, 0.0)
-	d.palm_on(other, Vector3.ZERO, Vector3.ZERO, 0.0)
+	# The selected right/left clip already includes torso, both shoulders, both
+	# elbows, wrists, and recovery. No wrist target, pole solve, or palm modifier
+	# may rewrite that chain during the action.
+	d.hand("R", Vector3.ZERO, 0.0)
+	d.hand("L", Vector3.ZERO, 0.0)
+	d.palm_on("R", Vector3.ZERO, Vector3.ZERO, 0.0)
+	d.palm_on("L", Vector3.ZERO, Vector3.ZERO, 0.0)
 	d.lean_at = Vector3.ZERO
 	d.lean_amount_goal = 0.0
 	d.lean_twist_goal = 0.0
