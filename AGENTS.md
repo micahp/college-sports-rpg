@@ -104,8 +104,12 @@ incorrect stage is the suspect, not automatically the base rig):
    and out (`tests/shot_views.tscn`, `tests/contest_views.tscn`). Pause the
    game for each screenshot, not the runner. Run renders and comparisons with
    `--fixed-fps 60`: without it each frame takes real elapsed time and two
-   runs (or two builds) drift apart. If you cannot render, say visual
-   acceptance is unverified.
+   runs (or two builds) drift apart. For video, record with Movie Maker
+   (`--fixed-fps 60 --write-movie build/x.png`, `tests/shot_views.tscn -- movie`)
+   instead of pausing per frame: pausing every frame stops the AnimationTree's
+   one-shot clips from playing, and pausing right after a physics step skips
+   that frame's animation. Send the user the video as you go. If you cannot
+   render, say visual acceptance is unverified.
 7. **Every action gets a spec, checked by a test.** Clip-owned joints are
    judged against the clip (`clip_fidelity`, `jumpshot_fidelity` for source to
    drawn); procedurally owned joints against their own motion spec taken from

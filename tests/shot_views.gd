@@ -6,7 +6,12 @@ extends Node
 ## cameras placed once at the start and never moved (a side view and a front
 ## three-quarter view of the shooter), so the jump's height and the trunk's
 ## lean read against the floor and the background.
-##   godot --path . res://tests/shot_views.tscn -- tag=before
+##   godot --fixed-fps 60 --path . res://tests/shot_views.tscn -- tag=before [all] [views=side,front,game]
+## all: every frame 0-96 instead of every sixth (stills).
+## movie: no pausing; the side camera stays current and the shot just plays.
+## For video, record with Movie Maker, which captures every frame at a fixed rate:
+##   godot --fixed-fps 60 --write-movie build/shot.png --path . res://tests/shot_views.tscn -- movie
+## (pausing every frame for stills stops the AnimationTree's one-shot from playing).
 ## Frames go to build/shot_views/<tag>/<view>_f<NN>.png.
 const CourtScene: PackedScene = preload("res://scenes/court/court_game.tscn")
 const CourtGame = preload("res://scripts/court/court_game.gd")
@@ -19,6 +24,15 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("tag="):
 			tag = a.substr(4)
+	var frames: Array[int] = FRAMES
+	var views: PackedStringArray = PackedStringArray(["game", "side", "front"])
+	for a in OS.get_cmdline_user_args():
+		if a == "all":
+			frames = []
+			for f in FRAMES.back() + 1:
+				frames.append(f)
+		elif a.begins_with("views="):
+			views = a.substr(6).split(",")
 	var out: String = "res://build/shot_views/%s/" % tag
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
 	GameState.reset()
@@ -59,18 +73,34 @@ func _ready() -> void:
 	add_child(front)
 	front.global_position = chest + (user.facing() * 0.8 + user.right() * 0.6).normalized() * 4.2 + Vector3.UP * 0.3
 	front.look_at(chest + Vector3.UP * 0.25, Vector3.UP)
+	if OS.get_cmdline_user_args().has("movie"):
+		side.make_current()
+		court._begin_shot()
+		for frame in range(1, FRAMES.back() + 1):
+			await get_tree().physics_frame
+			if frame == RELEASE_AT:
+				court._release_shot()
+		get_tree().quit(0)
+		return
 	court._begin_shot()
 	for frame in range(0, FRAMES.back() + 1):
 		if frame > 0:
 			await get_tree().physics_frame
 		if frame == RELEASE_AT:
 			court._release_shot()
-		if not FRAMES.has(frame):
+		if not frames.has(frame):
 			continue
+		# Let this frame's process step (the AnimationTree and the modifiers) run
+		# before pausing: pausing right after the physics step froze the
+		# animation while the game logic kept going.
+		await get_tree().process_frame
 		get_tree().paused = true
 		var game_cam: Camera3D = get_viewport().get_camera_3d()
-		await _shoot(out + "game_f%02d.png" % frame)
+		if views.has("game"):
+			await _shoot(out + "game_f%02d.png" % frame)
 		for view: Array in [["side", side], ["front", front]]:
+			if not views.has(view[0]):
+				continue
 			(view[1] as Camera3D).make_current()
 			await _shoot(out + "%s_f%02d.png" % [view[0], frame])
 		if game_cam != null:
