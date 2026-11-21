@@ -962,6 +962,19 @@ func _shot_type(p: Vector3) -> String:
 ## JumpShot dips at 0.60 s, leaves the floor at ~0.70 s, peaks at 1.00 s and
 ## lands at ~1.35 s. Arms stay with the contest IK (docs/animation/OWNERSHIP.md).
 const DEFENDER_JUMP_START: float = 0.55
+## The contest arm raise (a defined motion, not a sliding IK target): a
+## reaction after the shot starts, then each hand swings up around its shoulder
+## over CONTEST_RAISE, the arm on the shooter's side first and the other
+## CONTEST_TRAIL later, the elbow bent mid-swing (CONTEST_ELBOW_DIP of the
+## reach) and straight at the top; the hands lean CONTEST_TRACK toward the ball
+## once it is up; both come down over CONTEST_LOWER when the defender lands.
+const CONTEST_REACT: float = 0.12
+const CONTEST_RAISE: float = 0.40
+const CONTEST_TRAIL: float = 0.08
+const CONTEST_ELBOW_DIP: float = 0.15
+const CONTEST_TRACK: float = 0.2
+const CONTEST_LOWER: float = 0.35
+var _contest: Dictionary = {}  # Actor -> {t, down, start: {side: hand rel. shoulder}, jumped}
 ## Height of the ball at a jump shot's release (the contest palms face it).
 const CONTEST_PALM_AT_Y: float = 2.4
 const DEFENDER_JUMP_SPEED: float = 1.2
@@ -969,6 +982,8 @@ const DEFENDER_JUMP_SPEED: float = 1.2
 
 func _defender_jump(d: Actor, start: float = DEFENDER_JUMP_START) -> void:
 	d.action("JumpShot", DEFENDER_JUMP_SPEED, start)
+	if _contest.has(d):
+		_contest[d]["jumped"] = true
 
 
 func _take_shot(shooter: Actor, made: bool, kind: String, layup: bool = false, delay: float = 0.0) -> void:
@@ -1756,6 +1771,7 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 			d.rebound_fold = 1.0
 			d.pressure_stance = false
 			d.contest_lift = 0.0
+			_contest.erase(d)
 			d.hand("R", bp + d.right() * 0.10, 1.0)
 			d.hand("L", bp - d.right() * 0.10, 1.0)
 			for side: String in ["R", "L"]:
@@ -1767,10 +1783,37 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 			and d.flat().distance_to((_user if _charging else _shooter).flat()) < 2.2
 		if (_charging or _layup) and d.flat().distance_to(_user.flat()) < 2.2:
 			near_shooter = true
-		d.contest_lift = move_toward(d.contest_lift, 1.0 if near_shooter else 0.0, delta * 3.8)
-		if d.contest_lift > 0.0 and d != reach_d:
+		var cs: Dictionary = _contest.get(d, {})
+		if near_shooter and cs.is_empty() and d != reach_d:
+			# The arms start from wherever they are drawn now (no drop to a
+			# hanging pose first), kept relative to the shoulder in the body's frame.
+			var start: Dictionary = {}
+			var elbow_from: Dictionary = {}
+			for side: String in ["L", "R"]:
+				start[side] = d.global_transform.basis.inverse() * (d.hand_position(side) - d.shoulder_position(side))
+				elbow_from[side] = d.global_transform.basis.inverse() * (d.elbow_position(side) - d.shoulder_position(side))
+			# The lead arm is chosen once: with the shooter nearly straight ahead
+			# the "shooter's side" flips frame to frame, and each flip swapped
+			# which arm lagged and jumped both (20 m/s).
+			var to_sh: Vector3 = ((_user if _charging else _shooter).flat() - d.flat()) if (_user if _charging else _shooter) != null else d.facing()
+			cs = {"t": 0.0, "down": 0.0, "start": start, "elbow_from": elbow_from, "lead": "R" if d.right().dot(to_sh) >= 0.0 else "L"}
+			_contest[d] = cs
+		if not cs.is_empty():
+			cs["t"] = float(cs["t"]) + delta
+			# Arms come down when the contest is over or the defender has jumped
+			# and landed (his jump clip has finished) while the ball is in the air.
+			# The jump clip lands ~0.15 s before it ends (JumpShot lands at 1.35 s
+			# of 1.53 s, played at DEFENDER_JUMP_SPEED): lower from touchdown.
+			var lands_left: float = (1.53 - 1.35) / DEFENDER_JUMP_SPEED
+			var landed: bool = bool(cs.get("jumped", false)) and float(d.get("_action_time")) <= lands_left
+			if not near_shooter or landed:
+				cs["down"] = float(cs["down"]) + delta
+			if float(cs["down"]) >= CONTEST_LOWER:
+				_contest.erase(d)
+				cs = {}
+		d.contest_lift = 0.0 if cs.is_empty() else 1.0
+		if not cs.is_empty() and d != reach_d:
 			d.elbow_up = true
-			var lift := smoothstep(0.0, 1.0, d.contest_lift)
 			var shooter: Actor = _user if _charging else _shooter
 			var toward_shooter := d.facing()
 			if shooter != null:
@@ -1780,34 +1823,51 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 				var to_shooter := shooter.flat() - d.flat()
 				if to_shooter.length_squared() > 0.01:
 					toward_shooter = to_shooter.normalized()
-			var high_side := 1.0 if d.right().dot(toward_shooter) >= 0.0 else -1.0
+			var down: float = 1.0 - smoothstep(0.0, 1.0, float(cs["down"]) / CONTEST_LOWER)
 			for side: String in ["L", "R"]:
 				var side_sign := 1.0 if side == "R" else -1.0
 				var reach := d.arm_length(side)
-				var high_hand := side_sign == high_side
-				# Arms straight up over the shoulders, tipped slightly toward the
-				# shooter (Arizona #35, Springfield #11). 0.82 rise / 0.32 forward
-				# left the hands 36-40 cm over the shoulder with the elbows bent 71-86 deg.
+				var high_hand: bool = side == str(cs["lead"])
+				var s: Vector3 = d.shoulder_position(side)
+				# The top of the contest: arms straight up over the shoulders,
+				# tipped slightly toward the shooter (Arizona #35, Springfield #11).
 				# Past arm_length on purpose: the hand clamp lets a contest arm reach
-				# 112% of the bone chain (court_actor._clamp_hand_target); the IK
-				# straightens the arm toward it and stops at full length.
-				var forward_reach := reach * (0.16 if high_hand else 0.12)
-				var rise := reach * 1.19
-				var lateral := reach * 0.06 * side_sign
-				var wrist_goal := d.shoulder_position(side) + toward_shooter * forward_reach 					+ Vector3.UP * rise + d.right() * lateral
-				# Raise the target, not the IK weight: start where the stance hand hangs
-				# (shoulder + 0.85 reach down, 0.27 out) and lift it to the goal. Blending
-				# the solver weight instead drew half-solved arms (elbows flat, wrists
-				# bent back) while the hands came up.
-				var hang := d.shoulder_position(side) + Vector3.DOWN * reach * 0.85 					+ d.right() * reach * 0.27 * side_sign + toward_shooter * reach * 0.05
-				d.hand(side, hang.lerp(wrist_goal, lift), clampf(d.contest_lift * 6.0, 0.0, 1.0))
+				# 112% of the bone chain (court_actor._clamp_hand_target).
+				var wrist_goal := s + toward_shooter * reach * (0.16 if high_hand else 0.12) 					+ Vector3.UP * reach * 1.19 + d.right() * reach * 0.06 * side_sign
+				# Once the ball is up, the hands lean a little toward it.
+				if _ball_mode == "shot" and _ball.position.y > s.y:
+					# Eased in from the launch: switching it on in one frame snapped the hands.
+					var lean: float = CONTEST_TRACK * smoothstep(0.0, 0.2, _flight_t * _flight_dur)
+					var top: Vector3 = (wrist_goal - s).normalized().slerp((_ball.position - s).normalized(), lean)
+					wrist_goal = s + top * (wrist_goal - s).length()
+				# The raise: the arm on the shooter's side leads, the other trails;
+				# both start after a reaction delay.
+				var lag: float = 0.0 if high_hand else CONTEST_TRAIL
+				var p: float = smoothstep(0.0, 1.0, (float(cs["t"]) - CONTEST_REACT - lag) / CONTEST_RAISE) * down
+				# The hand swings up around the shoulder (an arc, not a straight
+				# line through the face) with the elbow bent mid-swing.
+				var from: Vector3 = s + d.global_transform.basis * (cs["start"][side] as Vector3)
+				var dir: Vector3 = (from - s).normalized().slerp((wrist_goal - s).normalized(), p)
+				# The distance runs up to full arm length (the bone chain is
+				# arm_length / 0.94), not to the top goal's overshoot: aiming past
+				# full length mid-raise locked the arm straight early with a jolt.
+				# The overshoot (which keeps the arm straight while the jump lifts
+				# the shoulder) applies once the raise is complete.
+				var full: float = minf(wrist_goal.distance_to(s), reach / 0.94 * 0.99)
+				var dist: float = lerpf(from.distance_to(s), full, p) - reach * CONTEST_ELBOW_DIP * sin(PI * p)
+				if p >= 0.999:
+					dist = wrist_goal.distance_to(s)
+				# Full weight from the first frame: the target starts on the drawn
+				# hand, and easing the IK in let the hands fall with the stance arms
+				# the contest switches off (a 10-19 cm drop before the raise).
+				d.hand(side, s + dir * dist, smoothstep(0.0, 0.3, down))
+				d.contest_pole[side] = [cs["elbow_from"][side], p]
 				# A contest has no contact point. Turn the palms toward the ball at
-				# the shooter's release point (CONTEST_PALM_AT_Y over his feet)
-				# without a second palm-position solve moving the arm.
+				# the shooter's release point as the arm comes up.
 				var palm_at: Vector3 = wrist_goal + toward_shooter
 				if shooter != null:
 					palm_at = shooter.flat() + Vector3.UP * CONTEST_PALM_AT_Y
-				d.palm_to(side, palm_at, lift)
+				d.palm_to(side, palm_at, p)
 			continue
 		if d == reach_d:
 			_pose_swipe(d, bp)

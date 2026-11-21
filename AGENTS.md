@@ -149,7 +149,7 @@ and forearm, arm_clearance on the landing). A change must not add a failure.
 - Shot contest: no recorded contest clip. Closest CMU candidates 13_10, 13_12,
   14_07-09, 14_20 (not reviewed). References gathered: Springfield College #11
   (Digital Commonwealth, CC BY-SA) and user-supplied NCAA photos (Arizona #35,
-  Central Oklahoma #20, two others). The contest arms are procedural, owned by
-  the arm IK, and checked by contest_pose_check.
+  Central Oklahoma #20, two others). The contest arms are a procedural arm
+  raise (a timed swing, not a sliding IK target), checked by contest_pose_check.
 - Catch, pass, screen and stance arms still have several layers moving the
   same elbow (OWNERSHIP.md, last table).

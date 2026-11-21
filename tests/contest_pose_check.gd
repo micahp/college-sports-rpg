@@ -3,7 +3,9 @@ extends Node
 ## Springfield College #11): both arms straight up over the shoulders.
 ## Reads the drawn pose (pose_tap) every frame of a contested jump shot, from the
 ## moment the arms are up (frame 16) through the defender's landing (frame 80).
-##   godot --headless --path . res://tests/contest_pose_check.tscn
+##   godot --headless --fixed-fps 60 --path . res://tests/contest_pose_check.tscn
+## Also checks the raise as a motion: no drop before it starts, the arm on the
+## shooter's side leads, no snapping up, and the arms come down after landing.
 ## Limits, per arm, per frame:
 ##   elbow bend under 20 deg (straight arm)
 ##   elbow at least 0.18 m above the shoulder, at most 0.06 m out to the side
@@ -13,8 +15,16 @@ extends Node
 ## Pass `verbose` to print every frame.
 const CourtScene: PackedScene = preload("res://scenes/court/court_game.tscn")
 const CourtGame = preload("res://scripts/court/court_game.gd")
-const FROM: int = 16
-const TO: int = 80
+## The top of the contest: from when both arms have finished rising (the raise
+## starts after CONTEST_REACT and the trailing arm finishes CONTEST_TRAIL after
+## the lead) until the defender lands.
+const FROM: int = 40
+const TO: int = 66
+## The raise itself (court_game contest: an arm swing, not a sliding target).
+const RAISE_FRAMES: int = 40
+const MAX_DROP: float = 0.05      # m a hand may sink below its start while the raise begins
+const MAX_RAISE_SPEED: float = 6.0  # m/s, no snapping up
+const LOWERED_BY: int = 96        # frames: arms back down after the landing (~F70)
 const MAX_FLEX: float = 20.0
 const MIN_ELBOW_UP: float = 0.18
 const MAX_ELBOW_OUT: float = 0.06
@@ -61,13 +71,51 @@ func _ready() -> void:
 	var worst_palm := 0.0
 	var fails: Array[String] = []
 	var worst_flex := 0.0
-	for frame in range(1, TO + 1):
+	var start_y: Dictionary = {}
+	var prev: Dictionary = {}
+	var top_y: Dictionary = {}
+	var at90: Dictionary = {}
+	var fastest := 0.0
+	var fastest_at := ""
+	var high_side: String = ""
+	for frame in range(1, LOWERED_BY + 1):
 		await get_tree().physics_frame
 		if frame == 30:
 			court._release_shot()
-		if frame < FROM:
-			continue
 		await get_tree().process_frame
+		for side: String in ["R", "L"]:
+			if not at90.has(side) and start_y.has(side):
+				var hy: float = (tap.call("world", side, "hand") as Vector3).y
+				var sy: float = (tap.call("world", side, "shoulder") as Vector3).y
+				if hy > sy + 0.9 * 0.50:
+					at90[side] = frame
+		if frame <= RAISE_FRAMES or frame == LOWERED_BY:
+			if high_side == "":
+				high_side = str(court._contest.get(d, {}).get("lead", ""))
+			for side: String in ["R", "L"]:
+				var hnd: Vector3 = tap.call("world", side, "hand")
+				var sh: Vector3 = tap.call("world", side, "shoulder")
+				# Relative to the shoulder: the body sinks into its crouch over the
+				# same frames, and that is not the arms dropping.
+				if frame == 1:
+					start_y[side] = hnd.y - sh.y
+				if frame <= 8 and hnd.y - sh.y < float(start_y[side]) - MAX_DROP:
+					fails.append("F%02d %s: hand dropped %.2f m (relative to the shoulder) before rising" % [frame, side, float(start_y[side]) - (hnd.y - sh.y)])
+				if prev.has(side) and frame <= RAISE_FRAMES:
+					var sp: float = hnd.distance_to(prev[side]) * 60.0
+					if OS.get_cmdline_user_args().has("speeds"):
+						print("SPD F%02d %s %.1f m/s  hand-shoulder (%.2f, %.2f, %.2f)" % [frame, side, sp, (hnd - sh).dot(d.right()), (hnd - sh).dot(d.facing()), hnd.y - sh.y])
+					if sp > fastest:
+						fastest = sp
+						fastest_at = "F%02d %s" % [frame, side]
+				prev[side] = hnd
+				if frame == LOWERED_BY and hnd.y > (tap.call("world", side, "shoulder") as Vector3).y + 0.10:
+					fails.append("F%02d %s: arm still up after the landing (hand %.2f m over the shoulder)" % [frame, side, hnd.y - sh.y])
+		if frame == RAISE_FRAMES:
+			for side: String in ["R", "L"]:
+				top_y[side] = (tap.call("world", side, "hand") as Vector3).y
+		if frame > TO or frame < FROM:
+			continue
 		for side: String in ["R", "L"]:
 			var sg: float = 1.0 if side == "R" else -1.0
 			var s: Vector3 = tap.call("world", side, "shoulder")
@@ -99,6 +147,12 @@ func _ready() -> void:
 				problems.append("hand %.2f m in front" % (h - s).dot(d.facing()))
 			if not problems.is_empty():
 				fails.append("F%02d %s: %s" % [frame, side, ", ".join(problems)])
+	var low_side: String = "L" if high_side == "R" else "R"
+	print("RAISE: lead (%s) at 90%% of its rise F%s, trail (%s) F%s; fastest hand %.1f m/s (%s)" % [high_side, at90.get(high_side, "-"), low_side, at90.get(low_side, "-"), fastest, fastest_at])
+	if not at90.has(high_side) or not at90.has(low_side) or int(at90[high_side]) >= int(at90[low_side]):
+		fails.append("raise: the arm on the shooter's side does not lead")
+	if fastest > MAX_RAISE_SPEED:
+		fails.append("raise: a hand snapped up at %.1f m/s" % fastest)
 	for f in fails:
 		print("  FAIL ", f)
 	print("CONTEST POSE: %d failing arm-frames over frames %d-%d, worst elbow bend %.0f deg, worst palm %.0f deg off -> %s" % [fails.size(), FROM, TO, worst_flex, worst_palm, "ok" if fails.is_empty() else "FAILED"])
