@@ -1,6 +1,6 @@
 ---
 name: the-u-mocap-catalog
-description: Motion-capture coverage for The U (Godot basketball game). Use before adding, changing, or diagnosing any basketball animation, before searching CMU for a clip, or when asked whether a game action already has usable mocap. Points to the catalog and coverage registry the repo should keep, and lists the audit questions to answer from the code and assets.
+description: Inventory basketball animation coverage and mocap in The U, then research missing movements through coaching fundamentals, complete real-game video, and photos before choosing clips, authored keyframes, procedural movement or IK. Use before adding, changing, or diagnosing any basketball action; see court-rig-realism for full-body motion analysis.
 ---
 
 # The U: motion-capture catalog and coverage
@@ -53,23 +53,24 @@ CMU hand and toe joints are noisy, and finger/thumb motion was not captured. Do 
 treat hand-to-ball contact from CMU as accurate. Full-body motion and hand
 interaction are separate problems. The registry must distinguish them.
 
-## When no CMU clip exists: reference images
+## When a usable CMU clip does not exist: research the *whole action*
 
-A local copy of the CMU index was at `%TEMP%\court_cmu_index.txt` (2,888 lines,
-2026-11-20). Search it first. If no recording shows the action:
+The absence of mocap does not mean the next step is copying a photo or inventing a procedural hand target. Use `court-rig-realism`, section "Research the sport before authoring the movement", for the required basketball source hierarchy and full-body phase brief. Use `watch-video` to read consecutive frames and to isolate complete actions, including their transitions.
 
-1. Find several photos or video stills of the real action (NCAA or NBA game
-   photos; Wikimedia Commons and university archives for reusable licenses;
-   the user can supply their own). Record each source URL and license.
-2. Describe each reference joint by joint: shoulder, elbow, wrist, hip, knee,
-   ankle (angle estimate and position relative to the body), and where the
-   hands are relative to the ball and head. Name what the photo can't show.
-3. Use those descriptions as the target poses for an authored clip (keyframes)
-   or as bounded IK targets, and as the acceptance reference: put the render
-   and the references side by side (Pillow) and compare joint by joint.
-4. Mark the coverage entry `missing (image references)` with the reference
-   list, so the next agent does not search again. Commit an image only if its
-   license allows; otherwise keep the link.
+1. Identify the action's situation and outcome. Defensive rebounding, offensive putbacks, tips, screens, jump stops, closeouts and recoveries each have different footwork and body-contact requirements.
+2. Start with verified coaching material (Jr. NBA, USA Basketball, FIBA/WABC) to understand positioning, decisions and technique. For rebounding, see https://jr.nba.com/chris-bosh-shows-you-how-to-rebound/ and https://jr.nba.com/rebounding/. These describe opponent identification, body shielding, jumping and what follows possession; they do not specify exact frame timing or bone angles.
+3. Find uninterrupted real basketball video of the full action: before the approach, load, plant/jump, contact, recovery and next play. Record URL, timestamps, what is visible and occluded. Read the decisive consecutive frames using `watch-video`. If the video cuts off before catch/landing, call it a partial reference.
+4. Use mocap (if any), real game footage, and licensed photographs as complementary sources. Stills establish pose targets, *not timing*; game footage alone does not establish proper fundamentals, and early basketball games are not authoritative for rebound mechanics.
+5. Convert the evidence to a phase-by-phase **full-body brief**: root, both feet, hips/knees, trunk/head, shoulders/arms, ball, opponent, contacts, phase entry/exit and transitions. Explicitly distinguish verified observations, estimated angles and designed behavior. Choose the smallest compatible motion source and control ownership.
+6. Show actual skinned motion at normal speed and consecutive frames next to the reference, with meaningful acceptance checks (feet and load, contact, full-body timing, landing, ball/torso/head clearance, recovery). Do not certify an athletic motion merely because a hand reached a target.
+7. Preserve a reference record (action, source title/URL, timestamps, license, phases supported, local preview location if permitted, clip coverage and open questions). Link copyrighted sources rather than committing or redistributing unlicensed media.
+
+Jr. NBA directory: https://jr.nba.com/category/basketball-skills-and-drills/rebounding/ ; USA Basketball fundamentals: https://www.usab.com/skills-drills-players-foundational ; FIBA/WABC coaching documents: https://about.fiba.basketball/en/wabc-documents . Check the particular source rather than assuming the index proves a movement detail.
+
+### When only reference images exist
+
+Use a handful of photos or video stills of the real action (NCAA/NBA, Wikimedia Commons or university archives where licensed; user-supplied media when available). Record every source URL and license. Compare shoulder, elbow, wrist, hip, knee and ankle positions, hand-ball relationship and head orientation. Identify occlusions and do not infer transitions or timing from stills. Use these for target poses and acceptance screenshots, while marking motion timing as unverified. A coverage entry with only images should remain `missing (image references)` until an implementation is validated on the rendered mesh.
+
 
 Known for the shot contest (2026-11-20): no contest clip in the CMU index.
 Closest candidates, not downloaded: 13_10, 13_12, 14_07-09 ("jump up to grab,
@@ -135,7 +136,7 @@ ask the user to remember them.
 - Update coverage when an animation is added, changed, or rejected.
 - Report missing motions explicitly. Do not invent a procedural replacement silently.
 - Judge final motion on rendered gameplay footage of the mesh, never on the CMU stick figure or joint numbers.
-- Preserve existing rest-pose correction and working imports.
+- Verify the active branch's rig/import and rest-to-skin bind relationship against `docs/animation/RIG_CERTIFICATION.md`; do not assume the historical silhouette-rest fix is correct. Preserve validated imports, and investigate any intentional rest change before adapting clips.
 - Do not change game balance, character models, animation blending, or gameplay behavior during an inventory task.
 
 ## Known finding: defender idle stance (The U, feat/court-mocap-retarget)
