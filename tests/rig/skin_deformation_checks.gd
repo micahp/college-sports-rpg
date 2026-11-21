@@ -21,6 +21,7 @@ const F = preload("res://tests/rig/rig_fixture.gd")
 const MAX_STRETCH: float = 1.6
 const MIN_SQUASH: float = 0.5
 const MAX_INVERTED: float = 0.01  # share of a region's triangles
+const MIN_EDGE_M: float = 0.005  # edges shorter than this (5 mm) are not measured for stretch
 
 ## [name, ops, student_feet on]. Ops: [bone, axis, deg]; axis "x"/"y"/"z" is
 ## the bone's own (gate 1: forearm and shin flex about +X, the hand's +X is
@@ -115,6 +116,20 @@ func _ready() -> void:
 				mi.skin = raw_mi.skin
 			raw_scene.free()
 			print("skin variant: ", a.substr(5))
+	# Test-only: try the hip pivots higher (cm), rebinding so the rest mesh is
+	# unchanged (scripts/court/rig_joints.gd): does the low hip pivot cost
+	# deformation, or are the weights painted for it?
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("hip_up="):
+			var up_cm := float(a.substr(7))
+			var moves := {}
+			for b: String in ["LeftUpperLeg", "RightUpperLeg"]:
+				moves[b] = f.sk.get_bone_global_rest(f.bone(b)).origin + Vector3(0, up_cm / 100.0 / f.metres_per_unit(), 0)
+			RigJoints.move(f.sk, moves, [mi.skin])
+			for i in f.sk.get_bone_count():
+				f.rest_local[i] = f.sk.get_bone_rest(i)
+			f.use(f.rest_local)
+			print("hip pivots raised %.1f cm (rest mesh unchanged)" % up_cm)
 	_build_mesh(mi)
 	var out_dir := "res://build/rig/gate2/"
 	var cams: Array = []
@@ -303,7 +318,10 @@ func _measure(g: Array, against_model: bool = false, ref_override := PackedVecto
 		r["tris"] = int(r["tris"]) + 1
 		for e: Array in [[a, b], [b, c], [c, a]]:
 			var l0 := rest[e[0]].distance_to(rest[e[1]])
-			if l0 < 1e-4:
+			# A ratio on a sliver edge measures the triangulation, not the skin:
+			# the left shoe cuff has a 1.4 mm edge the right does not, and moving
+			# 1.2 cm read as 9x while the two shoes skin to within 0.16 cm.
+			if l0 * f.metres_per_unit() < MIN_EDGE_M:
 				continue
 			var ratio := posed[e[0]].distance_to(posed[e[1]]) / l0
 			if debug_edges and ratio > float(r["max"]) and ratio > 3.0:

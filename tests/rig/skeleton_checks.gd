@@ -294,6 +294,11 @@ func _ready() -> void:
 	var sym := _mesh_symmetry(verts, best_x, sk)
 	print("    mesh midplane x %+.2f cm from the spine joint; mirror distance: all p95 %.2f cm max %.2f cm; arms p95 %.2f cm max %.2f cm" % [(best_x - mid_x) * m * 100, sym["all_p95"] * m * 100, sym["all_max"] * m * 100, sym["arm_p95"] * m * 100, sym["arm_max"] * m * 100])
 	f.note("mesh symmetry", "95%% of arm vertices lie within %.2f cm of their mirror image: a left/right joint difference well beyond that is joint placement, not the body" % (float(sym["arm_p95"]) * m * 100.0))
+	# The skin weights must mirror too: every left vertex weighted as its
+	# right twin, bones renamed. (The original left hand and shin were skinned
+	# unlike the right, around their own shifted pivots; JOINT_ALIGNMENT.md.)
+	var wmis := _weight_mirror(sk, mi, mid_x)
+	f.check(int(wmis[0]) == 0, "skin weights mirror", "%d of %d left-side vertices weighted unlike their mirrored right twin by more than 0.1 (worst in %s)" % [wmis[0], wmis[1], wmis[2]])
 	var flist := ",".join(f.failures)
 	print("FAILED_CHECKS: " + flist)
 	f.finish(get_tree(), "GATE 1")
@@ -339,6 +344,86 @@ static func bind_joint(sk: Skeleton3D, mi: MeshInstance3D, bone_name: String) ->
 		if skin.get_bind_name(i) == StringName(bone_name):
 			bp = skin.get_bind_pose(i)
 	return mesh_to_sk * (bp.affine_inverse() * Vector3.ZERO)
+
+
+## Left-side vertices whose weights differ from their mirror-image right
+## vertex's (bones renamed right to left): [count, compared, worst region].
+static func _weight_mirror(sk: Skeleton3D, mi: MeshInstance3D, mid_x: float) -> Array:
+	var skin: Skin = mi.skin
+	var pts: Array = []
+	for s in mi.mesh.get_surface_count():
+		var arr: Array = mi.mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+		var wts: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+		if bones.is_empty():
+			continue
+		var per: int = bones.size() / verts.size()
+		for v in verts.size():
+			var p := Vector3.ZERO
+			var w: Dictionary = {}
+			for k in per:
+				var ww: float = wts[v * per + k]
+				if ww <= 0.0:
+					continue
+				var n := str(skin.get_bind_name(bones[v * per + k]))
+				p += sk.get_bone_global_rest(sk.find_bone(n)) * (skin.get_bind_pose(bones[v * per + k]) * verts[v]) * ww
+				w[n] = float(w.get(n, 0.0)) + ww
+			pts.append([p, w])
+	var cell := 0.05
+	var grid: Dictionary = {}
+	for e: Array in pts:
+		var c := Vector3i((e[0] as Vector3) / cell)
+		if not grid.has(c):
+			grid[c] = []
+		grid[c].append(e)
+	var bad := 0
+	var n_cmp := 0
+	var worst := ""
+	var worst_d := 0.0
+	var by_region: Dictionary = {}
+	for e: Array in pts:
+		var p: Vector3 = e[0]
+		if p.x - mid_x < 0.05:
+			continue
+		var q := Vector3(2.0 * mid_x - p.x, p.y, p.z)
+		var twin: Array = []
+		var bd := INF
+		var c := Vector3i(q / cell)
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				for dz in range(-1, 2):
+					for o: Array in grid.get(c + Vector3i(dx, dy, dz), []):
+						var d: float = (o[0] as Vector3).distance_to(q)
+						if d < bd:
+							bd = d
+							twin = o
+		if twin.is_empty() or bd > 0.02:
+			continue
+		n_cmp += 1
+		var diff := 0.0
+		var names: Dictionary = {}
+		for n: String in e[1]:
+			names[n] = true
+		for n: String in twin[1]:
+			names[n.replace("Right", "Left").replace(".R", ".L")] = true
+		for n: String in names:
+			diff += absf(float((e[1] as Dictionary).get(n, 0.0)) - float((twin[1] as Dictionary).get(n.replace("Left", "Right").replace(".L", ".R"), 0.0)))
+		if diff > 0.1:
+			bad += 1
+			var dom := ""
+			var dw := 0.0
+			for n: String in e[1]:
+				if float(e[1][n]) > dw:
+					dw = e[1][n]
+					dom = n
+			by_region[dom] = int(by_region.get(dom, 0)) + 1
+			if diff > worst_d:
+				worst_d = diff
+				worst = "%s, %.2f; by region %s" % [dom, diff, by_region]
+	if not by_region.is_empty():
+		worst = "%s; by region %s" % [worst.get_slice(";", 0), by_region]
+	return [bad, n_cmp, worst if worst != "" else "-"]
 
 
 ## Every skinned vertex at rest, skeleton space: [position, dominant bone, its weight].

@@ -12,8 +12,13 @@ fail, and every injected fault is caught. Gates 6-8 are not built.
 **Step 1 (bind pose) has been tested on branch `rig/bind-pose-import`;** see
 [BIND_POSE_FIX.md](BIND_POSE_FIX.md). With `fix_silhouette` off, rest equals
 bind (0 of 34 mismatched bone pairs remain) and the skin at rest matches the
-modelled mesh in all 17 regions. The left elbow misplacement survives (it is
-in the original rig). The results below are from the original import.
+modelled mesh in all 17 regions. The left elbow misplacement survived (it is
+in the original rig) and has been fixed on `rig/joint-alignment`
+([JOINT_ALIGNMENT.md](JOINT_ALIGNMENT.md)). The left arm, leg and waist now
+mirror the right, joints and weights both. The hip pivot is kept: it is
+consistent with its skin weights, and raising it did not improve deformation.
+Gate 1 is down to 3 failures, all conventions or the mesh's design. The results
+below are from the original import.
 
 **Requirements (revised):**
 - Toe bones are not required: foot contact is tested by what the rig supports.
