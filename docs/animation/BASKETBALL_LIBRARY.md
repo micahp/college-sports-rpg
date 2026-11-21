@@ -99,9 +99,9 @@ reference registry.
 
 | Action | In The U today | Mocap | References | Motion status | Next |
 |---|---|---|---|---|---|
-| rebound_defensive | procedural: root parabola, arm IK, palm-contact catch, chest-relative gather around the head | BallPlay-M take (standing, licence unchecked) | reb_def_westbrook, reb_def_tip_harwood_C (frame-read), reb_def_hinton_reel (tagged) | candidate | REBOUND_BRIEF.md: JumpShot window for legs and trunk; a defensive jump-and-land with feet in view |
+| rebound_defensive | procedural: root parabola, arm IK, palm-contact catch, chest-relative gather around the head | BallPlay-M take (standing, licence unchecked) | reb_def_westbrook + reb_def_westbrook_live_182 (slow + paired live), reb_def_tip_harwood_C (frame-read), reb_def_hinton_reel (tagged) | candidate | REBOUND_BRIEF.md: JumpShot window for legs and trunk; a defensive jump-and-land with feet in view |
 | rebound_offensive | same controller | | reb_off_sabonis_pump | candidate | |
-| putback | none (separate second jump, per the brief) | | reb_putback_harwood_A (measured), reb_putback_horford | missing | ball stays high, no chest gather |
+| putback | none (separate second jump, per the brief) | | reb_putback_harwood_A (measured), reb_putback_horford + reb_putback_horford_live (slow + paired live) | missing | ball stays high, no chest gather |
 | tip | none | | reb_def_tip_harwood_C, anunoby_tip_in | missing | |
 
 ## Off-ball and team play
@@ -128,7 +128,8 @@ reference registry.
 |---|---|---|
 | NBA Phantom compilation (38 min, slow-mo, close) | whole video, one labeled frame per 4 s (`sheets/phantom_8DEJ1rDp8MM`) | most of the tagged rows |
 | Booker 2025-26 top plays (20 min, real speed) | whole video, one frame per 5 s; plays not yet tagged one by one | best real-speed source for shot and drive timing |
-| Westbrook Phantom board, Horford putback, Sabonis reel, Harwood HS (CC BY) | frame-read where listed | rebound refs A-F |
+| Westbrook Phantom board + 2021 live broadcast, Horford putback + Game 5 live highlights | paired live clips frame-read (`reb_def_westbrook_live_182`, `reb_putback_horford_live`) | timing and pose comparison for rebound refs D-E |
+| Sabonis reel, Harwood HS (CC BY) | frame-read where listed | rebound refs A-F |
 | Hinton (NCAA) two reels, Rodman 21 boards, Film Room box-outs, Anunoby tip-in | not yet indexed in detail | rebound and box-out candidates |
 | USA Basketball passing, Jr. NBA pivot and jump-stop drills, defensive slide drill | not yet split | fundamentals at real speed |
 
