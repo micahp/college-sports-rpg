@@ -36,6 +36,14 @@ and inspect the final skinned mesh. A failed foundation test blocks the
 action work that depends on it. The rig does not need perfect anatomy: it
 needs to be correct, stable and predictable for the movements the games use.
 
+The rig is certified by `tests/rig/certify.tscn` (gates and current status in
+`docs/animation/RIG_CERTIFICATION.md`, conventions in
+`docs/animation/RIG_SPEC.md`). Run it before and after any change to the rig,
+its import, the IK or a correction. A gate change must keep every injected
+fault caught. The student rig is **not certified**: its rest pose is not its
+skin's bind pose (the import's `fix_silhouette`), its arm IK does not make a
+hinge elbow without `elbow_hinge`, and several corrections rewrite valid poses.
+
 **Diagnostic order** when motion looks wrong (follow the evidence; the first
 incorrect stage is the suspect, not automatically the base rig):
 1. base skeleton, skinning and rest pose
@@ -90,9 +98,16 @@ incorrect stage is the suspect, not automatically the base rig):
      frame. `active = false` on the node does.
    - `get_bone_global_pose()` read between frames is the pose before the
      modifiers. Measure drawn joints through `pose_tap` or a tap modifier.
-   - The student rig's bones carry scale, some mirrored. A bone's stored local
-     rotation, or one quaternion from its basis, can change by up to 180 deg
-     without the bone moving. Compare whole bases (`a.inverse() * b`).
+   - Compare whole bases (`a.inverse() * b`), not a bone's stored local
+     rotation or one quaternion taken from its basis. (Rig gate 1 measured the
+     student rig's rest and every clip at unit scale, and gate 5 found no
+     correction scaling a body bone; `student_feet` scales the shoe controls.
+     The older player rig and earlier modifier writes did carry scale.)
+   - Test poses built from a bone's local axes are only approximately
+     anatomical: the forearm's +Y is the shoulder-elbow line, about 7 deg off
+     the forearm, and twisting about it is not pure pronation. Build from the
+     real hinge axis and limb line, as `tests/rig/arm_ik_sweep.gd`'s self-test
+     does, and prove a new measure on known poses before trusting it.
    - Compare across skeletons in the body's own frame and in proportions
      (segment directions, joint angles), not raw positions: the CMU and
      student rigs split their spine and arms differently. The student's `Hips`
@@ -130,7 +145,7 @@ full gameplay.
 ### Regression checks for animation changes
 
 `court_checks`, `rebound_checks`, `swipe_checks`, `court_runtime_qa`,
-`swipe_pose_checks`, `contest_pose_check`, `clip_fidelity`, `smoke`,
+`swipe_pose_checks`, `contest_pose_check`, `clip_fidelity`, `rig/certify`, `smoke`,
 `season_checks`, `season_flow_checks`, and `-s res://tests/torso_posture_checks.gd`.
 Compare against unchanged `dev` with the same fixtures and `--fixed-fps 60`
 (court_runtime_qa is not repeatable without it). Known failures:
@@ -138,9 +153,15 @@ Compare against unchanged `dev` with the same fixtures and `--fixed-fps 60`
 pose pops at segment start), `swipe_pose_checks` (0 of 36: no poke lands,
 nothing is exercised), and `clip_fidelity` (the shooter's arms during the jump
 shot: arm IK and hand_aim at the gather, elbow_hinge re-twisting the upper arm
-and forearm, arm_clearance on the landing). A change must not add a failure.
+and forearm, arm_clearance on the landing), and `rig/certify` (gates 1-5 fail,
+listed in RIG_CERTIFICATION.md; every fault must stay caught). A change must
+not add a failure.
 
 ### Open animation work
+
+- Rig certification (`docs/animation/RIG_CERTIFICATION.md`, fix order there):
+  rest pose vs skin bind (import `fix_silhouette`), the left elbow joint, the
+  arm IK hinge, pole switching, and the corrections that rewrite valid poses.
 
 - Shooter arms on the jump shot are rewritten by four layers (clip_fidelity).
 - torso_posture compensates for real defects in some clips and damages others
