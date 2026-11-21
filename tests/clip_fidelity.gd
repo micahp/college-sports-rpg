@@ -39,6 +39,11 @@ const PERMITTED: Dictionary = {
 ## pose fade out with it. Only these, only on these bones, only in that window.
 const HANDOFF: Dictionary = {"torso_posture": ["Spine"], "crouch": ["Hips", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot"]}
 const HANDOFF_FRAMES: int = 8  # 0.12 s at 60 fps, plus the frame the request lands
+## After the ball leaves the shooter's hand the release motion owns his
+## shooting wrist (court_game._pose_release: the snap and follow-through the
+## CMU clip does not have). Only hand_aim, only the right hand, at most 100 deg.
+var release_on: bool = false
+const RELEASE_OWNED: Array = ["RightHand", "Fingers.R", "Thumb2.R"]
 const EPS_DEG: float = 0.5
 const EPS_M: float = 0.003
 const FINAL_CM: float = 3.0
@@ -126,6 +131,8 @@ func _check_frame(who: String, stages: Array, frame: int, bad: Dictionary, final
 			var ok: bool = not rule.is_empty() and b in rule["bones"] and deg <= float(rule["deg"]) + 0.01
 			if clip_frame < HANDOFF_FRAMES and HANDOFF.has(label) and b in HANDOFF[label]:
 				ok = true
+			if release_on and who == "shooter" and label == "hand_aim" and b == "RightHand" and deg <= 100.0:
+				ok = true
 			if b == "Hips" and moved >= EPS_M:
 				ok = ok and moved <= float(rule.get("hips_m", 0.0))
 			if not ok:
@@ -138,7 +145,7 @@ func _check_frame(who: String, stages: Array, frame: int, bad: Dictionary, final
 	var first: Tap = stages[0][1]
 	var last: Tap = stages.back()[1]
 	for b: String in owned + (DIGITS if "LeftHand" in owned else []):
-		if not last.gpos.has(b):
+		if not last.gpos.has(b) or (release_on and who == "shooter" and b in RELEASE_OWNED):
 			continue
 		var cm: float = (first.gpos[b] as Vector3).distance_to(last.gpos[b]) * 100.0
 		var deg := _angle(first.grot[b], last.grot[b])
@@ -184,6 +191,7 @@ func _ready() -> void:
 		if frame == 30:
 			court._release_shot()
 		await get_tree().process_frame
+		release_on = court._ball_mode == "shot"
 		for who: String in actors:
 			var a: Node3D = actors[who][0]
 			var act: AnimationNodeAnimation = a.get("_act_node")

@@ -1744,6 +1744,7 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 		elif _holder == _user and m != _pass_target and _openness(m) > 2.4 and _phase == Phase.LIVE:
 			m.elbow_up = true
 			m.hand("R", m.body_point(0.4, 0.3, 2.0), 0.9)  # calling for it: hand up, out in front
+	_pose_release()
 	# Defense
 	var reach_d: Actor = _reach.get("d", null)
 	for d: Actor in _defense:
@@ -1812,6 +1813,34 @@ func _pose_all(delta: float = 1.0 / 60.0) -> void:
 			_pose_swipe(d, bp)
 			continue
 		# Ordinary coverage keeps the arms from the current movement clip.
+
+
+## The shooting wrist after the ball leaves the hand. The CMU jump shot has no
+## hand motion at all (its hand stays in line with the forearm the whole clip),
+## so the release snap and follow-through are a short procedural motion that
+## owns only the shooting wrist; the clip keeps everything else. From the
+## launch: the palm turns from under the ball to facing down at the rim over
+## RELEASE_SNAP (the fingers end pointing at the rim: the "gooseneck"), holds,
+## and hands back to the clip over the last RELEASE_RELAX of the clip. Driven
+## through palm_to (hand_aim); elbow_hinge keeps the twist in the forearm and
+## the bend within its limit.
+const RELEASE_SNAP: float = 0.08
+const RELEASE_RELAX: float = 0.3
+
+
+func _pose_release() -> void:
+	if _ball_mode != "shot" or _shooter == null or _shot_layup:
+		return
+	var a: Actor = _shooter
+	var left: float = float(a.get("_action_time"))
+	if left <= 0.0:
+		return
+	var since: float = _flight_t * _flight_dur
+	var w: float = smoothstep(0.0, RELEASE_SNAP, since) * clampf(left / RELEASE_RELAX, 0.0, 1.0)
+	var to_rim: Vector3 = Vector3(HOOP_FLAT.x - a.position.x, 0.0, HOOP_FLAT.z - a.position.z).normalized()
+	var wrist: Vector3 = a.hand_position("R")
+	# Palm faces down and toward the rim: fingers over the top, pointing at it.
+	a.palm_to("R", wrist + to_rim * 0.5 + Vector3.DOWN * 1.0, w)
 
 
 ## The baked full-body clip owns the entire swipe chain. Game timing and contact

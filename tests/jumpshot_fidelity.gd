@@ -18,7 +18,7 @@ const SOURCE_ANIM: String = "jumpshot"
 const CLIP: String = "JumpShot"
 ## Clip times reported in the table: the gather, the load (lowest hips), the
 ## takeoff, the release, the top, the landing and the end.
-const MOMENTS: Array = [["gather", 0.40], ["load", 0.60], ["takeoff", 0.72], ["rise", 0.86], ["release", 1.00], ["fall", 1.15], ["landing", 1.32], ["recover", 1.45]]
+const MOMENTS: Array = [["gather", 0.40], ["load", 0.60], ["takeoff", 0.72], ["rise", 0.86], ["set", 0.95], ["release", 1.00], ["after", 1.05], ["follow", 1.10], ["fall", 1.15], ["landing", 1.32], ["recover", 1.45]]
 
 
 ## Pose metrics from one skeleton (world space), comparable across rigs.
@@ -27,6 +27,7 @@ class Rig:
 	var ids: Dictionary = {}
 	var front_rest: Dictionary = {}  # bone -> the body's front in that bone's rest frame
 	var palm_rest: Dictionary = {}   # hand bone -> palm normal (palm down at rest) in its frame
+	var hand_axis_rest: Dictionary = {}  # hand bone -> its long axis (along the rest forearm) in its frame
 	var leg: float = 1.0
 	var arm: Dictionary = {}
 
@@ -44,6 +45,8 @@ class Rig:
 				front_rest[b] = _rest(b).basis.orthonormalized().inverse() * fwd
 		for b in ["LeftHand", "RightHand"]:
 			palm_rest[b] = _rest(b).basis.orthonormalized().inverse() * Vector3.DOWN
+			var lower: String = b.replace("Hand", "LowerArm")
+			hand_axis_rest[b] = _rest(b).basis.orthonormalized().inverse() * (_rest(b).origin - _rest(lower).origin).normalized()
 		# World units: the skeletons are scaled (the student rig imports ~4.8 m tall).
 		var g: Transform3D = sk.global_transform
 		leg = (g * _rest("LeftUpperLeg").origin).distance_to(g * _rest("LeftLowerLeg").origin) + (g * _rest("LeftLowerLeg").origin).distance_to(g * _rest("LeftFoot").origin)
@@ -128,6 +131,13 @@ class Rig:
 			m[k + "_fore_fwd"] = fore.dot(fwd)
 			m[k + "_shoulder_elev"] = rad_to_deg(up_arm.angle_to(Vector3.DOWN))
 			var palm: Vector3 = basis(side + "Hand") * (palm_rest[side + "Hand"] as Vector3)
+			# Wrist bend: the hand's long axis (along the forearm at rest) against
+			# the forearm now. Positive = flexed toward the palm (the follow-
+			# through snap), negative = cocked back (the set under the ball).
+			var hand_axis: Vector3 = (basis(side + "Hand") * (hand_axis_rest[side + "Hand"] as Vector3)).normalized()
+			var fore_dir: Vector3 = (w - e).normalized()
+			var bend: float = rad_to_deg(fore_dir.angle_to(hand_axis))
+			m[k + "_wrist_bend"] = bend if hand_axis.dot(palm) >= fore_dir.dot(palm) else -bend
 			m[k + "_palm_fwd"] = palm.dot(fwd)
 			m[k + "_palm_up"] = palm.y
 			m[k + "_palm_out"] = palm.dot(lat) * sg
@@ -255,7 +265,7 @@ func _ready() -> void:
 			r[si]["hip_rise"] = float(r[si]["hip_y"]) - float(rows[0][si]["hip_y"])
 	print("JUMPSHOT FIDELITY  start %.2f s, clip %.2f s, %d frames, torso_posture %s" % [start, clip_len, rows.size(), "OFF" if no_tp else "on"])
 	# Per moment table.
-	for key: String in ["trunk_pitch", "trunk_roll", "spine_lower_pitch", "spine_upper_pitch", "chest_pitch", "head_pitch", "hip_rise", "R_upper_up", "R_fore_up", "R_fore_fwd", "R_elbow_flex", "R_shoulder_elev", "R_palm_fwd", "L_fore_up", "L_elbow_flex", "R_knee_flex"]:
+	for key: String in ["R_wrist_bend", "L_wrist_bend", "trunk_pitch", "trunk_roll", "spine_lower_pitch", "spine_upper_pitch", "chest_pitch", "head_pitch", "hip_rise", "R_upper_up", "R_fore_up", "R_fore_fwd", "R_elbow_flex", "R_shoulder_elev", "R_palm_fwd", "L_fore_up", "L_elbow_flex", "R_knee_flex"]:
 		var line := "  %-15s" % key
 		for mo in MOMENTS:
 			var best: Array = []
