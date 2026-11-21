@@ -3,8 +3,8 @@ extends Node
 ## does torso_posture take out of it?
 ##   source: the clip on its own file's skeleton (CMU or library performer)
 ##   game:   the clip on the court's student rig, animation only (no modifiers)
-## Trunk = hip-joint midpoint to Neck (the same landmark on both rigs; the
-## student's "Hips" is a body controller below its pelvis). Pitch is forward
+## Trunk = Spine (where the spine leaves the pelvis) to Neck; bend = the
+## spine's upper half minus its lower half, by length (an arch is negative). Pitch is forward
 ## (+) / back (-), roll is to the body's left (+). Sampled every 1/30 s.
 ## torso_posture: the lean it measures (Hips bone to Neck, on the game clip)
 ## and how much it would remove (it keeps FREE deg, compresses the rest to KEEP).
@@ -21,9 +21,38 @@ func _trunk(sk: Skeleton3D) -> Vector3:
 	lat.y = 0.0
 	lat = lat.normalized()
 	var fwd := lat.cross(Vector3.UP).normalized()
-	var spine: Vector3 = ((p.call("Neck") as Vector3) - (l + r) * 0.5).normalized()
-	var hips_line: Vector3 = ((p.call("Neck") as Vector3) - (p.call("Hips") as Vector3)).normalized()
+	# From where the spine leaves the pelvis (Spine; CMU's sits on its root).
+	# Not from the hip joints: CMU's sit 10 cm below and in front of its spine
+	# root, so pelvis tilt swings that line differently on the two rigs.
+	var root: Vector3 = p.call("Spine")
+	var neck: Vector3 = p.call("Neck")
+	var spine: Vector3 = (neck - root).normalized()
+	var hips_line: Vector3 = (neck - (p.call("Hips") as Vector3)).normalized()
+	# Spine shape: upper half pitch minus lower half pitch (by length). Negative
+	# = the top stands back over the bottom (an arch), positive = rounded.
+	var pts: Array = []
+	for b in ["Spine", "Chest", "UpperChest", "Neck"]:
+		var q: Vector3 = p.call(b)
+		if pts.is_empty() or q.distance_to(pts.back()) > 1e-4:
+			pts.append(q)
+	var total := 0.0
+	for i in range(1, pts.size()):
+		total += (pts[i] as Vector3).distance_to(pts[i - 1])
+	var left := total * 0.5
+	var mid: Vector3 = pts.back()
+	for i in range(1, pts.size()):
+		var seg: float = (pts[i] as Vector3).distance_to(pts[i - 1])
+		if left <= seg:
+			mid = (pts[i - 1] as Vector3).lerp(pts[i], left / maxf(seg, 1e-6))
+			break
+		left -= seg
+	var lo := (mid - root).normalized()
+	var up := (neck - mid).normalized()
+	_last_bend = rad_to_deg(atan2(up.dot(fwd), up.y)) - rad_to_deg(atan2(lo.dot(fwd), lo.y))
 	return Vector3(rad_to_deg(atan2(spine.dot(fwd), spine.y)), rad_to_deg(atan2(spine.dot(lat), spine.y)), rad_to_deg(hips_line.angle_to(Vector3.UP)))
+
+
+var _last_bend := 0.0
 
 
 func _series(ap: AnimationPlayer, sk: Skeleton3D, anim_name: String) -> Array:
@@ -35,7 +64,8 @@ func _series(ap: AnimationPlayer, sk: Skeleton3D, anim_name: String) -> Array:
 		ap.seek(t, true)
 		ap.advance(0)
 		sk.force_update_all_bone_transforms()
-		out.append(_trunk(sk))
+		var v := _trunk(sk)
+		out.append(Vector4(v.x, v.y, v.z, _last_bend))
 		t += 1.0 / 30.0
 	return out
 
@@ -45,7 +75,7 @@ func _ready() -> void:
 	add_child(m)
 	var ap: AnimationPlayer = m.get_node("AnimationPlayer")
 	var sk: Skeleton3D = CourtPlayerModel.find_skeleton(m)
-	print("clip         retarget | worst |game-source| pitch, roll (deg) | torso_posture removes: mean, max (deg)")
+	print("clip         retarget | worst |game-source| pitch, roll, spine bend (deg) | torso_posture removes: mean, max (deg)")
 	for clip: String in CourtPlayerModel.CLIPS:
 		if not ap.has_animation(clip):
 			continue
@@ -54,7 +84,7 @@ func _ready() -> void:
 		var game := _series(ap, sk, clip)
 		var removed_sum := 0.0
 		var removed_max := 0.0
-		for v: Vector3 in game:
+		for v: Vector4 in game:
 			var raw: float = v.z
 			var kept: float = raw if raw <= TorsoPosture.FREE else TorsoPosture.FREE + (raw - TorsoPosture.FREE) * TorsoPosture.KEEP
 			removed_sum += raw - kept
@@ -68,10 +98,12 @@ func _ready() -> void:
 			var source := _series(sap, ssk, spec[1])
 			var wp := 0.0
 			var wr := 0.0
+			var wb := 0.0
 			for i in mini(game.size(), source.size()):
-				wp = maxf(wp, absf((game[i] as Vector3).x - (source[i] as Vector3).x))
-				wr = maxf(wr, absf((game[i] as Vector3).y - (source[i] as Vector3).y))
-			cmp = "pitch %5.1f  roll %5.1f" % [wp, wr]
+				wp = maxf(wp, absf((game[i] as Vector4).x - (source[i] as Vector4).x))
+				wr = maxf(wr, absf((game[i] as Vector4).y - (source[i] as Vector4).y))
+				wb = maxf(wb, absf((game[i] as Vector4).w - (source[i] as Vector4).w))
+			cmp = "pitch %5.1f  roll %5.1f  bend %5.1f" % [wp, wr, wb]
 		src.queue_free()
 		print("%-12s %-8s | %s | %5.1f  %5.1f" % [clip, how, cmp, removed_sum / maxf(1.0, game.size()), removed_max])
 	get_tree().quit(0)

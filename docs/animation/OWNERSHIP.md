@@ -44,13 +44,21 @@ The CMU clip, the retargeted student clip, the AnimationTree output and the
 drawn pose, at the same clip times, in the body's frame:
 
 - Retarget: limbs exact (elbow, knee, shoulder elevation, palm direction,
-  segment directions). Trunk was wrong: the CMU Neck sits on its UpperChest,
-  so the student's 36 cm upper torso was aimed along the CMU head (up to 9 deg
-  of extra roll). Fixed: `MocapRetarget._trunk_top` puts the student's neck on
-  the source's pelvis-to-neck line. Trunk pitch and roll now within 1 deg.
-  Remaining: the chest bone's facing differs by a constant ~10 deg (rest
-  shapes differ); the hip line differs by up to 8 deg before the game's start
-  point in the clip (0.35 s).
+  segment directions). The spine was wrong in every CMU clip: CMU's spine has
+  three segments (its Spine and Neck sit on other joints), the student's four,
+  split differently. Copying segment directions one for one put the recorded
+  bend at the wrong joint; a later fix that aimed the top segment to put the
+  neck on the recorded trunk line made it stand back up over a bent mid-back
+  (chest out, shoulders back: an arch the user caught at the gather). Now the
+  student's spine joints are laid along the recorded spine curve at the same
+  length fractions, from where each spine leaves the pelvis
+  (`MocapRetarget._spine_segment`), and the pelvis follows CMU's pelvis
+  (rotation only). JumpShot, Layup, slides, backpedal and dribble: trunk pitch
+  and roll within 1 deg of the recording, spine bend (upper half minus lower
+  half) within 3 deg; on dev the bend was 17-41 deg off.
+  Measure the trunk from the Spine bone, not the hip joints: CMU's hip joints
+  sit 10 cm below and in front of its spine root, so pelvis tilt swings that
+  line differently on the two rigs (it made the arch read as correct).
 - AnimationTree: differs from the clip only in the one-shot's blend in
   (0.12 s) and out (0.2 s). The blend out replaces the last 0.2 s of the
   landing recovery with the gait pose.
@@ -65,8 +73,8 @@ torso_posture removes (mean / max deg):
 
 | Clips | Retarget | Trunk vs recording | torso_posture removes | Verdict |
 |---|---|---|---|---|
-| DribbleRun, SlideL/R, Backpedal, JumpShot, Layup | ours (CMU) | within 2 deg (Layup roll 6) after the trunk fix | 0 to 24 / up to 37 | it damages these; only JumpShot is exempt so far |
-| Idle, Walk, Clap, Reach | library, copied bone for bone | 13 deg too far forward | 9-12 / 10-13 | genuinely folded: needs a retarget change (branch exp/library-retarget) |
+| DribbleRun, SlideL/R, Backpedal, JumpShot, Layup | ours (CMU) | within 1 deg, spine bend within 3 deg, after the spine fix | 0 to 24 / up to 37 | it damages these; only JumpShot is exempt so far |
+| Idle, Walk, Clap, Reach | library, copied bone for bone | 14 deg too far forward, spine bend 16 deg off | 9-12 / 10-13 | genuinely folded: needs a retarget change (branch exp/library-retarget) |
 | Jog, Sprint | library, copied bone for bone | 15 deg pitch and roll | 24-33 / 28-36 | genuinely folded |
 | JogM, Run | engine import retarget | 11-13 deg | 7-10 / 9-12 | genuinely folded |
 | SwipeCMU | ours, then rebuilt from Idle's trunk | 13-18 deg (by design) | 10 / 10 | inherits Idle's fold |

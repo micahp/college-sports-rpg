@@ -50,6 +50,18 @@ class Rig:
 		for side in ["Left", "Right"]:
 			arm[side] = (g * _rest(side + "UpperArm").origin).distance_to(g * _rest(side + "LowerArm").origin) + (g * _rest(side + "LowerArm").origin).distance_to(g * _rest(side + "Hand").origin)
 
+	func _halfway(pts: Array) -> Vector3:
+		var total := 0.0
+		for i in range(1, pts.size()):
+			total += (pts[i] as Vector3).distance_to(pts[i - 1])
+		var left := total * 0.5
+		for i in range(1, pts.size()):
+			var seg: float = (pts[i] as Vector3).distance_to(pts[i - 1])
+			if left <= seg:
+				return (pts[i - 1] as Vector3).lerp(pts[i], left / maxf(seg, 1e-6))
+			left -= seg
+		return pts.back()
+
 	func _rest(b: String) -> Transform3D:
 		return sk.get_bone_global_rest(ids[b])
 
@@ -66,10 +78,24 @@ class Rig:
 		lat = lat.normalized()
 		var fwd := lat.cross(Vector3.UP).normalized()
 		var m := {}
-		# The pelvis as the two hip joints' midpoint: the same landmark on both rigs
-		# (the student's "Hips" is a body controller below its pelvis).
+		# The trunk from where the spine leaves the pelvis (the Spine bone: on CMU
+		# it sits on the root) to the neck. Not from the hip joints: CMU's sit
+		# 10 cm below and in front of its spine root and the student's almost
+		# level with it, so pelvis tilt swings that line differently on the two
+		# rigs (it made an arched spine read as a correct one).
 		var pelvis := (p("LeftUpperLeg") + p("RightUpperLeg")) * 0.5
-		var spine := (p("Neck") - pelvis).normalized()
+		var spine := (p("Neck") - p("Spine")).normalized()
+		# Spine shape: the lower and upper halves of the spine by length. An arch
+		# or a counter-bend shows as the two disagreeing with the recording.
+		var pts: Array = []
+		for b in ["Spine", "Chest", "UpperChest", "Neck"]:
+			if ids.has(b) and ids[b] >= 0 and (pts.is_empty() or p(b).distance_to(pts.back()) > 1e-4):
+				pts.append(p(b))
+		var mid: Vector3 = _halfway(pts)
+		var lower := (mid - (pts[0] as Vector3)).normalized()
+		var upper := ((pts.back() as Vector3) - mid).normalized()
+		m["spine_lower_pitch"] = rad_to_deg(atan2(lower.dot(fwd), lower.y))
+		m["spine_upper_pitch"] = rad_to_deg(atan2(upper.dot(fwd), upper.y))
 		m["trunk_pitch"] = rad_to_deg(atan2(spine.dot(fwd), spine.y))
 		m["trunk_roll"] = rad_to_deg(atan2(spine.dot(lat), spine.y))
 		var neck := (p("Head") - p("Neck")).normalized()
@@ -125,7 +151,7 @@ class Tap extends SkeletonModifier3D:
 		last = rig.metrics(hip0)
 
 
-const KEYS: Array = ["trunk_pitch", "trunk_roll", "neck_pitch", "chest_pitch", "head_pitch", "head_yaw", "hip_rise",
+const KEYS: Array = ["trunk_pitch", "trunk_roll", "spine_lower_pitch", "spine_upper_pitch", "neck_pitch", "chest_pitch", "head_pitch", "head_yaw", "hip_rise",
 	"R_wrist_out", "R_wrist_fwd", "R_wrist_up", "L_wrist_out", "L_wrist_fwd", "L_wrist_up",
 	"R_elbow_flex", "L_elbow_flex", "R_shoulder_elev", "L_shoulder_elev",
 	"R_upper_up", "R_upper_fwd", "R_fore_up", "R_fore_fwd", "L_upper_up", "L_upper_fwd", "L_fore_up", "L_fore_fwd",
@@ -229,7 +255,7 @@ func _ready() -> void:
 			r[si]["hip_rise"] = float(r[si]["hip_y"]) - float(rows[0][si]["hip_y"])
 	print("JUMPSHOT FIDELITY  start %.2f s, clip %.2f s, %d frames, torso_posture %s" % [start, clip_len, rows.size(), "OFF" if no_tp else "on"])
 	# Per moment table.
-	for key: String in ["trunk_pitch", "trunk_roll", "chest_pitch", "head_pitch", "hip_rise", "R_upper_up", "R_fore_up", "R_fore_fwd", "R_elbow_flex", "R_shoulder_elev", "R_palm_fwd", "L_fore_up", "L_elbow_flex", "R_knee_flex"]:
+	for key: String in ["trunk_pitch", "trunk_roll", "spine_lower_pitch", "spine_upper_pitch", "chest_pitch", "head_pitch", "hip_rise", "R_upper_up", "R_fore_up", "R_fore_fwd", "R_elbow_flex", "R_shoulder_elev", "R_palm_fwd", "L_fore_up", "L_elbow_flex", "R_knee_flex"]:
 		var line := "  %-15s" % key
 		for mo in MOMENTS:
 			var best: Array = []
