@@ -1,6 +1,6 @@
 ---
 name: court-rig-realism
-description: Prove whether a basketball court player's limbs, joints, contact points, posture or motion are physically right, using the same method as the football tackle validator (gridiron-physics tools/validate-tackles.mjs with web/mesh/interactions.js specs). Routes by aspect: segment geometry, joint range, contact points, body interpenetration, motion, posture, locomotion. Use before saying a court pose, swipe, dribble, catch or contact is right or fixed, and when the user says limbs are scaled wrong, touch points are off, a joint folds the wrong way, or something looks like a wrist flick.
+description: Research how complete basketball actions actually move using coaching fundamentals, continuous real-game footage and available mocap, then validate the full skinned movement and contact in Godot. Use before creating or diagnosing rebounds, shots, dribbles, closeouts, screens, passes, catches, cuts, footwork, transitions, or when a pose or physical contact looks wrong. Includes the joint/limb validator workflow.
 ---
 
 # Court rig realism
@@ -11,6 +11,64 @@ not the numbers: football limits are design limits chosen for football, not meas
 
 A passing test is not a verdict on how it looks. The user judges motion. Report numbers,
 named failures and frames; never "looks natural".
+
+## Research the sport before authoring the movement
+
+**This is required when building or changing any basketball action**, not only when debugging a wrong joint. A valid skeleton and plausible-looking individual poses do not establish that a rebound, screen, closeout, shot, pass, pivot, cut or landing moves like basketball. Study the whole action and its game situation before deciding which clip, IK control or procedural motion to use. See `the-u-mocap-catalog` for local clip inventory and `watch-video` for examining consecutive frames.
+
+### Where to find trustworthy basketball movement references
+
+Research by action name and game context, e.g. `defensive rebound box out contact jump catch land outlet`, `offensive rebound tip-in second jump`, `defensive closeout decelerate slide`, rather than only `rebound animation`. Use this order:
+
+1. **Coaching fundamentals (what the action accomplishes).** Read an applicable Jr. NBA, USA Basketball, or FIBA/WABC coaching resource. Extract positioning, footwork, body control, contact and decision-making instructions. Coaching points are qualitative, not measured joint-angle or timing data.
+2. **Continuous real basketball footage (what the whole body actually does).** Find a real NCAA, NBA, FIBA or practice/drill sequence showing the athlete *before, during and after* the action. Prefer an uninterrupted view with feet, pelvis, torso, hands and ball visible. A highlight that cuts away after a shot is not a complete rebound reference.
+3. **Existing game assets and captured motion (what can be implemented).** Check `the-u-mocap-catalog`, source recordings, local clips and the actual Godot retarget/ownership rules. A recorded clip can supply the movement but may not contain real ball contact, fingers or the complete interaction.
+4. **Basketball video games (style and implementation comparisons only).** Use NBA 2K2, NBA Live 2003 or other era-appropriate games for animation complexity, staging, transitions and camera-level readability *after* verifying their specific motion visually. Do not import their rebound-winning logic, timing, AI decisions or statistical outcomes as basketball fundamentals. NBA Live 2001 in particular is not an authoritative rebounding-mechanics source.
+5. **Photographs and stills (pose supplements).** Use them to verify positions and silhouettes but not to infer movement timing, foot plants, contact order or transitions that a static image cannot show.
+
+Verified source starting points (browse the specific action page, do not assume it contains a usable full-body clip):
+
+- Jr. NBA, Chris Bosh rebounding breakdown: https://jr.nba.com/chris-bosh-shows-you-how-to-rebound/ (find opponent, shield with body, jump/reach).
+- Jr. NBA, rebounding fundamentals: https://jr.nba.com/rebounding/ (position, bend knees, shield, jump, then outlet or putback according to possession).
+- Jr. NBA, Frank Vogel box-out video page: https://jr.nba.com/video/how-to-box-out-and-rebound/ (video availability and exact contents still require direct inspection).
+- Jr. NBA rebounding topic index: https://jr.nba.com/category/basketball-skills-and-drills/rebounding/
+- USA Basketball player fundamentals: https://www.usab.com/skills-drills-players-foundational ; footwork/body control: https://www.usab.com/play/player-resources/skills-drills-players-foundational-footwork
+- USA Basketball coaching courses: https://www.usab.com/coaching/e-learning (includes rebounding/screening instruction; access and course contents may vary).
+- FIBA/WABC coaching manuals directory: https://about.fiba.basketball/en/wabc-documents (find the relevant defensive, offensive and footwork chapters; the index alone is not evidence of their details).
+
+These are discovery starting points, not a claim every link contains a downloadable clip or universally applicable movement. Record exactly what was read or viewed and when. If the named page is inaccessible, search the official site's equivalent before substituting another source.
+
+### Turn the research into an actionable full-body motion brief
+
+Before implementing or repairing an action, write a compact action brief in the task/review notes. It must have:
+
+- **Action and context:** offensive vs defensive, moving vs stationary, player/ball/opponent positions, intended outcome, variants. A defensive box-out rebound differs from a weak-side offensive putback.
+- **Sources with evidence:** title, URL, exact segment/time range or still frame, what it demonstrates, limitations/occlusions and license or permission status. Separate a coach's written instruction from motion actually observed in video.
+- **Complete phase timeline:** starting stance/approach; footwork and positioning; load and weight transfer; jump/turn/reach; first true contact; gather/landing; recovery and next action. Mark which phases are conditional or absent. Do not manufacture exact seconds or angles from prose.
+- **Whole-body responsibilities at each phase:** root and feet (plants, steps, takeoff, landing), pelvis/hips and knees (load, balance), chest/trunk and head (direction, rotation, ball clearance), shoulders/elbows/wrists and hands (reach, contact, secure), ball and opponent trajectories. Include where weight is supported and what should remain stable.
+- **Contact and state transitions:** what makes a catch or block physically possible, when possession or contact changes state, and how the body and ball transition without teleporting or clipping. A shoulder-to-ball *reachability* test is not evidence that the palms made contact.
+- **Implementation choice:** existing clip, edited clip, authored keys, IK, procedural control or hybrid; explicit joint ownership and transition into/out of locomotion. No new correction layer just to approximate a reference.
+- **Observables and uncertainties:** frame-accurate planted-foot and hand/ball contact order when video supports them, approximate angles clearly labelled as estimates, known occlusions, and what has not been verified.
+- **Acceptance and comparison:** full-body final skinned motion at normal speed plus consecutive-frame sheets; source clip/reference side-by-side where possible; continuous trajectories, sound footwork and weight transfer, ball/head/torso separation, no unfair action-specific fudging. Document differences from the source.
+
+Do not start with an isolated hand target and retrofit legs/trunk later. Do not treat a passed elbow or grip test as proof that the athletic action is correct. Keep realistic movement distinct from game balance or which player wins possession.
+
+### Rebounding worked example (apply the method, not a universal fixed animation)
+
+Use the Jr. NBA Bosh lesson and basic rebounding guidance to define *possible* phases: identify opponent/ball; establish position or box out with feet, hips and trunk; load and jump/step; reach to the descending ball; make actual hand contact; gather and protect the ball; absorb landing; transition to outlet, dribble or putback. Not every rebound has a box-out, two-handed catch or the same landing.
+
+Measure the *entire rebounder*, not only hands: foot placement and center-of-mass shift before takeoff; hip/knee extension and timed trunk/arm reach; catch eligibility versus actual palm contact; ball path around the head into a secure position; knee/hip landing compression and pivot/outlet. When a rebound is awarded before hands reach the ball, fix the contact decision before disguising it with a decorative gather trajectory.
+
+Do not automatically lower a wrist-forward requirement during a post-contact gather; instead test reach, contact, gather and landing as distinct phases. Conversely, do not demand outstretched wrists *after* the ball is secured. Review both successful and unsuccessful rebound attempts when available.
+
+### Review and rights rules
+
+- Use `watch-video` to inspect every consecutive frame through contact and transitions, including the start and recovery; a few screenshots are inadequate. Crop to keep the feet, pelvis, trunk, arms, head and ball visible together. Supplement with closeups, not replace the full-body view.
+- Compare source/reference and the final skinned character from suitable cameras; do not infer 3D joint coordinates or physical contact from one obstructed broadcast angle. Test in-game context as well as isolated clips.
+- Treat validation thresholds as hypotheses until tied to reference footage, anatomy or gameplay requirements. Never loosen a check solely to pass a regression.
+- Keep public/reference footage linked with timestamp and license. Do not commit, redistribute or embed copyrighted footage or photos without permission; inspect rights before retaining local reference files.
+- If no reliable full action is available, say which portions are unverified. Author only the supported parts and request targeted footage if indispensable; never fabricate a complete motion from a still.
+
 
 ## The method (from the football validator)
 
@@ -64,14 +122,14 @@ The user judges by looking. Match that before running numbers.
    Say where each hand is relative to the ball or the head.
 3. Say what the picture cannot show: occlusion (another player in front), resolution,
    camera angle. Name the hidden part instead of guessing it.
-4. Get reference photos of the real action (licensed images or ones the user supplies)
-   and describe them with the same list, so the descriptions line up joint by joint.
-   Check which player is which first: on the court the user's team (NVS) wears
-   yellow and the opponent wears red, so a contesting defender is in red.
-   When no CMU clip exists, these photos are the reference for authoring the
-   motion too (see `the-u-mocap-catalog`, "When no CMU clip exists").
-5. Put the two side by side in one image (Pillow is installed) and show it to the user.
-   If no reference can be found, say so and ask the user for one; do not invent a reference.
+4. Follow the basketball movement research workflow above: identify the action and its
+   phases, find coaching instruction and continuous real motion where possible, then add
+   licensed photos/stills to clarify joint positions. Match the same body parts in each.
+   Check who is who: NVS wears yellow and the opponent red in the current court scene.
+   See `the-u-mocap-catalog` for source motion availability and `watch-video` for timing.
+5. Show full-body source and render side by side (Pillow where useful), with the same
+   phase and approximate view, then inspect consecutive frames. A still comparison
+   can certify a pose but not a whole action. State what is occluded or unavailable.
 6. Only then run the numeric check for that row, and report both.
 
 ## Trace the modifier chain before blaming a layer
@@ -99,7 +157,7 @@ hand_aim L, elbow_hinge, pose_tap. Several of them move the same elbow.
   limbs being scaled wrong before the user did.
 - Palm touch point is an 8 cm guess from the wrist bone, not measured from the mesh. The
   football hand has real knuckle joints (`fiR`, `fi2R`, `thR` in skeleton.js); court has none.
-- Hip height is about 7% below the reference; cause not found.
+- Historical hip-height and proportions notes predate the bind-pose import investigation; remeasure the active branch against `docs/animation/RIG_CERTIFICATION.md` before relying on them.
 - Runtime QA gave identical output before and after the proportion fit, so it cannot judge
   proportions. Do not use it for that.
 - Court limits (trunk, swipe speeds) are estimates; football limits are design choices. Neither is measured basketball data.
