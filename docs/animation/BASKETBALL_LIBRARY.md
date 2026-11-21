@@ -17,18 +17,19 @@ reference registry.
   for tagging), `tools/reference/cut_refs.py` (cuts registry segments into
   `clips/<action>/`, optional consecutive-frame sheets).
 - **Reference status:** *frame-read* = consecutive frames read (the watch-video
-  method); *tagged* = spotted on a 4-5 s overview, window approximate, action not
-  yet confirmed. Slow-motion replays (Phantom) give poses and order, **not
+  method); *tagged* = seen on an overview sheet, not consecutive-frame confirmed; each
+  segment note gives its sampling step and approximate window (legacy tags use
+  4-5 s; Booker tags use 1 s). Slow-motion replays (Phantom) give poses and order, **not
   timing**; timing needs real-speed footage. `playback_speed.value` is the
   estimated fraction of live speed (`1.0` = real time); the method and
   uncertainty are recorded alongside every slow source and segment. The
-  Westbrook rebound replay is estimated at `0.52 ± 0.15×`, paired against the
-  May 10, 2021 live broadcast. Horford's putback is `0.47 ± 0.10×`, paired
+  Westbrook rebound replay is estimated at `0.52 +/- 0.15x`, paired against the
+  May 10, 2021 live broadcast. Horford's putback is `0.47 +/- 0.10x`, paired
   against Game 5 live highlights. The Phantom compilation's representative
-  estimate is `0.28 ± 0.08×`: a quadratic fit to the descending ball in
-  `shot_tatum_ind` (1205.7–1206.5 s), with ball diameter (0.24 m) setting image
+  estimate is `0.28 +/- 0.08x`: a quadratic fit to the descending ball in
+  `shot_tatum_ind` (1205.7-1206.5 s), with ball diameter (0.24 m) setting image
   scale and rim height (3.05 m) anchoring the vertical reference. Its measured
-  downward acceleration is about `0.74 m/s²`; `sqrt(0.74 / 9.81) ≈ 0.28`.
+  downward acceleration is about `0.74 m/s^2`; `sqrt(0.74 / 9.81) ~= 0.28`.
   This compilation value is a source-level proxy inherited by its segments,
   not a per-clip measurement; clip-to-clip rate differences remain unmeasured.
 - **Motion status** (catalog skill): missing, candidate, imported, validated,
@@ -69,10 +70,10 @@ reference registry.
 |---|---|---|---|---|---|
 | dribble_stationary | ball path `dribble_ball.json` + arm over Idle | 06_02-07 | dribble_iso_derozan, dribble_barrett, dribble_simmons, dribble_trae_low | candidate | frame-read one close dribble for hand-ball timing |
 | dribble_run | `DribbleRun` (CMU 06_02) | 06_02-07 | dribble_fullcourt_giannis, Booker reel | imported | |
-| crossover | procedural `_update_crossover` | 06_10-14 | dribble_iso_kyrie_lebron, dribble_curry_hou | candidate | |
+| crossover | procedural `_update_crossover` | 06_10-14 | dribble_iso_kyrie_lebron, dribble_curry_hou, booker_*_crossover (tagged) | candidate | |
 | triple_threat_jab | none | | dribble_jab_lebron_tor | missing | |
 | spin_move | none | 102_11-21, 78_13-23 | spin_siakam (tagged) | missing | |
-| step_back | none | | stepback_harden_min, stepback_harden_early | missing | |
+| step_back | none | | stepback_harden_min, stepback_harden_early, booker_*_step_back (tagged) | missing | |
 | behind_back, between_legs, hesitation | none | 06_10-14 | none yet | missing | |
 
 ## Passing and catching
@@ -88,10 +89,10 @@ reference registry.
 
 | Action | In The U today | Mocap | References | Motion status | Next |
 |---|---|---|---|---|---|
-| jump_shot | `JumpShot` (CMU 124_05), arms rewritten by four layers (clip_fidelity) | 124_03, 124_05, 06_14-15 | shot_kawhi_tor, shot_tatum_*, shot_mitchell, shot_beal_iso, shot_george_lac, shot_buzzer_lakers, booker_shots_real (real speed) | imported | real-speed timing from Booker reel |
-| pull_up | `JumpShot` off the dribble | | shot_lillard, Booker reel | candidate | |
+| jump_shot | `JumpShot` (CMU 124_05), arms rewritten by four layers (clip_fidelity) | 124_03, 124_05, 06_14-15 | shot_kawhi_tor, shot_tatum_*, shot_mitchell, shot_beal_iso, shot_george_lac, shot_buzzer_lakers, booker_*_jump_shot (tagged, live speed) | imported | real-speed timing from Booker reel |
+| pull_up | `JumpShot` off the dribble | | shot_lillard, booker_*_pull_up, booker_*_step_back | candidate | |
 | free_throw | none (uses `JumpShot`+/-) | 124_04 | ft_lebron (frame-checked: set and routine at the line) | missing | |
-| layup | `Layup` (CMU 124_06) | 124_06, 15_12 | layup_kyrie_bos, layup_mitchell, layup_lebron_por | imported | |
+| layup | `Layup` (CMU 124_06) | 124_06, 15_12 | layup_kyrie_bos, layup_mitchell, layup_lebron_por, booker_*_layup (tagged) | imported | |
 | floater, fadeaway, hook | none in The U (authored in the gridiron library) | | none yet | missing | |
 | dunk | none | | dunk_westbrook, dunk_lebron_nyk, dunk_lebron_lal, dunk_zion, dunk_morant, dunk_collins | missing | |
 | pump_fake | none | | reb_off_sabonis_pump | missing | |
@@ -121,7 +122,7 @@ reference registry.
 |---|---|---|---|---|---|
 | screen_set | procedural `_tick_screener` (root placement) | | none yet | candidate | |
 | screen_use, off_ball_cut | gait only | | dribble_curry_hou (off-ball movement, tagged) | candidate | |
-| post_up | none | | post_embiid, post_davis | missing | |
+| post_up | none | | post_embiid, post_davis, booker_*_post_up (tagged) | missing | |
 | inbound | none | | none yet | missing | |
 
 ## Reactions and dead ball
@@ -138,7 +139,7 @@ reference registry.
 | Source | Indexed | Notes |
 |---|---|---|
 | NBA Phantom compilation (38 min, slow-mo, close) | whole video, one labeled frame per 4 s (`sheets/phantom_8DEJ1rDp8MM`) | most of the tagged rows |
-| Booker 2025-26 top plays (20 min, real speed) | whole video, one frame per 5 s; plays not yet tagged one by one | best real-speed source for shot and drive timing |
+| Booker 2025-26 top plays (20 min, mixed broadcast/replays) | 48 live-play segments tagged from a one-second time-index sheet; approx +/-1 s boundaries | per-play shot, layup, post-up, and ball-handling timing; replay inserts are not independently speed-calibrated |
 | Westbrook Phantom board + 2021 live broadcast, Horford putback + Game 5 live highlights | paired live clips frame-read (`reb_def_westbrook_live_182`, `reb_putback_horford_live`) | timing and pose comparison for rebound refs D-E |
 | Sabonis reel, Harwood HS (CC BY) | frame-read where listed | rebound refs A-F |
 | Hinton (NCAA) two reels, Rodman 21 boards, Film Room box-outs, Anunoby tip-in | not yet indexed in detail | rebound and box-out candidates |
