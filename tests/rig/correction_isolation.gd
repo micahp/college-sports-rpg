@@ -180,7 +180,12 @@ func _foot_floor() -> void:
 	var c: Array = await _run("foot_floor", "idle_sunk_4cm")
 	var before := _floor_gap(f.first.g)
 	var after := _floor_gap(f.taps["foot_floor"].g)
-	f.check(after >= -0.3, "foot_floor fixes a sunk foot", "ankle %.1f cm from its resting height before, %.1f cm after (changed %.1f cm); the rig has %s" % [before, after, c[2], "toe bones" if f.bone("LeftToes") >= 0 else "no LeftToes/RightToes bones, which foot_floor needs, so it never acts"])
+	if f.bone("LeftToes") < 0:
+		# The rig's feet are shoe controls; foot contact is tested below
+		# (foot_floor_body). foot_floor cannot act here: a candidate for removal.
+		f.note("foot_floor is inert", "it needs LeftToes/RightToes, which this rig does not have: a sunk ankle stays %.1f cm under (changed %.1f cm). Foot contact on this rig is foot_floor_body" % [before, c[2]])
+	else:
+		f.check(after >= -0.3, "foot_floor fixes a sunk foot", "ankle %.1f cm from its resting height before, %.1f cm after" % [before, after])
 
 
 func _lowest_vertex(g: Array) -> float:

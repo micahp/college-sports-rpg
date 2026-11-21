@@ -352,6 +352,16 @@ func note(what: String, detail: String) -> void:
 	print("  NOTE %s: %s" % [what, detail])
 
 
+## A capability the game does not require (leg IK): reported, never a gate failure.
+func optional(ok: bool, what: String, detail: String) -> void:
+	print("  OPTIONAL %s %s: %s" % ["PASS" if ok else "FAIL", what, detail])
+
+
+## A gameplay policy, not a property of the rig (the reach cap): reported for a decision.
+func policy(what: String, detail: String) -> void:
+	print("  POLICY %s: %s" % [what, detail])
+
+
 func finish(tree: SceneTree, gate: String) -> void:
 	print("%s: %d checks, %d failed%s" % [gate, checks, failures.size(), "" if failures.is_empty() else " -> FAIL"])
 	tree.quit(0 if failures.is_empty() else 1)

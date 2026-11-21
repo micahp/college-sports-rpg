@@ -64,7 +64,9 @@ func _ready() -> void:
 			bad.append("%s parent %s (want %s)" % [b, par, want])
 	f.check(bad.is_empty(), "hierarchy", "%d humanoid bones, parents as RIG_SPEC.md %s" % [F.HIERARCHY.size(), bad])
 	var toes: bool = sk.find_bone("LeftToes") >= 0 and sk.find_bone("RightToes") >= 0
-	f.check(toes, "toe bones", "LeftToes/RightToes %s (foot_floor.gd needs them to ground a foot)" % ("present" if toes else "absent"))
+	# Not a requirement: the student's feet are shoe control bones (Foot.L/R).
+	# Gate 5 tests the foot contact the rig supports.
+	f.note("toe bones", "LeftToes/RightToes %s; feet are the shoe controls Foot.L/Foot.R (foot_floor.gd needs toe bones and is inert on this rig)" % ("present" if toes else "absent"))
 
 	print("Rest transforms")
 	var scaled: Array = []

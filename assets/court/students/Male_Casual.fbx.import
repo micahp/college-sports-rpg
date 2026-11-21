@@ -43,7 +43,7 @@ _subresources={
 "nodes": {
 "PATH:HumanArmature/Skeleton3D": {
 "retarget/bone_map": Resource("res://assets/court/bonemap_student.tres"),
-"retarget/rest_fixer/fix_silhouette/enable": true
+"retarget/rest_fixer/fix_silhouette/enable": false
 }
 }
 }

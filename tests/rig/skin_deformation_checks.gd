@@ -102,6 +102,19 @@ func _ready() -> void:
 			if skin.get_bind_name(i) == "LeftLowerArm":
 				skin.set_bind_pose(i, Transform3D(Basis.IDENTITY, Vector3(0, 0.1 / f.metres_per_unit(), 0)) * skin.get_bind_pose(i))
 		mi.skin = skin
+	# Test-only skin variants, to see what the game's own skin edits do:
+	#   skin=no_reweight  the imported mesh weights (no _crotch_reweighted), the
+	#                     game's Hips->Spine bind rename kept
+	#   skin=raw          the imported mesh and skin, both untouched
+	for a in OS.get_cmdline_user_args():
+		if a in ["skin=no_reweight", "skin=raw"]:
+			var raw_scene: Node = (load(CourtPlayerModel.STUDENT) as PackedScene).instantiate()
+			var raw_mi: MeshInstance3D = CharacterAppearance.find_mesh(raw_scene)
+			mi.mesh = raw_mi.mesh
+			if a == "skin=raw":
+				mi.skin = raw_mi.skin
+			raw_scene.free()
+			print("skin variant: ", a.substr(5))
 	_build_mesh(mi)
 	var out_dir := "res://build/rig/gate2/"
 	var cams: Array = []

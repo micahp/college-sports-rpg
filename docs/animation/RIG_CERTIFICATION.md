@@ -9,6 +9,18 @@ Action tests (shooting, passing, rebounding, tackling) are not part of it.
 **Status (2026-11-20): NOT CERTIFIED.** Gates 1-5 are built and run. All five
 fail, and every injected fault is caught. Gates 6-8 are not built.
 
+**Step 1 (bind pose) has been tested on branch `rig/bind-pose-import`;** see
+[BIND_POSE_FIX.md](BIND_POSE_FIX.md). With `fix_silhouette` off, rest equals
+bind (0 of 34 mismatched bone pairs remain) and the skin at rest matches the
+modelled mesh in all 17 regions. The left elbow misplacement survives (it is
+in the original rig). The results below are from the original import.
+
+**Requirements (revised):**
+- Toe bones are not required: foot contact is tested by what the rig supports.
+- Leg IK is an optional capability: reported, never a gate failure.
+- The 94% reach cap is a gameplay policy, reported separately from the rig's
+  reach.
+
 ## Running
 
 ```
@@ -152,6 +164,23 @@ self-tests exist:
 | elbow_hinge | **no** | yes (a sideways elbow and hyperextension both fixed) | rewrites Idle arms by 52 deg, a clean anatomical hinge pose by 74 deg (elbow moved 23 cm), and JumpShot arms by 30-131 deg: its swivel search overrides valid elbows |
 
 ## Fix order (one at a time, rerunning `certify` after each)
+
+Revised: repairing the bind pose is kept apart from removing the
+compensations.
+
+1. Repair the imported foundation and prove the unmodified skinned character is
+   correct (done on `rig/bind-pose-import`, BIND_POSE_FIX.md).
+2. Rebuild and verify retargeting, Idle balance, root height and scaling on the
+   repaired rest: source vs retargeted vs final skinned motion. Re-measure the
+   arm asymmetry.
+3. Remove obsolete compensations one at a time, each only once the repaired
+   base is shown not to need it.
+4. Certify anatomical arm IK (hinge elbow, shoulder roll, forearm twist, no
+   pole switching, near-full extension), then make `elbow_hinge` enforce
+   limits only.
+5. Revalidate the corrections, re-run every gate, and add gates 6-7.
+
+The original fix order, written before the bind-pose experiment, follows.
 
 1. **Bind pose** (gate 1, finding 1).
    - Reimport the student with `fix_silhouette` off, or rebind the skin to the

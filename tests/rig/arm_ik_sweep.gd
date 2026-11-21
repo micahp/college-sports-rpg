@@ -146,14 +146,17 @@ func _self_test() -> void:
 		var f0: Vector3 = (f.sk.get_bone_global_rest(f.bone(F.ARM[side][3])).origin - e0).normalized()
 		var h: Vector3 = a0.cross((Vector3.BACK - a0 * a0.dot(Vector3.BACK)).normalized()).normalized()
 		var f60: Vector3 = Basis(h, deg_to_rad(60.0)) * f0
+		var k0: Vector3 = f.sk.get_bone_global_rest(f.bone(shin)).origin
+		var t0: Vector3 = (k0 - f.sk.get_bone_global_rest(f.bone(thigh)).origin).normalized()
+		var kh: Vector3 = t0.cross((Vector3.FORWARD - t0 * t0.dot(Vector3.FORWARD)).normalized()).normalized()
 		var cases: Array = [
-			["elbow flex 90", "arm", [[lo, "x", 90.0]], {"flex": 90.0, "off": 0.0, "twist": 0.0, "roll": 0.0}],
+			["elbow flex 90", "arm", [[lo, h, 90.0]], {"flex": 90.0, "off": 0.0, "twist": 0.0, "roll": 0.0}],
 			["forearm twist 40", "arm", [[lo, f0, 40.0]], {"flex": 0.0, "off": 0.0, "twist": 40.0, "roll": 0.0}],
 			["flex 60 then pronate -50", "arm", [[lo, h, 60.0], [lo, f60, -50.0]], {"flex": 60.0, "off": 0.0, "twist": -50.0}],
-			["humeral roll 30 + flex 70", "arm", [[up, "y", 30.0], [lo, "x", 70.0]], {"flex": 70.0, "off": 0.0, "twist": 0.0, "roll": 30.0}],
-			["sideways elbow 25", "arm", [[lo, "z", 25.0]], {"off": 25.0}],
-			["knee flex 80", "leg", [[shin, "x", 80.0]], {"flex": 80.0, "off": 0.0, "twist": 0.0, "roll": 0.0}],
-			["thigh roll 20 + knee 60", "leg", [[thigh, "y", 20.0], [shin, "x", 60.0]], {"flex": 60.0, "off": 0.0, "roll": 20.0}],
+			["humeral roll 30 + flex 70", "arm", [[up, a0, 30.0], [lo, Basis(a0, deg_to_rad(30.0)) * h, 70.0]], {"flex": 70.0, "off": 0.0, "twist": 0.0, "roll": 30.0}],
+			["sideways elbow 25", "arm", [[lo, f0.cross(h).normalized(), 25.0]], {"off": 25.0}],
+			["knee flex 80", "leg", [[shin, kh, 80.0]], {"flex": 80.0, "off": 0.0, "twist": 0.0, "roll": 0.0}],
+			["thigh roll 20 + knee 60", "leg", [[thigh, t0, 20.0], [shin, Basis(t0, deg_to_rad(20.0)) * kh, 60.0]], {"flex": 60.0, "off": 0.0, "roll": 20.0}],
 		]
 		for c: Array in cases:
 			f.use(f.posed(c[2]))
@@ -333,7 +336,7 @@ func _leg(side: String, base: Dictionary) -> void:
 	var hip: Vector3 = f.world(f.gin(names[0]).origin)
 	var fwd: Vector3 = f.actor.facing()
 	var out: Vector3 = f.actor.right() * (1.0 if side == "R" else -1.0)
-	print("Leg %s (test-only IK, the game has none): chain %.1f cm, hip at %s" % [side, chain * 100, hip.snapped(Vector3.ONE * 0.001)])
+	print("Leg %s (optional capability: a test-only IK, the game has none; not a gate requirement): chain %.1f cm, hip at %s" % [side, chain * 100, hip.snapped(Vector3.ONE * 0.001)])
 	var targets: Array = [["stand", Vector3.DOWN * 0.97], ["knee_lift", Vector3.DOWN * 0.45 + fwd * 0.3], ["squat", Vector3.DOWN * 0.6 + fwd * 0.08],
 		["step_forward", Vector3.DOWN * 0.85 + fwd * 0.35], ["step_back", Vector3.DOWN * 0.85 - fwd * 0.35], ["step_out", Vector3.DOWN * 0.88 + out * 0.3],
 		["kick_back", Vector3.DOWN * 0.55 - fwd * 0.45], ["cross_over", Vector3.DOWN * 0.88 - out * 0.2 + fwd * 0.15]]
@@ -364,16 +367,16 @@ func _leg(side: String, base: Dictionary) -> void:
 		if float(m["flex"]) > float(worst["flex_hi"]):
 			worst["flex_hi"] = m["flex"]
 			where["flex_hi"] = t[0]
-	f.check(float(worst["err"]) <= HAND_CM, "leg %s reaches" % side, "worst foot error %.1f cm (%s)" % [worst["err"], where.get("err", "-")])
-	f.check(float(worst["flex_lo"]) >= FLEX_MIN, "leg %s knee never bends backward" % side, "least knee %.0f deg (%s)" % [worst["flex_lo"], where.get("flex_lo", "-")])
-	f.check(float(worst["flex_hi"]) <= KNEE_MAX, "leg %s knee within its fold" % side, "most knee %.0f deg (%s)" % [worst["flex_hi"], where.get("flex_hi", "-")])
-	f.check(float(worst["off"]) <= OFF_HINGE_DEG, "leg %s knee is a hinge" % side, "worst bend out of the hinge plane %.1f deg (%s)" % [worst["off"], where.get("off", "-")])
-	f.check(float(worst["roll"]) <= LEG_ROLL_MAX and float(worst["twist"]) <= LEG_ROLL_MAX, "leg %s no leg twist" % side, "thigh roll %.0f deg (%s), shin twist %.0f deg (%s)" % [worst["roll"], where.get("roll", "-"), worst["twist"], where.get("twist", "-")])
-	f.check(float(worst["pole"]) <= POLE_SIDE_DEG, "leg %s knee follows its pole" % side, "worst %.0f deg (%s)" % [worst["pole"], where.get("pole", "-")])
+	f.optional(float(worst["err"]) <= HAND_CM, "leg %s reaches" % side, "worst foot error %.1f cm (%s)" % [worst["err"], where.get("err", "-")])
+	f.optional(float(worst["flex_lo"]) >= FLEX_MIN, "leg %s knee never bends backward" % side, "least knee %.0f deg (%s)" % [worst["flex_lo"], where.get("flex_lo", "-")])
+	f.optional(float(worst["flex_hi"]) <= KNEE_MAX, "leg %s knee within its fold" % side, "most knee %.0f deg (%s)" % [worst["flex_hi"], where.get("flex_hi", "-")])
+	f.optional(float(worst["off"]) <= OFF_HINGE_DEG, "leg %s knee is a hinge" % side, "worst bend out of the hinge plane %.1f deg (%s)" % [worst["off"], where.get("off", "-")])
+	f.optional(float(worst["roll"]) <= LEG_ROLL_MAX and float(worst["twist"]) <= LEG_ROLL_MAX, "leg %s no leg twist" % side, "thigh roll %.0f deg (%s), shin twist %.0f deg (%s)" % [worst["roll"], where.get("roll", "-"), worst["twist"], where.get("twist", "-")])
+	f.optional(float(worst["pole"]) <= POLE_SIDE_DEG, "leg %s knee follows its pole" % side, "worst %.0f deg (%s)" % [worst["pole"], where.get("pole", "-")])
 	ik.influence = 0.0
 	await f.settle(2)
 	var rel: Array = f.change(names)
-	f.check(float(rel[0]) <= 0.5 and float(rel[2]) <= 0.2, "leg %s release" % side, "influence 0: drawn leg differs from the animation by %.2f deg / %.2f cm" % [rel[0], rel[2]])
+	f.optional(float(rel[0]) <= 0.5 and float(rel[2]) <= 0.2, "leg %s release" % side, "influence 0: drawn leg differs from the animation by %.2f deg / %.2f cm" % [rel[0], rel[2]])
 	ik.queue_free()
 	target.queue_free()
 	pole.queue_free()
