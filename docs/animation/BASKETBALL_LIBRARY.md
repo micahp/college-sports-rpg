@@ -19,7 +19,18 @@ reference registry.
 - **Reference status:** *frame-read* = consecutive frames read (the watch-video
   method); *tagged* = spotted on a 4-5 s overview, window approximate, action not
   yet confirmed. Slow-motion replays (Phantom) give poses and order, **not
-  timing**; timing needs real-speed footage.
+  timing**; timing needs real-speed footage. `playback_speed.value` is the
+  estimated fraction of live speed (`1.0` = real time); the method and
+  uncertainty are recorded alongside every slow source and segment. The
+  Westbrook rebound replay is estimated at `0.52 ± 0.15×`, paired against the
+  May 10, 2021 live broadcast. Horford's putback is `0.47 ± 0.10×`, paired
+  against Game 5 live highlights. The Phantom compilation's representative
+  estimate is `0.28 ± 0.08×`: a quadratic fit to the descending ball in
+  `shot_tatum_ind` (1205.7–1206.5 s), with ball diameter (0.24 m) setting image
+  scale and rim height (3.05 m) anchoring the vertical reference. Its measured
+  downward acceleration is about `0.74 m/s²`; `sqrt(0.74 / 9.81) ≈ 0.28`.
+  This compilation value is a source-level proxy inherited by its segments,
+  not a per-clip measurement; clip-to-clip rate differences remain unmeasured.
 - **Motion status** (catalog skill): missing, candidate, imported, validated,
   rejected. *validated* means judged on the rendered mesh in the game; none is
   marked validated here yet, because no row has a rendered side-by-side with its
@@ -79,7 +90,7 @@ reference registry.
 |---|---|---|---|---|---|
 | jump_shot | `JumpShot` (CMU 124_05), arms rewritten by four layers (clip_fidelity) | 124_03, 124_05, 06_14-15 | shot_kawhi_tor, shot_tatum_*, shot_mitchell, shot_beal_iso, shot_george_lac, shot_buzzer_lakers, booker_shots_real (real speed) | imported | real-speed timing from Booker reel |
 | pull_up | `JumpShot` off the dribble | | shot_lillard, Booker reel | candidate | |
-| free_throw | none (uses `JumpShot`?) | 124_04 | ft_lebron (frame-checked: set and routine at the line) | missing | |
+| free_throw | none (uses `JumpShot`+/-) | 124_04 | ft_lebron (frame-checked: set and routine at the line) | missing | |
 | layup | `Layup` (CMU 124_06) | 124_06, 15_12 | layup_kyrie_bos, layup_mitchell, layup_lebron_por | imported | |
 | floater, fadeaway, hook | none in The U (authored in the gridiron library) | | none yet | missing | |
 | dunk | none | | dunk_westbrook, dunk_lebron_nyk, dunk_lebron_lal, dunk_zion, dunk_morant, dunk_collins | missing | |
