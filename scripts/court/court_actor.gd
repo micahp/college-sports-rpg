@@ -35,6 +35,9 @@ var w_r: float = 0.0
 var w_l: float = 0.0
 var pressure_stance := true
 var contest_lift := 0.0
+## Per side during a contest raise: [elbow direction when the raise began (body
+## frame), raise progress 0..1]. Set each frame by the game; cleared by pose_reset.
+var contest_pole: Dictionary = {}
 var goal_w_r: float = 0.0
 var goal_w_l: float = 0.0
 var lean_now: float = 0.0
@@ -757,6 +760,7 @@ func _run_gait(s: float) -> String:
 
 ## Clears pose goals; the game re-applies what it wants this frame.
 func pose_reset() -> void:
+	contest_pole.clear()
 	goal_w_r = 0.0
 	goal_w_l = 0.0
 	lean_goal = 0.0
@@ -890,7 +894,16 @@ func elbow_hint(side: String) -> Vector3:
 		# pole only picks which way the slight elbow bend points: forward and a
 		# little out, as in the reference photos. The old pole (out and DOWN)
 		# pulled the elbows out to the side at shoulder height (flex 71-86 deg).
-		return right() * sgn * 0.30 + facing() * 0.40 + Vector3.UP * 0.25
+		var top: Vector3 = (right() * sgn * 0.30 + facing() * 0.40 + Vector3.UP * 0.25).normalized()
+		# During the raise the elbow points where it did when the raise began
+		# and eases to the top direction as the arm comes up. Holding the top
+		# direction for the whole swing asked the shoulder for more twist than
+		# it has while the hand passed out to the side, and elbow_hinge
+		# straightened the arm (a 30 cm hand jump mid-raise).
+		if contest_pole.has(side):
+			var from: Vector3 = global_transform.basis * (contest_pole[side][0] as Vector3)
+			return from.normalized().slerp(top, clampf(float(contest_pole[side][1]), 0.0, 1.0))
+		return top
 	if elbow_up:
 		# Hand raised (calling for it, contesting): the elbow points out to the
 		# side and a little back and up, not straight back, which would pull
