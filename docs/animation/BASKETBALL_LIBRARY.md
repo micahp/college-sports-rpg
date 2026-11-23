@@ -11,8 +11,9 @@ reference registry.
 - **References:** `data/animation/basketball_references.json` (sources, segments,
   status). Links and timestamps only: the footage is not committed,
   redistributed or embedded. Local copies live outside the repo in
-  `C:/Users/micah/Videos/motion-reference/basketball/` (`sources/`, `clips/<action>/`,
+  `E:/motion-reference/basketball/` (`sources/`, `clips/<action>/`,
   `sheets/` overviews).
+- **Pose sample:** `docs/animation/samples/real-clip-pose/` (stick-figure video, two raw pose JSONs and a per-action noise table for all 201 clips).
 - **Tools:** `tools/reference/time_index.py` (labeled overview of a long video,
   for tagging), `tools/reference/cut_refs.py` (cuts registry segments into
   `clips/<action>/`, optional consecutive-frame sheets).
