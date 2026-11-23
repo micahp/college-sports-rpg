@@ -18,6 +18,23 @@ This is a sample of the pose pass run over the whole basketball reference librar
   - Format: `{source, fps, keypoints: "COCO-17 [x,y,conf]", frames: [{frame, t, people: [{id, box:[x1,y1,x2,y2], kp:[[x,y,conf] x17]}]}]}`.
   - Pixel coordinates are in the source video's frame. `people` is sorted by box area, largest first.
 
+- **`CLIP_SOURCES.md`** (and `CLIP_SOURCES.json`): all 201 library clips, by action. Each has what it shows and a link to the original video at the clip's start time.
+
+## Clips in the video, with sources (in play order)
+
+Each link opens the original at the clip's start, so you can compare the stick figure with the real player.
+
+1. **LeBron free throw** (`ft_lebron`): [PHANTOM: THE NBA IN SLOW MOTION @ 12:38](https://www.youtube.com/watch?v=8DEJ1rDp8MM&t=758s). This is a slow-motion replay, so the poses are real but the timing is not live speed.
+2. **Booker jump shot** (`booker_0000_jump_shot`, also the clean sample JSON): [Devin Booker top plays 2025-26 @ 0:00](https://www.youtube.com/watch?v=nFK9_WsL2lM&t=0s)
+3. **Booker layup** (`booker_0026_layup`): [Devin Booker top plays 2025-26 @ 0:26](https://www.youtube.com/watch?v=nFK9_WsL2lM&t=26s)
+4. **John Collins dunk** (`dunk_collins`): [PHANTOM: THE NBA IN SLOW MOTION @ 26:54](https://www.youtube.com/watch?v=8DEJ1rDp8MM&t=1614s). Slow motion.
+5. **Booker crossover** (`booker_0160_crossover`): [Devin Booker top plays 2025-26 @ 2:40](https://www.youtube.com/watch?v=nFK9_WsL2lM&t=160s)
+6. **Behind the back** (`behind_back_KuXTgWMwzmk_124`): [Jamal Crawford Ultimate Crossover Compilation @ 2:04](https://www.youtube.com/watch?v=KuXTgWMwzmk&t=124s)
+7. **Spin move** (`spin_move_OpbXeMo0O-U_155`): [NBA's Best Spin Moves 2018-19 @ 2:35](https://www.youtube.com/watch?v=OpbXeMo0O-U&t=155s)
+8. **Block, Mavs #55 v Celtics at the rim** (`block_mavs_bos`): [PHANTOM: THE NBA IN SLOW MOTION @ 30:58](https://www.youtube.com/watch?v=8DEJ1rDp8MM&t=1858s). Slow motion.
+9. **Defensive rebound tip, Hardwick high school** (`reb_def_tip_harwood_C`): [Boys Varsity Basketball v. Harwood, Jan 22 2026 (Wikimedia Commons)](https://commons.wikimedia.org/wiki/File:Boys_Varsity_Basketball_v._Harwood_-_January_22,_2026.webm). The link opens at the file page, not at the timestamp; the clip window is in `data/animation/basketball_references.json`.
+10. **Outlet pass** (`outlet_pass_G2LZwYgZMZo_147`, also the noisy sample JSON, and the half-speed replay at the end): [NBA 'Beautiful Pass' Moments @ 2:27](https://www.youtube.com/watch?v=G2LZwYgZMZo&t=147s)
+
 ## How it was made
 
 - `tools/reference/batch_pose.py`: Ultralytics YOLO11s-pose plus ByteTrack (`persist=True`, conf 0.3), on CPU. Clips above 45 fps are halved.
